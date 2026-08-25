@@ -3,10 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import SeleccionEmpresa from './pages/SeleccionEmpresa';
 
 // Placeholder for other components we will build
 const Dashboard = () => <div className="p-8 text-2xl">Dashboard Próximamente...</div>;
-const SeleccionEmpresa = () => <div className="p-8 text-2xl">Selección de Empresa Próximamente...</div>;
 const Registro = () => <div className="p-8 text-2xl">Registro Próximamente...</div>;
 
 const ProtectedRoute = ({ children }) => {
