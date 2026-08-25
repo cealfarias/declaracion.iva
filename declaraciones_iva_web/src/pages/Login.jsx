@@ -25,7 +25,7 @@ export default function Login() {
       
       if (response.data.access_token) {
         login(response.data.access_token, { nombre: response.data.nombre, id: response.data.id });
-        navigate('/empresas');
+        navigate('/dashboard');
       }
     } catch (err) {
       if (err.response?.status === 404) {

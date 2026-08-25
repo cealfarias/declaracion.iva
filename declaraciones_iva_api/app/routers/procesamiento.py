@@ -30,15 +30,11 @@ async def procesar_compras(
             
             # Persistencia en BD
             if periodo_id:
-                ident = dte_json.get("identificacion", {})
                 db_dte = DteProcesado(
                     periodo_id=periodo_id,
-                    tipo_anexo='compras',
-                    json_original=dte_json,
-                    fecha_emision=ident.get("fecEmi", ""),
-                    numero_control=ident.get("numeroControl", ""),
-                    codigo_generacion=ident.get("codigoGeneracion", ""),
-                    monto_total=str(dte_json.get("resumen", {}).get("montoTotalOperacion", 0))
+                    tipo_documento=dte_json.get("identificacion", {}).get("tipoDte", "00"),
+                    clasificacion='compra',
+                    datos_json=dte_json
                 )
                 db.add(db_dte)
         except Exception as e:
@@ -71,15 +67,11 @@ async def procesar_ventas(
             
             # Persistencia en BD
             if periodo_id:
-                ident = dte_json.get("identificacion", {})
                 db_dte = DteProcesado(
                     periodo_id=periodo_id,
-                    tipo_anexo='ventas_contribuyente',
-                    json_original=dte_json,
-                    fecha_emision=ident.get("fecEmi", ""),
-                    numero_control=ident.get("numeroControl", ""),
-                    codigo_generacion=ident.get("codigoGeneracion", ""),
-                    monto_total=str(dte_json.get("resumen", {}).get("montoTotalOperacion", 0))
+                    tipo_documento=dte_json.get("identificacion", {}).get("tipoDte", "03"),
+                    clasificacion='venta',
+                    datos_json=dte_json
                 )
                 db.add(db_dte)
         except Exception as e:
@@ -112,15 +104,11 @@ async def procesar_ventas_consumidor(
             
             # Persistencia en BD
             if periodo_id:
-                ident = dte_json.get("identificacion", {})
                 db_dte = DteProcesado(
                     periodo_id=periodo_id,
-                    tipo_anexo='ventas_consumidor',
-                    json_original=dte_json,
-                    fecha_emision=ident.get("fecEmi", ""),
-                    numero_control=ident.get("numeroControl", ""),
-                    codigo_generacion=ident.get("codigoGeneracion", ""),
-                    monto_total=str(dte_json.get("resumen", {}).get("montoTotalOperacion", 0))
+                    tipo_documento=dte_json.get("identificacion", {}).get("tipoDte", "01"),
+                    clasificacion='venta_consumidor',
+                    datos_json=dte_json
                 )
                 db.add(db_dte)
         except Exception as e:
