@@ -2,9 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AssistantProvider } from './contexts/AssistantContext';
 import Login from './pages/Login';
 import SeleccionEmpresa from './pages/SeleccionEmpresa';
 import Registro from './pages/Registro';
+import Avatar from './components/Avatar';
 
 import Dashboard from './pages/Dashboard';
 
@@ -40,9 +42,12 @@ function App() {
   return (
     <GoogleOAuthProvider clientId="231508841464-22ln2h2p8k524lb6njdqmsk7s9e9bvl7.apps.googleusercontent.com">
       <AuthProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
+        <AssistantProvider>
+          <Router>
+            <AppRoutes />
+            <Avatar />
+          </Router>
+        </AssistantProvider>
       </AuthProvider>
     </GoogleOAuthProvider>
   );
