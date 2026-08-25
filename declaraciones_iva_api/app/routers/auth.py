@@ -32,33 +32,38 @@ class GoogleToken(BaseModel):
 
 @router.post("/register")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="El correo ya está registrado.")
-    
-    # 1. Crear Usuario
-    hashed_password = get_password_hash(user.password)
-    new_user = Usuario(email=user.email, password_hash=hashed_password, nombre=user.nombre)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    # 2. Crear Empresa
-    nueva_empresa = Empresa(
-        razon_social=user.razon_social,
-        nit=user.nit,
-        nrc=user.nrc
-    )
-    db.add(nueva_empresa)
-    db.commit()
-    db.refresh(nueva_empresa)
-    
-    # 3. Vincular (1 Usuario = 1 Empresa)
-    vinculo = UsuarioEmpresa(usuario_id=new_user.id, empresa_id=nueva_empresa.id, rol="admin")
-    db.add(vinculo)
-    db.commit()
-    
-    return {"message": "Usuario y Empresa creados exitosamente", "id": new_user.id}
+    try:
+        db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
+        if db_user:
+            raise HTTPException(status_code=400, detail="El correo ya está registrado.")
+        
+        # 1. Crear Usuario
+        hashed_password = get_password_hash(user.password)
+        new_user = Usuario(email=user.email, password_hash=hashed_password, nombre=user.nombre)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        # 2. Crear Empresa
+        nueva_empresa = Empresa(
+            razon_social=user.razon_social,
+            nit=user.nit,
+            nrc=user.nrc
+        )
+        db.add(nueva_empresa)
+        db.commit()
+        db.refresh(nueva_empresa)
+        
+        # 3. Vincular (1 Usuario = 1 Empresa)
+        vinculo = UsuarioEmpresa(usuario_id=new_user.id, empresa_id=nueva_empresa.id, rol="admin")
+        db.add(vinculo)
+        db.commit()
+        
+        return {"message": "Usuario y Empresa creados exitosamente", "id": new_user.id}
+    except Exception as e:
+        db.rollback()
+        print(f"Error en register: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):

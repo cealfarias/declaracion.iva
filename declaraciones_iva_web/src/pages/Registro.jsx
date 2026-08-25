@@ -35,7 +35,7 @@ export default function Registro() {
       await axios.post(`${API_URL}/api/v1/auth/register`, {
         nombre: formData.nombre,
         email: formData.email,
-        password: formData.password,
+        password: formData.password || "google-auth-random-pass-xyz",
         razon_social: formData.razon_social,
         nit: formData.nit,
         nrc: formData.nrc
@@ -50,10 +50,32 @@ export default function Registro() {
     }
   };
 
+  const decodeJwt = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      return {};
+    }
+  };
+
   const handleGoogleSuccess = async (credentialResponse) => {
-    // Si queremos prellenar el formulario o manejar un login social para registro,
-    // podríamos hacerlo aquí, pero la API principal espera los datos de la empresa.
-    setError('Para registrarte con Google, asegúrate de llenar primero los datos de la empresa (Próximamente).');
+    const payload = decodeJwt(credentialResponse.credential);
+    if (payload.email) {
+      setFormData({
+        ...formData,
+        nombre: payload.name || '',
+        email: payload.email || '',
+        password: 'google-auth-random-pass-xyz'
+      });
+      setError('Datos de Google cargados. Por favor completa los Datos de Empresa y acepta los términos para finalizar.');
+    } else {
+      setError('No se pudo extraer la información de Google.');
+    }
   };
 
   return (
@@ -61,7 +83,23 @@ export default function Registro() {
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-extrabold text-slate-900">Registro en el Sistema</h2>
-          <p className="text-slate-500 mt-2">Crea tu cuenta y registra tu empresa para emitir anexos F-07</p>
+          <p className="text-slate-500 mt-2 mb-6">Crea tu cuenta y registra tu empresa para emitir anexos F-07</p>
+          
+          <div className="flex justify-center mb-6">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('No se pudo conectar con Google.')}
+              theme="outline"
+              size="large"
+              shape="pill"
+            />
+          </div>
+          
+          <div className="flex items-center justify-center space-x-4 mb-2">
+            <div className="h-px bg-slate-200 flex-1"></div>
+            <span className="text-sm text-slate-400">o ingresa tus datos manualmente</span>
+            <div className="h-px bg-slate-200 flex-1"></div>
+          </div>
         </div>
 
         {error && (
