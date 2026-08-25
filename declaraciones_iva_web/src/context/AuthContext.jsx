@@ -14,7 +14,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // In a real app, verify token and fetch user details here
     if (token) {
-      setUser({ nombre: localStorage.getItem('iva_user_name') || 'Usuario' });
+      let decodedId = null;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        decodedId = payload.id;
+      } catch (e) {
+        console.error("No se pudo decodificar el token", e);
+      }
+      
+      setUser({ 
+        nombre: localStorage.getItem('iva_user_name') || 'Usuario',
+        id: localStorage.getItem('iva_user_id') ? parseInt(localStorage.getItem('iva_user_id')) : decodedId
+      });
       
       const storedEmpresa = localStorage.getItem('iva_active_empresa');
       if (storedEmpresa) {
@@ -28,6 +39,7 @@ export function AuthProvider({ children }) {
     setUser(userData);
     localStorage.setItem('iva_token', newToken);
     localStorage.setItem('iva_user_name', userData.nombre);
+    if (userData.id) localStorage.setItem('iva_user_id', userData.id);
   };
 
   const logout = () => {
@@ -36,6 +48,7 @@ export function AuthProvider({ children }) {
     setActiveEmpresa(null);
     localStorage.removeItem('iva_token');
     localStorage.removeItem('iva_user_name');
+    localStorage.removeItem('iva_user_id');
     localStorage.removeItem('iva_active_empresa');
   };
 
