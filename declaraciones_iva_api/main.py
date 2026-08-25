@@ -8,10 +8,16 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Declaraciones de IVA API", version="1.0.0")
 
+origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://declaraciones.iva.demiempresa.online"
+]
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

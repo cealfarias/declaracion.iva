@@ -13,6 +13,11 @@ SQLALCHEMY_DATABASE_URL = os.getenv(
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Render requiere sslmode=require para conexiones externas a su DB
+if "render.com" in SQLALCHEMY_DATABASE_URL and "sslmode=require" not in SQLALCHEMY_DATABASE_URL:
+    join_char = "&" if "?" in SQLALCHEMY_DATABASE_URL else "?"
+    SQLALCHEMY_DATABASE_URL += f"{join_char}sslmode=require"
+
 # Si es SQLite, necesitamos connect_args. Si es PostgreSQL, no.
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
