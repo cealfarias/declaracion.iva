@@ -1,15 +1,19 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# Obtener URL desde variable de entorno (Render PostgreSQL) o usar SQLite local por defecto
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "sqlite:///./sql_app.db"
+)
 
-# We can use SQLite for local development, and PostgreSQL for production
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./declaraciones_iva.db")
+# Render a veces usa 'postgres://' en vez de 'postgresql://', SQLAlchemy requiere el segundo
+if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# SQLite needs connect_args={"check_same_thread": False}
+# Si es SQLite, necesitamos connect_args. Si es PostgreSQL, no.
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
