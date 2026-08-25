@@ -16,6 +16,28 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      const response = await axios.post(`${API_URL}/api/v1/auth/google`, {
+        token: credentialResponse.credential
+      });
+      
+      if (response.data.access_token) {
+        login(response.data.access_token, { nombre: response.data.nombre, id: response.data.id });
+        navigate('/empresas');
+      }
+    } catch (err) {
+      if (err.response?.status === 404) {
+        navigate('/registro');
+      } else {
+        setError(err.response?.data?.detail || 'Error al autenticar con Google.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -32,7 +54,11 @@ export default function Login() {
         navigate('/empresas');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión. Verifica tus credenciales.');
+      if (err.response?.status === 401 && err.response.data.detail.includes("registrado")) {
+        navigate('/registro');
+      } else {
+        setError(err.response?.data?.detail || 'Error al iniciar sesión. Verifica tus credenciales.');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,12 +169,9 @@ export default function Login() {
 
           <div className="mt-8 flex justify-center">
             <GoogleLogin
-              onSuccess={credentialResponse => {
-                console.log(credentialResponse);
-                // Implement Google Auth logic here
-              }}
+              onSuccess={handleGoogleSuccess}
               onError={() => {
-                console.log('Login Failed');
+                setError('Falló la conexión con Google');
               }}
               theme="outline"
               size="large"
