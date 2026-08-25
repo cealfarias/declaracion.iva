@@ -48,31 +48,31 @@ export default function Login() {
           alt="Declaración de IVA" 
           className="absolute inset-0 w-full h-full object-cover"
         />
-        <div className="relative z-20 flex flex-col justify-center p-12 text-white">
-          <div className="bg-slate-900/30 p-8 rounded-2xl backdrop-blur-md border border-white/20 shadow-2xl">
-            <h1 className="text-4xl font-extrabold mb-4 tracking-tight">Cumplimiento Tributario Simplificado</h1>
-            <p className="text-lg text-indigo-100 mb-6 leading-relaxed">
+        <div className="relative z-20 flex flex-col justify-center p-8 lg:p-12 text-white">
+          <div className="bg-slate-900/30 p-6 rounded-2xl backdrop-blur-md border border-white/20 shadow-2xl max-w-lg">
+            <h1 className="text-2xl lg:text-3xl font-extrabold mb-3 tracking-tight">Cumplimiento Tributario Simplificado</h1>
+            <p className="text-sm lg:text-base text-indigo-100 mb-5 leading-relaxed">
               Genera tus Anexos F-07 (Compras, Ventas a Contribuyentes y Consumidor Final) de manera automática a partir de tus archivos DTE.
             </p>
             
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-indigo-300 mt-1 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-indigo-300 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <span className="text-indigo-50 font-medium">Extrae datos precisos con base en la normativa vigente del Ministerio de Hacienda.</span>
+                <span className="text-indigo-50 text-sm font-medium">Extrae datos precisos con base en la normativa del Ministerio de Hacienda.</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-indigo-300 mt-1 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-indigo-300 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <span className="text-indigo-50 font-medium">Optimiza tu tiempo de horas a segundos.</span>
+                <span className="text-indigo-50 text-sm font-medium">Optimiza tu tiempo de horas a segundos.</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-indigo-300 mt-1 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-indigo-300 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
-                <span className="text-indigo-50 font-medium">Sistema Multi-Empresa para llevar el control de múltiples clientes.</span>
+                <span className="text-indigo-50 text-sm font-medium">Sistema Multi-Empresa para control de múltiples clientes.</span>
               </li>
             </ul>
           </div>
