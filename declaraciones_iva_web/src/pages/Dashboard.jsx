@@ -25,9 +25,13 @@ export default function Dashboard() {
   ];
 
   const handleFileChange = (e, tipo) => {
+    const allFiles = Array.from(e.target.files);
+    // Filtrar solo los archivos .json de la carpeta seleccionada
+    const jsonFiles = allFiles.filter(file => file.name.toLowerCase().endsWith('.json'));
+    
     setArchivos({
       ...archivos,
-      [tipo]: Array.from(e.target.files)
+      [tipo]: jsonFiles
     });
   };
 
@@ -153,12 +157,12 @@ export default function Dashboard() {
               
               <div className="mt-3 text-xs bg-white border border-slate-300 p-2 text-center text-slate-500 rounded hover:bg-slate-100">
                 {archivos.compras.length > 0 ? (
-                  <span className="font-bold text-green-600">{archivos.compras.length} archivos seleccionados</span>
+                  <span className="font-bold text-green-600">{archivos.compras.length} archivos JSON listos</span>
                 ) : (
-                  <span>Haz clic aquí para seleccionar archivos JSON</span>
+                  <span>Haz clic para seleccionar la carpeta contenedora</span>
                 )}
               </div>
-              <input type="file" multiple accept=".json" className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
+              <input type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
             </label>
           </div>
 
@@ -173,12 +177,12 @@ export default function Dashboard() {
               
               <div className="mt-3 text-xs bg-white border border-slate-300 p-2 text-center text-slate-500 rounded hover:bg-slate-100">
                 {archivos.ventasContribuyentes.length > 0 ? (
-                  <span className="font-bold text-green-600">{archivos.ventasContribuyentes.length} archivos seleccionados</span>
+                  <span className="font-bold text-green-600">{archivos.ventasContribuyentes.length} archivos JSON listos</span>
                 ) : (
-                  <span>Haz clic aquí para seleccionar archivos JSON</span>
+                  <span>Haz clic para seleccionar la carpeta contenedora</span>
                 )}
               </div>
-              <input type="file" multiple accept=".json" className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
+              <input type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
             </label>
           </div>
 
@@ -193,12 +197,12 @@ export default function Dashboard() {
               
               <div className="mt-3 text-xs bg-white border border-slate-300 p-2 text-center text-slate-500 rounded hover:bg-slate-100">
                 {archivos.ventasConsumidor.length > 0 ? (
-                  <span className="font-bold text-green-600">{archivos.ventasConsumidor.length} archivos seleccionados</span>
+                  <span className="font-bold text-green-600">{archivos.ventasConsumidor.length} archivos JSON listos</span>
                 ) : (
-                  <span>Haz clic aquí para seleccionar archivos JSON</span>
+                  <span>Haz clic para seleccionar la carpeta contenedora</span>
                 )}
               </div>
-              <input type="file" multiple accept=".json" className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
+              <input type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
             </label>
           </div>
 
