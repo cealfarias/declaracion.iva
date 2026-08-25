@@ -44,35 +44,41 @@ export default function Dashboard() {
     archivos[tipo].forEach(file => {
       formData.append('files', file);
     });
+    
+    // Pasar metadata para validaciones
+    formData.append('mes', mes);
+    formData.append('anio', anio);
+    formData.append('usuario_id', user.id);
 
     try {
       const response = await axios.post(`${API_URL}/api/v1/${endpoint}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        responseType: 'json' // Cambiado a JSON
+        responseType: 'json' 
       });
 
-      // Extraer datos del JSON
-      const { csv, resumen: resumen_data } = response.data;
+      const { csv, resumen: resumen_data, registros, omitidos } = response.data;
       
-      // Actualizar el estado del resumen
       setResumen((prev) => ({
         ...prev,
-        [tipo]: { ...resumen_data, filename }
+        [tipo]: { ...resumen_data, filename, registros, omitidos }
       }));
 
       // Descargar CSV automáticamente
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${filename}_${mes}_${anio}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
+      if (csv && csv.trim().length > 0) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${filename}_${mes}_${anio}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+      }
       
       setMessages(prev => [...prev, { text: `✅ ${filename} procesado con éxito.`, type: 'success' }]);
     } catch (error) {
-      setMessages(prev => [...prev, { text: `❌ Error al procesar ${filename}.`, type: 'error' }]);
+      const errMsg = error.response?.data?.detail || `Error al procesar ${filename}`;
+      setMessages(prev => [...prev, { text: `❌ ${errMsg}`, type: 'error' }]);
     }
   };
 
@@ -98,7 +104,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-100 font-sans">
       {/* Header Superior Blanco */}
       <div className="bg-white py-6 flex flex-col items-center justify-center shadow-sm relative">
-        <h1 className="text-3xl text-slate-700 font-normal">Declaraciones IVA</h1>
+        <h1 className="text-3xl text-slate-700 font-normal">Procesamiento de Declaración de IVA</h1>
         <h2 className="text-xl text-slate-600 font-light mt-1">Generador de Anexos F-07</h2>
         <p className="text-sm text-slate-500 mt-1">demiempresa.online</p>
         
@@ -125,10 +131,10 @@ export default function Dashboard() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto p-6 mt-6">
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 mt-6">
         
         <div className="text-center mb-8">
-          <h3 className="text-xl font-bold text-slate-800 uppercase tracking-wide">Procesamiento de Declaraciones F-07</h3>
+          <h3 className="text-xl font-bold text-slate-800 uppercase tracking-wide">Procesamiento de Declaración de IVA</h3>
         </div>
         
         {/* Panel de Período Fiscal */}
@@ -154,9 +160,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Panel de Archivos (Estilo MH Botones Rectangulares) */}
+        {/* Panel de Archivos */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          
           {/* Compras */}
           <div className="flex bg-slate-50 border border-blue-300 rounded overflow-hidden shadow-sm hover:shadow-md transition">
             <div className="w-16 bg-[#337ab7] flex items-center justify-center text-white shrink-0">
@@ -216,7 +221,6 @@ export default function Dashboard() {
               <input type="file" webkitdirectory="true" directory="true" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
             </label>
           </div>
-
         </div>
 
         {/* Console / Status */}
@@ -231,14 +235,14 @@ export default function Dashboard() {
         )}
 
         {/* Submit Button */}
-        <div className="flex justify-center mt-12 mb-10">
+        <div className="flex justify-center mt-6 mb-10">
           <button 
             onClick={handleProcesarTodo}
             disabled={loading || (archivos.compras.length === 0 && archivos.ventasContribuyentes.length === 0 && archivos.ventasConsumidor.length === 0)}
             className="bg-[#004b79] hover:bg-[#00385c] text-white font-bold py-3 px-10 rounded shadow transition-all focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:shadow-none text-sm uppercase tracking-wide flex items-center space-x-3"
           >
             {loading ? (
-              <span>Generando Anexos CSV...</span>
+              <span>Generando Anexos y Validando...</span>
             ) : (
               <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
@@ -248,21 +252,24 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Cuadro Resumen */}
+        {/* Cuadro Resumen Extendido (Grilla de Datos) */}
         {resumen && (
           <div className="bg-white border border-blue-300 rounded shadow-sm p-6 mb-8 mt-4 border-t-4 border-t-[#004b79]">
-            <h2 className="text-lg font-bold text-[#004b79] uppercase mb-6 text-center border-b pb-4">Cuadro Resumen de Declaración</h2>
-            <div className="space-y-6">
+            <h2 className="text-lg font-bold text-[#004b79] uppercase mb-6 text-center border-b pb-4">Detalle y Validación de Declaración</h2>
+            <div className="space-y-12">
               {Object.keys(resumen).map((tipoKey) => {
                 const data = resumen[tipoKey];
                 return (
                   <div key={tipoKey} className="bg-slate-50 p-4 rounded border border-slate-200">
-                    <h3 className="font-bold text-slate-700 uppercase mb-4 text-sm">{data.filename.replace(/_/g, ' ')}</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-white p-3 rounded border border-slate-200 text-center">
-                        <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">DTEs Válidos</p>
-                        <p className="text-lg font-bold text-[#004b79]">{data.documentos}</p>
-                      </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-700 uppercase text-sm">{data.filename.replace(/_/g, ' ')}</h3>
+                      <span className="text-xs px-3 py-1 bg-[#004b79] text-white rounded-full">
+                        {data.documentos} DTEs Validados
+                      </span>
+                    </div>
+
+                    {/* Resumen Numeros */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                       <div className="bg-white p-3 rounded border border-slate-200 text-center">
                         <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">Monto Gravado</p>
                         <p className="text-lg font-bold text-[#004b79]">${data.gravado.toFixed(2)}</p>
@@ -275,7 +282,76 @@ export default function Dashboard() {
                         <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">Total General</p>
                         <p className="text-lg font-bold text-[#004b79]">${data.total.toFixed(2)}</p>
                       </div>
+                      <div className="bg-white p-3 rounded border border-slate-200 text-center">
+                        <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">Omitidos / Rechazados</p>
+                        <p className="text-lg font-bold text-red-600">{data.omitidos?.length || 0}</p>
+                      </div>
                     </div>
+
+                    {/* Tabla de Registros Exitosos */}
+                    {data.registros && data.registros.length > 0 && (
+                      <div className="overflow-x-auto bg-white border border-slate-200 rounded">
+                        <table className="w-full text-left text-xs whitespace-nowrap">
+                          <thead className="bg-[#004b79] text-white uppercase font-semibold">
+                            <tr>
+                              <th className="px-4 py-2 border-r border-[#00385c]">Fecha</th>
+                              <th className="px-4 py-2 border-r border-[#00385c]">Tipo</th>
+                              <th className="px-4 py-2 border-r border-[#00385c]">Núm. Documento</th>
+                              <th className="px-4 py-2 border-r border-[#00385c]">NIT/NRC</th>
+                              <th className="px-4 py-2 border-r border-[#00385c]">Razón Social</th>
+                              <th className="px-4 py-2 border-r border-[#00385c] text-right">Gravado ($)</th>
+                              <th className="px-4 py-2 border-r border-[#00385c] text-right">IVA ($)</th>
+                              <th className="px-4 py-2 text-right">Total ($)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="text-slate-600 divide-y divide-slate-100">
+                            {data.registros.map((row, idx) => {
+                              // Adaptación de los índices de CSV según el anexo para previsualizar:
+                              let fecha, tipo, doc, nit, nombre, gravado, iva, total;
+                              if (tipoKey === 'compras') {
+                                fecha = row[0]; tipo = row[2]; doc = row[3]; nit = row[4]; nombre = row[5];
+                                gravado = (parseFloat(row[9]) + parseFloat(row[11]) + parseFloat(row[12])).toFixed(2);
+                                iva = row[13]; total = row[14];
+                              } else if (tipoKey === 'ventasContribuyentes') {
+                                fecha = row[0]; tipo = row[2]; doc = row[5]; nit = row[7]; nombre = row[8];
+                                gravado = row[11]; iva = row[12]; total = row[15];
+                              } else {
+                                fecha = row[0]; tipo = row[2]; doc = row[7]; nit = "N/A"; nombre = "Consumidor Final";
+                                gravado = row[13]; iva = "0.00"; total = row[19];
+                              }
+                              
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50">
+                                  <td className="px-4 py-2 border-r border-slate-100">{fecha}</td>
+                                  <td className="px-4 py-2 border-r border-slate-100 text-center">{tipo}</td>
+                                  <td className="px-4 py-2 border-r border-slate-100 font-mono">{doc}</td>
+                                  <td className="px-4 py-2 border-r border-slate-100">{nit}</td>
+                                  <td className="px-4 py-2 border-r border-slate-100 truncate max-w-[200px]" title={nombre}>{nombre}</td>
+                                  <td className="px-4 py-2 border-r border-slate-100 text-right">{gravado}</td>
+                                  <td className="px-4 py-2 border-r border-slate-100 text-right">{iva}</td>
+                                  <td className="px-4 py-2 text-right font-bold">{total}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Alertas de Omitidos */}
+                    {data.omitidos && data.omitidos.length > 0 && (
+                      <div className="mt-4 bg-red-50 border border-red-200 rounded p-4">
+                        <h4 className="font-bold text-red-700 text-sm mb-2 flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                          Documentos Omitidos (No incluidos en el CSV)
+                        </h4>
+                        <ul className="list-disc pl-5 text-xs text-red-600 space-y-1">
+                          {data.omitidos.map((omi, idx) => (
+                            <li key={idx}><strong>{omi.archivo}</strong>: {omi.motivo}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -284,6 +360,7 @@ export default function Dashboard() {
         )}
 
       </main>
+    </div>ain>
     </div>
   );
 }
