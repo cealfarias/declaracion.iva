@@ -423,7 +423,6 @@ export default function Dashboard() {
         )}
 
       </main>
-    </div>ain>
     </div>
   );
 }
