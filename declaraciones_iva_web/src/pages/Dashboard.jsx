@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const APP_VERSION = "v1.2 (Commit 302147d)";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -143,6 +144,9 @@ export default function Dashboard() {
         <div className="absolute right-6 top-6 text-right hidden sm:block">
           <p className="text-sm font-semibold text-slate-700">Usuario Activo:</p>
           <p className="text-sm text-slate-600">{user?.nombre || 'Usuario'}</p>
+          <p className="text-xs font-mono text-slate-400 mt-1 px-2 py-0.5 bg-slate-100 rounded-full border border-slate-200">
+            {APP_VERSION}
+          </p>
         </div>
       </div>
 
@@ -254,14 +258,32 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Console / Status */}
+        {/* Asistente Virtual / Avatar de Mensajes */}
         {messages.length > 0 && (
-          <div className="mb-8 bg-slate-800 rounded p-4 text-sm font-mono text-slate-300 border-l-4 border-[#337ab7]">
-            {messages.map((msg, i) => (
-              <div key={i} className={msg.type === 'error' ? 'text-red-400' : 'text-green-400'}>
-                {msg.text}
+          <div className="mb-8 flex items-end space-x-4 max-w-4xl mx-auto">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#004b79] to-[#337ab7] flex items-center justify-center shadow-lg border-2 border-white shrink-0 animate-bounce-short">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div className="flex-1 bg-white p-5 rounded-2xl rounded-bl-none shadow-md border border-blue-100 relative">
+              <div className="absolute w-4 h-4 bg-white border-b border-l border-blue-100 transform rotate-45 -left-[8.5px] bottom-5"></div>
+              <p className="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider flex items-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Asistente del Sistema
+              </p>
+              <div className="space-y-3">
+                {messages.map((msg, i) => {
+                  const cleanText = msg.text.replace('✅', '').replace('❌', '').replace('ℹ️', '').trim();
+                  return (
+                    <div key={i} className={`text-sm flex items-start ${msg.type === 'error' ? 'text-red-700 bg-red-50 p-2 rounded' : 'text-[#004b79] bg-blue-50 p-2 rounded'}`}>
+                      <span className="mr-2 text-lg leading-none">{msg.type === 'error' ? '❌' : (msg.text.includes('ℹ️') ? 'ℹ️' : '✅')}</span>
+                      <span className="font-medium">{cleanText}</span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            </div>
           </div>
         )}
 
