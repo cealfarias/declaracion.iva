@@ -36,6 +36,32 @@ export default function Dashboard() {
   };
 
   const [resumen, setResumen] = useState(null);
+  
+  // Nuevo useEffect para buscar automáticamente si hay datos en el periodo seleccionado
+  useEffect(() => {
+    const checkPeriodo = async () => {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_URL}/api/v1/procesar/consultar`, {
+          params: { mes, anio, usuario_id: user.id }
+        });
+        
+        if (response.data?.data) {
+          setResumen(response.data.data);
+          setMessages([{ text: `ℹ️ Se cargaron los datos guardados para ${mes}/${anio}.`, type: 'success' }]);
+        } else {
+          setResumen(null);
+          setMessages([]);
+        }
+      } catch (error) {
+        console.error("Error buscando periodo", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkPeriodo();
+  }, [mes, anio, user]);
 
   const processFiles = async (tipo, endpoint, filename) => {
     if (archivos[tipo].length === 0) return;
@@ -45,7 +71,6 @@ export default function Dashboard() {
       formData.append('files', file);
     });
     
-    // Pasar metadata para validaciones
     formData.append('mes', mes);
     formData.append('anio', anio);
     formData.append('usuario_id', user.id);
@@ -60,32 +85,36 @@ export default function Dashboard() {
       
       setResumen((prev) => ({
         ...prev,
-        [tipo]: { ...resumen_data, filename, registros, omitidos }
+        [tipo]: { ...resumen_data, filename, registros, omitidos, csv }
       }));
 
       // Descargar CSV automáticamente
       if (csv && csv.trim().length > 0) {
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${filename}_${mes}_${anio}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        link.parentNode.removeChild(link);
+        descargarCSV(csv, filename);
       }
       
-      setMessages(prev => [...prev, { text: `✅ ${filename} procesado con éxito.`, type: 'success' }]);
+      setMessages(prev => [...prev, { text: `✅ Nuevos DTEs de ${filename} procesados y guardados.`, type: 'success' }]);
     } catch (error) {
       const errMsg = error.response?.data?.detail || `Error al procesar ${filename}`;
       setMessages(prev => [...prev, { text: `❌ ${errMsg}`, type: 'error' }]);
     }
   };
 
+  const descargarCSV = (csvString, filename) => {
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${filename}_${mes}_${anio}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+  };
+
   const handleProcesarTodo = async () => {
     setLoading(true);
     setMessages([]);
-    setResumen(null);
+    // Conservamos resumen previo por si estamos agregando nuevos DTEs
     
     if (archivos.compras.length > 0) {
       await processFiles('compras', 'procesar/compras', 'F07_Anexo_Compras');
@@ -97,6 +126,8 @@ export default function Dashboard() {
       await processFiles('ventasConsumidor', 'procesar/ventas-consumidor', 'F07_Anexo_Ventas_FCF');
     }
     
+    // Limpiar archivos despues de subidos
+    setArchivos({ compras: [], ventasContribuyentes: [], ventasConsumidor: [] });
     setLoading(false);
   };
 
@@ -263,9 +294,19 @@ export default function Dashboard() {
                   <div key={tipoKey} className="bg-slate-50 p-4 rounded border border-slate-200">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-bold text-slate-700 uppercase text-sm">{data.filename.replace(/_/g, ' ')}</h3>
-                      <span className="text-xs px-3 py-1 bg-[#004b79] text-white rounded-full">
-                        {data.documentos} DTEs Validados
-                      </span>
+                      <div className="space-x-3">
+                        <span className="text-xs px-3 py-1 bg-[#004b79] text-white rounded-full">
+                          {data.documentos} DTEs Validados
+                        </span>
+                        {data.csv && (
+                          <button 
+                            onClick={() => descargarCSV(data.csv, data.filename)}
+                            className="text-xs px-3 py-1 bg-green-600 hover:bg-green-700 transition text-white rounded shadow-sm"
+                          >
+                            Descargar CSV
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Resumen Numeros */}
