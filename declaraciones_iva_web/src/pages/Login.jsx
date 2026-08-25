@@ -42,14 +42,14 @@ export default function Login() {
     <div className="min-h-screen flex bg-white">
       {/* Panel Izquierdo - Imagen y Frases (Oculto en móviles) */}
       <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="absolute inset-0 bg-indigo-900/40 z-10"></div>
+        <div className="absolute inset-0 bg-slate-900/20 z-10"></div>
         <img 
           src={bgIva} 
           alt="Declaración de IVA" 
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="relative z-20 flex flex-col justify-center p-12 text-white">
-          <div className="bg-indigo-900/70 p-8 rounded-2xl backdrop-blur-sm border border-indigo-500/30 shadow-2xl">
+          <div className="bg-slate-900/30 p-8 rounded-2xl backdrop-blur-md border border-white/20 shadow-2xl">
             <h1 className="text-4xl font-extrabold mb-4 tracking-tight">Cumplimiento Tributario Simplificado</h1>
             <p className="text-lg text-indigo-100 mb-6 leading-relaxed">
               Genera tus Anexos F-07 (Compras, Ventas a Contribuyentes y Consumidor Final) de manera automática a partir de tus archivos DTE.
