@@ -46,7 +46,7 @@ export default function Dashboard() {
     // formData.append('periodo_id', 1);
 
     try {
-      const response = await axios.post(`${API_URL}/api/v1/procesamiento/${endpoint}`, formData, {
+      const response = await axios.post(`${API_URL}/api/v1/${endpoint}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         responseType: 'blob'
       });
