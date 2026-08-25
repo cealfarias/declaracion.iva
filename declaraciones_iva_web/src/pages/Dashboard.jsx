@@ -35,6 +35,8 @@ export default function Dashboard() {
     });
   };
 
+  const [resumen, setResumen] = useState(null);
+
   const processFiles = async (tipo, endpoint, filename) => {
     if (archivos[tipo].length === 0) return;
     
@@ -42,17 +44,25 @@ export default function Dashboard() {
     archivos[tipo].forEach(file => {
       formData.append('files', file);
     });
-    // Puedes incluir el periodo_id si luego agregas la lógica de periodos en la BD
-    // formData.append('periodo_id', 1);
 
     try {
       const response = await axios.post(`${API_URL}/api/v1/${endpoint}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        responseType: 'blob'
+        responseType: 'json' // Cambiado a JSON
       });
 
-      // Descargar CSV
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      // Extraer datos del JSON
+      const { csv, resumen: resumen_data } = response.data;
+      
+      // Actualizar el estado del resumen
+      setResumen((prev) => ({
+        ...prev,
+        [tipo]: { ...resumen_data, filename }
+      }));
+
+      // Descargar CSV automáticamente
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `${filename}_${mes}_${anio}.csv`);
@@ -69,6 +79,7 @@ export default function Dashboard() {
   const handleProcesarTodo = async () => {
     setLoading(true);
     setMessages([]);
+    setResumen(null);
     
     if (archivos.compras.length > 0) {
       await processFiles('compras', 'procesar/compras', 'F07_Anexo_Compras');
@@ -236,6 +247,41 @@ export default function Dashboard() {
             )}
           </button>
         </div>
+
+        {/* Cuadro Resumen */}
+        {resumen && (
+          <div className="bg-white border border-blue-300 rounded shadow-sm p-6 mb-8 mt-4 border-t-4 border-t-[#004b79]">
+            <h2 className="text-lg font-bold text-[#004b79] uppercase mb-6 text-center border-b pb-4">Cuadro Resumen de Declaración</h2>
+            <div className="space-y-6">
+              {Object.keys(resumen).map((tipoKey) => {
+                const data = resumen[tipoKey];
+                return (
+                  <div key={tipoKey} className="bg-slate-50 p-4 rounded border border-slate-200">
+                    <h3 className="font-bold text-slate-700 uppercase mb-4 text-sm">{data.filename.replace(/_/g, ' ')}</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-white p-3 rounded border border-slate-200 text-center">
+                        <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">DTEs Válidos</p>
+                        <p className="text-lg font-bold text-[#004b79]">{data.documentos}</p>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-slate-200 text-center">
+                        <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">Monto Gravado</p>
+                        <p className="text-lg font-bold text-[#004b79]">${data.gravado.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-slate-200 text-center">
+                        <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">Crédito / Débito Fiscal</p>
+                        <p className="text-lg font-bold text-[#004b79]">${data.iva.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-white p-3 rounded border border-slate-200 text-center">
+                        <p className="text-xs text-slate-500 font-semibold mb-1 uppercase">Total General</p>
+                        <p className="text-lg font-bold text-[#004b79]">${data.total.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
       </main>
     </div>

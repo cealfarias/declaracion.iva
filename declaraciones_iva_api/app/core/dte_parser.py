@@ -2,9 +2,8 @@ import json
 from datetime import datetime
 
 def format_date(date_str):
-    # Convierte "2026-07-16" a "16/07/2026"
     try:
-        d = datetime.strptime(date_str, "%Y-%m-%d")
+        d = datetime.strptime(date_str[:10], "%Y-%m-%d")
         return d.strftime("%d/%m/%Y")
     except Exception:
         return date_str
@@ -12,60 +11,96 @@ def format_date(date_str):
 def parse_compras(dte: dict):
     """
     Convierte JSON DTE a la fila de CSV para Anexo 3 (Compras)
+    Utilizando exactamente las reglas de negocio provistas por el usuario.
     """
     ident = dte.get("identificacion", {})
     emisor = dte.get("emisor", {})
     resumen = dte.get("resumen", {})
     
-    fecha = format_date(ident.get("fecEmi", ""))
-    clase = "4" # DTE
-    tipo_doc = ident.get("tipoDte", "")
+    tipo = ident.get("tipoDte", "")
+    fecha_raw = ident.get("fecEmi", "")
+    fecha_csv = format_date(fecha_raw)
     
-    # D: Código de Generación sin guiones para DTE en Compras
-    num_doc = ident.get("codigoGeneracion", "").replace("-", "")
+    codigo_gen = ident.get("codigoGeneracion", "")
+    codigo_gen = str(codigo_gen).replace('-', '').strip().upper() if codigo_gen else ''
     
-    nit_prov = emisor.get("nit", "").replace("-", "")
-    nombre_prov = emisor.get("nombre", "")
-    
-    compras_exentas = resumen.get("totalNoSuj", 0) + resumen.get("totalExenta", 0)
-    compras_gravadas = resumen.get("totalGravada", 0)
-    
-    # Buscar IVA (Código 20)
+    # EXTRACCIÓN DE MONTOS
     iva = 0.0
-    for trib in resumen.get("tributos", []):
-        if trib.get("codigo") == "20":
-            iva += trib.get("valor", 0)
-            
-    total = resumen.get("montoTotalOperacion", 0)
+    total_exenta = resumen.get('totalExenta', 0.0) or 0.0
+    total_gravada = resumen.get('totalGravada', 0.0) or 0.0
     
+    for trib in resumen.get('tributos', []) or []:
+        if trib.get('codigo') == '20':
+            iva = float(trib.get('valor', 0.0))
+            break
+            
+    if iva == 0.0 and total_gravada > 0:
+        iva = round(float(total_gravada) * 0.13, 2)
+    
+    # ASIGNACIÓN COLUMNAS MH
+    g = h = i = j = k = l = m = 0.0
+    if tipo in ['03', '05', '06', '11']:
+        g = float(total_exenta)
+        j = float(total_gravada)
+    elif tipo == '12':
+        i = float(total_exenta)
+        l = float(total_gravada)
+    elif tipo in ['13', '14']:
+        i = float(total_exenta)
+        m = float(total_gravada)
+    else:
+        # Default fallback
+        g = float(total_exenta)
+        j = float(total_gravada)
+    
+    total_compras_neto = g + h + i + j + k + l + m
+    clase_doc = '4'
+    
+    if tipo == '14' and 'sujetoExcluido' in dte:
+        prov_data = dte['sujetoExcluido'] or {}
+    else:
+        prov_data = emisor or {}
+        
+    nit_nrc = str(prov_data.get('nit', '') or prov_data.get('nrc', ''))
+    nombre_prov = str(prov_data.get('nombre', '')).replace(';', ' ').replace('"', '').replace("'", "").strip().upper()
+    
+    dui = prov_data.get('dui', '') or prov_data.get('documento', '') or prov_data.get('numDocumento', '')
+    dui_limpio = ''
+    if dui:
+        dui_str = str(dui).strip().replace('-', '').replace(' ', '')
+        if dui_str.isdigit() and (8 <= len(dui_str) <= 9):
+            dui_limpio = dui_str
+    
+    if dui_limpio:
+        nit_nrc_final = ''
+    else:
+        nit_nrc_final = nit_nrc.replace('-','').replace('/','').strip()
+        
     return [
-        fecha,                      # A. FECHA
-        clase,                      # B. CLASE DOC
-        tipo_doc,                   # C. TIPO DOC
-        num_doc,                    # D. NUM DOCUMENTO (Cod Generacion)
-        nit_prov,                   # E. NIT PROVEEDOR
-        nombre_prov,                # F. NOMBRE PROVEEDOR
-        f"{compras_exentas:.2f}",   # G. COMPRAS EXENTAS / NO SUJETAS
-        "0.00",                     # H. INTERNACIONES EXENTAS
-        "0.00",                     # I. IMPORTACIONES EXENTAS
-        f"{compras_gravadas:.2f}",  # J. COMPRAS GRAVADAS
-        "0.00",                     # K. INTERNACIONES GRAVADAS
-        "0.00",                     # L. IMPORTACIONES GRAVADAS
-        "0.00",                     # M. IMPORTACIONES SERVICIOS
-        f"{iva:.2f}",               # N. CREDITO FISCAL (IVA)
-        f"{total:.2f}",             # O. TOTAL COMPRAS
-        "",                         # P. DUI
-        "1",                        # Q. TIPO OPERACION (1=Gravada)
-        "2",                        # R. CLASIFICACION (2=Gasto)
-        "2",                        # S. SECTOR (2=Comercio)
-        "2",                        # T. TIPO COSTO/GASTO (2=Administracion)
-        "3"                         # U. NUMERO ANEXO (3)
+        fecha_csv,              # A
+        clase_doc,              # B
+        tipo,                   # C
+        codigo_gen,             # D
+        nit_nrc_final,          # E
+        nombre_prov,            # F
+        f"{g:.2f}",             # G
+        f"{h:.2f}",             # H
+        f"{i:.2f}",             # I
+        f"{j:.2f}",             # J
+        f"{k:.2f}",             # K
+        f"{l:.2f}",             # L
+        f"{m:.2f}",             # M
+        f"{iva:.2f}",           # N
+        f"{total_compras_neto:.2f}", # O
+        dui_limpio,             # P
+        "1",                    # Q
+        "2",                    # R
+        "2",                    # S
+        "2",                    # T
+        "3"                     # U
     ]
 
 def parse_ventas_contribuyente(dte: dict):
-    """
-    Convierte JSON DTE a la fila de CSV para Anexo 1 (Ventas a Contribuyentes)
-    """
     ident = dte.get("identificacion", {})
     receptor = dte.get("receptor", {})
     resumen = dte.get("resumen", {})
@@ -75,100 +110,56 @@ def parse_ventas_contribuyente(dte: dict):
     clase = "4" # DTE
     tipo_doc = ident.get("tipoDte", "03")
     
-    # Resolucion = Numero de Control sin guiones para DTE
     resolucion = ident.get("numeroControl", "").replace("-", "")
-    # Serie = Sello de recepcion
     serie = resp.get("selloRecibido", "")
-    # Numero Doc = Codigo Generacion sin guiones
     num_doc = ident.get("codigoGeneracion", "").replace("-", "")
     
-    nit_cliente = receptor.get("nit", "").replace("-", "")
+    nit_cliente = str(receptor.get("nit", "")).replace("-", "")
     if not nit_cliente:
-        nit_cliente = receptor.get("nrc", "").replace("-", "")
+        nit_cliente = str(receptor.get("nrc", "")).replace("-", "")
         
-    nombre_cliente = receptor.get("nombre", "")
+    nombre_cliente = str(receptor.get("nombre", "")).replace(";", " ")
     
-    exentas = resumen.get("totalExenta", 0)
-    no_sujetas = resumen.get("totalNoSuj", 0)
-    gravadas = resumen.get("totalGravada", 0)
+    exentas = float(resumen.get("totalExenta", 0))
+    no_sujetas = float(resumen.get("totalNoSuj", 0))
+    gravadas = float(resumen.get("totalGravada", 0))
     
     iva = 0.0
     for trib in resumen.get("tributos", []):
         if trib.get("codigo") == "20":
-            iva += trib.get("valor", 0)
+            iva += float(trib.get("valor", 0))
             
-    total = resumen.get("montoTotalOperacion", 0)
+    total = float(resumen.get("montoTotalOperacion", 0))
     
     return [
-        fecha,                   # A
-        clase,                   # B
-        tipo_doc,                # C
-        resolucion,              # D
-        serie,                   # E
-        num_doc,                 # F
-        "",                      # G. Num Control Interno (Blanco para DTE)
-        nit_cliente,             # H
-        nombre_cliente,          # I
-        f"{exentas:.2f}",        # J
-        f"{no_sujetas:.2f}",     # K
-        f"{gravadas:.2f}",       # L
-        f"{iva:.2f}",            # M. DEBITO FISCAL
-        "0.00",                  # N. VENTAS A TERCEROS
-        "0.00",                  # O. DEBITO TERCEROS
-        f"{total:.2f}",          # P. TOTAL
-        "",                      # Q. DUI
-        "1",                     # R. TIPO OPERACION (1=Gravada)
-        "3",                     # S. TIPO INGRESO (3=Comerciales)
-        "1",                     # T. ANEXO (1)
+        fecha, clase, tipo_doc, resolucion, serie, num_doc, "",
+        nit_cliente, nombre_cliente,
+        f"{exentas:.2f}", f"{no_sujetas:.2f}", f"{gravadas:.2f}",
+        f"{iva:.2f}", "0.00", "0.00", f"{total:.2f}", "",
+        "1", "3", "1"
     ]
 
 def parse_ventas_consumidor(dte: dict):
-    """
-    Convierte JSON DTE a la fila de CSV para Anexo 2 (Ventas a Consumidor Final)
-    """
     ident = dte.get("identificacion", {})
     resumen = dte.get("resumen", {})
     resp = dte.get("responseMH", {})
     
     fecha = format_date(ident.get("fecEmi", ""))
-    clase = "4" # DTE
+    clase = "4" 
     tipo_doc = ident.get("tipoDte", "01")
     
-    # D: Resolución = Número de Control sin guiones para DTE
     resolucion = ident.get("numeroControl", "").replace("-", "")
-    # E: Serie = Sello de recepcion
     serie = resp.get("selloRecibido", "")
-    # H e I: Número Doc DEL / AL = Código de Generación sin guiones
     num_doc = ident.get("codigoGeneracion", "").replace("-", "")
     
-    exentas = resumen.get("totalExenta", 0)
-    no_sujetas = resumen.get("totalNoSuj", 0)
-    gravadas = resumen.get("totalGravada", 0)
-    total = resumen.get("montoTotalOperacion", 0)
+    exentas = float(resumen.get("totalExenta", 0))
+    no_sujetas = float(resumen.get("totalNoSuj", 0))
+    gravadas = float(resumen.get("totalGravada", 0))
+    total = float(resumen.get("montoTotalOperacion", 0))
     
     return [
-        fecha,                   # A. FECHA DE EMISION
-        clase,                   # B. CLASE DE DOCUMENTO
-        tipo_doc,                # C. TIPO DE DOCUMENTO
-        resolucion,              # D. NUMERO DE RESOLUCION
-        serie,                   # E. SERIE DE DOCUMENTO
-        "",                      # F. NUMERO DE CONTROL INTERNO (DEL)
-        "",                      # G. NUMERO DE CONTROL INTERNO (AL)
-        num_doc,                 # H. NUMERO DE DOCUMENTO (DEL)
-        num_doc,                 # I. NUMERO DE DOCUMENTO (AL)
-        "",                      # J. N DE MAQUINA REGISTRADORA
-        f"{exentas:.2f}",        # K. VENTAS EXENTAS
-        "0.00",                  # L. VENTAS INTERNAS EXENTAS NO SUJETAS A PROPORCIONALIDAD
-        f"{no_sujetas:.2f}",     # M. VENTAS NO SUJETAS
-        f"{gravadas:.2f}",       # N. VENTAS GRAVADAS LOCALES
-        "0.00",                  # O. EXPORTACIONES DENTRO DE CA
-        "0.00",                  # P. EXPORTACIONES FUERA DE CA
-        "0.00",                  # Q. EXPORTACIONES DE SERVICIOS
-        "0.00",                  # R. VENTAS A ZONAS FRANCAS Y DPA
-        "0.00",                  # S. VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS
-        f"{total:.2f}",          # T. TOTAL VENTAS
-        "1",                     # U. TIPO DE OPERACION (1=Gravada)
-        "3",                     # V. TIPO DE INGRESO (3=Actividades Comerciales)
-        "2"                      # W. NUMERO DE ANEXO (2)
+        fecha, clase, tipo_doc, resolucion, serie, "", "", num_doc, num_doc, "",
+        f"{exentas:.2f}", "0.00", f"{no_sujetas:.2f}", f"{gravadas:.2f}",
+        "0.00", "0.00", "0.00", "0.00", "0.00", f"{total:.2f}",
+        "1", "3", "2"
     ]
-
