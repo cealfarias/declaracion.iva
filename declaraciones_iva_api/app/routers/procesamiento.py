@@ -89,12 +89,12 @@ async def procesar_compras(
             es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'compras', file.filename, db)
             
             if not es_valido:
-                omitidos.append({"archivo": file.filename, "motivo": resultado})
+                omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             codigo_gen = resultado
             if codigo_gen in codigos_vistos:
-                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en este mismo lote de archivos"})
+                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en este mismo lote de archivos", "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             codigos_vistos.add(codigo_gen)
@@ -116,9 +116,9 @@ async def procesar_compras(
                 datos_json=dte_json
             ))
         except json.JSONDecodeError:
-            omitidos.append({"archivo": file.filename, "motivo": "Archivo no es un JSON válido"})
+            omitidos.append({"archivo": file.filename, "motivo": "Archivo no es un JSON válido", "contenido": content.decode("utf-8", errors="ignore")})
         except Exception as e:
-            omitidos.append({"archivo": file.filename, "motivo": f"Error estructural: {str(e)}"})
+            omitidos.append({"archivo": file.filename, "motivo": f"Error estructural: {str(e)}", "contenido": content.decode("utf-8", errors="ignore")})
             
     db.commit()
             
@@ -155,11 +155,11 @@ async def procesar_ventas(
             dte_json = json.loads(content)
             es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas', file.filename, db)
             if not es_valido:
-                omitidos.append({"archivo": file.filename, "motivo": resultado})
+                omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             if resultado in codigos_vistos:
-                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en lote"})
+                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en lote", "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
             codigos_vistos.add(resultado)
             
@@ -176,7 +176,7 @@ async def procesar_ventas(
             
             db.add(DteProcesado(periodo_id=periodo.id, tipo_documento="03", clasificacion='venta', datos_json=dte_json))
         except Exception as e:
-            omitidos.append({"archivo": file.filename, "motivo": str(e)})
+            omitidos.append({"archivo": file.filename, "motivo": str(e), "contenido": content.decode("utf-8", errors="ignore")})
             
     db.commit()
             
@@ -213,11 +213,11 @@ async def procesar_ventas_consumidor(
             dte_json = json.loads(content)
             es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas', file.filename, db)
             if not es_valido:
-                omitidos.append({"archivo": file.filename, "motivo": resultado})
+                omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             if resultado in codigos_vistos:
-                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en lote"})
+                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en lote", "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
             codigos_vistos.add(resultado)
             
@@ -233,7 +233,7 @@ async def procesar_ventas_consumidor(
             
             db.add(DteProcesado(periodo_id=periodo.id, tipo_documento="01", clasificacion='venta_consumidor', datos_json=dte_json))
         except Exception as e:
-            omitidos.append({"archivo": file.filename, "motivo": str(e)})
+            omitidos.append({"archivo": file.filename, "motivo": str(e), "contenido": content.decode("utf-8", errors="ignore")})
             
     db.commit()
             
