@@ -1,14 +1,17 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Terminos() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, login } = useAuth();
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  const fromGuard = location.state?.fromGuard || false;
 
   const handleAccept = async () => {
     if (!accepted) return;
@@ -105,7 +108,7 @@ export default function Terminos() {
           </section>
         </div>
 
-        {user && (
+        {fromGuard && (
           <div style={{ marginTop: '3rem', borderTop: '1px solid #e2e8f0', paddingTop: '2rem' }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer' }}>
               <input 

@@ -16,7 +16,7 @@ const ProtectedRoute = ({ children, requireTerms = true }) => {
   if (!token) return <Navigate to="/login" />;
   
   if (requireTerms && user && user.terminos_aceptados !== true) {
-    return <Navigate to="/terminos" />;
+    return <Navigate to="/terminos" state={{ fromGuard: true }} />;
   }
   
   if (!requireTerms && user && user.terminos_aceptados === true) {
