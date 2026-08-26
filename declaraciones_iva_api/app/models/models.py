@@ -10,6 +10,7 @@ class Usuario(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     nombre = Column(String, nullable=False)
+    terminos_aceptados = Column(Boolean, default=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresas = relationship("UsuarioEmpresa", back_populates="usuario")

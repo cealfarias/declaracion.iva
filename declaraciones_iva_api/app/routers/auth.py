@@ -75,7 +75,7 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(
         data={"sub": db_user.email, "id": db_user.id}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer", "nombre": db_user.nombre, "id": db_user.id}
+    return {"access_token": access_token, "token_type": "bearer", "nombre": db_user.nombre, "id": db_user.id, "terminos_aceptados": db_user.terminos_aceptados}
 
 @router.post("/google")
 def google_login(token_data: GoogleToken, db: Session = Depends(get_db)):
@@ -93,7 +93,7 @@ def google_login(token_data: GoogleToken, db: Session = Depends(get_db)):
         access_token = create_access_token(
             data={"sub": db_user.email, "id": db_user.id}, expires_delta=access_token_expires
         )
-        return {"access_token": access_token, "token_type": "bearer", "nombre": db_user.nombre, "id": db_user.id}
+        return {"access_token": access_token, "token_type": "bearer", "nombre": db_user.nombre, "id": db_user.id, "terminos_aceptados": db_user.terminos_aceptados}
         
     except ValueError:
         raise HTTPException(status_code=401, detail="Token de Google inválido")
@@ -102,3 +102,16 @@ def google_login(token_data: GoogleToken, db: Session = Depends(get_db)):
     except Exception as e:
         print("Error en Google Auth:", e)
         raise HTTPException(status_code=500, detail="Error interno en autenticación")
+
+class TerminosAccept(BaseModel):
+    usuario_id: int
+
+@router.post("/aceptar-terminos")
+def aceptar_terminos(req: TerminosAccept, db: Session = Depends(get_db)):
+    user = db.query(Usuario).filter(Usuario.id == req.usuario_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    user.terminos_aceptados = True
+    db.commit()
+    return {"message": "Términos aceptados correctamente"}

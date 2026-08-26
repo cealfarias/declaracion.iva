@@ -11,6 +11,7 @@ from sqlalchemy import text
 try:
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE iva_empresas ADD COLUMN combustible_50_porciento BOOLEAN DEFAULT FALSE;"))
+        conn.execute(text("ALTER TABLE iva_usuarios ADD COLUMN terminos_aceptados BOOLEAN DEFAULT FALSE;"))
 except Exception as e:
     # La columna ya existe o hay un error, se ignora
     pass
