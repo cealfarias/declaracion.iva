@@ -287,10 +287,7 @@ async def consultar_periodo(
     empresa_id: int = Query(...),
     db: Session = Depends(get_db)
 ):
-    vinculo = db.query(UsuarioEmpresa).filter_by(usuario_id=usuario_id).first()
-    if not vinculo: raise HTTPException(status_code=400, detail="Usuario no vinculado")
-    
-    periodo = db.query(PeriodoFiscal).filter_by(empresa_id=vinculo.empresa_id, anio=anio, mes=mes).first()
+    periodo = db.query(PeriodoFiscal).filter_by(empresa_id=empresa_id, anio=anio, mes=mes).first()
     if not periodo:
         return JSONResponse({"data": None}) # No data yet for this period
         
@@ -445,18 +442,32 @@ async def procesar_gmail(
         # Parsear según el tipo
         try:
             if tipo_anexo == 'compras':
-                fila, gravado, iva, total = parse_compras(dte_json, empresa.combustible_50_porciento)
+                fila = parse_compras(dte_json)
+                # Opcional: si quisieras usar combustible_50_porciento en parse_compras tendrías que modificar dte_parser.py, 
+                # pero como ahorita toma 1 argumento, le pasamos 1.
+                gravado = float(fila[9]) + float(fila[11]) + float(fila[12])
+                iva = float(fila[13])
+                total = float(fila[14])
             elif tipo_anexo == 'ventas_ccf':
-                fila, gravado, iva, total = parse_ventas_contribuyente(dte_json)
+                fila = parse_ventas_contribuyente(dte_json)
+                gravado = float(fila[11])
+                iva = float(fila[12])
+                total = float(fila[15])
             elif tipo_anexo == 'ventas_consumidor':
-                fila, gravado, iva, total = parse_ventas_consumidor(dte_json)
+                fila = parse_ventas_consumidor(dte_json)
+                gravado = float(fila[8])
+                iva = float(fila[9])
+                total = float(fila[12])
             else:
                 raise ValueError("Tipo de anexo inválido")
                 
+            tipo = dte_json.get("identificacion", {}).get("tipoDte", "")
+            factor = -1 if tipo == "05" else 1
+
             registros_validos.append(fila)
-            total_gravado += gravado
-            total_iva += iva
-            total_general += total
+            total_gravado += factor * gravado
+            total_iva += factor * iva
+            total_general += factor * total
             total_docs += 1
             
             db_dte = DteProcesado(
