@@ -13,18 +13,19 @@ def fetch_dtes_from_gmail(access_token: str, anio: int, mes: int, nit: str = Non
     creds = Credentials(token=access_token)
     service = build('gmail', 'v1', credentials=creds)
 
-    # Determinar el último día del mes
-    _, last_day = calendar.monthrange(anio, mes)
-    
+    # Determinar el mes siguiente para el before (exclusivo)
+    if mes == 12:
+        next_anio = anio + 1
+        next_mes = 1
+    else:
+        next_anio = anio
+        next_mes = mes + 1
+        
     start_date = f"{anio}/{mes:02d}/01"
-    end_date = f"{anio}/{mes:02d}/{last_day}"
+    end_date = f"{next_anio}/{next_mes:02d}/01"
     
-    # Query de búsqueda
-    # Opcionalmente, agregamos el NIT al texto de búsqueda para reducir resultados irrelevantes
+    # Query de búsqueda solo por adjuntos JSON y fechas
     query = f"has:attachment filename:json after:{start_date} before:{end_date}"
-    if nit:
-        nit_limpio = nit.replace("-", "")
-        query += f' "{nit_limpio}"'
 
     print(f"Buscando en Gmail con query: {query}")
     
