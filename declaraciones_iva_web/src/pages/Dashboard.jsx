@@ -7,7 +7,7 @@ import axios from 'axios';
 const APP_VERSION = "v1.9 (Formato Contable)";
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, activeEmpresa } = useAuth();
   const { say, enqueueMessages } = useAssistant();
 
   const fmt = (val) => {
@@ -43,14 +43,15 @@ export default function Dashboard() {
   const cargarDatosHistoricos = async (isAutoLoad = false) => {
     try {
       const resp = await axios.get(`${API_URL}/api/v1/procesar/consultar`, {
-        params: { mes, anio, usuario_id: user?.id || 1 }
+        params: { mes, anio, empresa_id: activeEmpresa?.id || 1 }
       });
       if (resp.data.data === null) {
         setResumen(null);
       } else {
         setResumen(resp.data.data);
         if (isAutoLoad) {
-          enqueueMessages([{ text: "Se cargaron los libros precargados del mes desde la base de datos.", type: "success" }]);
+          const nombreMes = meses.find(m => m.id === mes)?.nombre || '';
+          enqueueMessages([{ text: `Se cargaron los libros precargados del mes ${nombreMes} desde la base de datos.`, type: "success" }]);
         }
         if(resp.data.data.remanente_anterior) setRemanenteAnterior(resp.data.data.remanente_anterior);
       }
@@ -370,7 +371,7 @@ export default function Dashboard() {
   const handleGuardarLiquidacion = async () => {
     try {
       await axios.post(`${API_URL}/api/v1/procesar/guardar-remanente`, {
-        mes, anio, usuario_id: user?.id || 1, remanente_anterior: parseFloat(remanenteAnterior) || 0.0
+        mes, anio, empresa_id: activeEmpresa?.id || 1, remanente_anterior: parseFloat(remanenteAnterior) || 0.0
       });
       enqueueMessages([{ text: "Liquidación y remanente guardados con éxito.", type: 'success' }]);
     } catch (error) {

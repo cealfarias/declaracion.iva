@@ -21,6 +21,7 @@ class Empresa(Base):
     razon_social = Column(String, nullable=False)
     nit = Column(String, unique=True, index=True, nullable=False)
     nrc = Column(String, unique=True, index=True, nullable=False)
+    combustible_50_porciento = Column(Boolean, default=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     usuarios = relationship("UsuarioEmpresa", back_populates="empresa")

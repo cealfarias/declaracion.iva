@@ -14,6 +14,7 @@ class EmpresaCreate(BaseModel):
     nit: str
     nrc: str = None
     actividad_economica: str = None
+    combustible_50_porciento: bool = False
     usuario_id: int # El ID del usuario creador (temporal)
 
 @router.post("/empresas")
@@ -23,7 +24,7 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db)):
         razon_social=empresa.razon_social,
         nit=empresa.nit,
         nrc=empresa.nrc,
-        actividad_economica=empresa.actividad_economica
+        combustible_50_porciento=empresa.combustible_50_porciento
     )
     db.add(db_empresa)
     db.commit()
@@ -49,6 +50,7 @@ def get_empresas(usuario_id: int, db: Session = Depends(get_db)):
             "id": v.empresa.id,
             "razon_social": v.empresa.razon_social,
             "nit": v.empresa.nit,
-            "nrc": v.empresa.nrc
+            "nrc": v.empresa.nrc,
+            "combustible_50_porciento": v.empresa.combustible_50_porciento
         })
     return empresas

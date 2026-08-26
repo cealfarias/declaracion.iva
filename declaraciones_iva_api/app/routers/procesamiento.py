@@ -74,13 +74,11 @@ async def procesar_compras(
     files: List[UploadFile] = File(...), 
     mes: int = Form(...),
     anio: int = Form(...),
-    usuario_id: int = Form(...),
+    empresa_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
-    vinculo = db.query(UsuarioEmpresa).filter_by(usuario_id=usuario_id).first()
-    if not vinculo: raise HTTPException(status_code=400, detail="Usuario no tiene empresa vinculada")
-        
-    empresa = vinculo.empresa
+    empresa = db.query(Empresa).filter_by(id=empresa_id).first()
+    if not empresa: raise HTTPException(status_code=400, detail="Empresa no encontrada")
     emp_nrc, emp_nit = empresa.nrc.replace("-", ""), empresa.nit.replace("-", "")
     periodo = get_or_create_periodo(db, empresa.id, anio, mes)
 
@@ -152,7 +150,7 @@ async def procesar_ventas(
     files: List[UploadFile] = File(...),
     mes: int = Form(...),
     anio: int = Form(...),
-    usuario_id: int = Form(...),
+    empresa_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
     vinculo = db.query(UsuarioEmpresa).filter_by(usuario_id=usuario_id).first()
@@ -220,7 +218,7 @@ async def procesar_ventas_consumidor(
     files: List[UploadFile] = File(...),
     mes: int = Form(...),
     anio: int = Form(...),
-    usuario_id: int = Form(...),
+    empresa_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
     vinculo = db.query(UsuarioEmpresa).filter_by(usuario_id=usuario_id).first()
@@ -286,7 +284,7 @@ async def procesar_ventas_consumidor(
 async def consultar_periodo(
     mes: int = Query(...),
     anio: int = Query(...),
-    usuario_id: int = Query(...),
+    empresa_id: int = Query(...),
     db: Session = Depends(get_db)
 ):
     vinculo = db.query(UsuarioEmpresa).filter_by(usuario_id=usuario_id).first()

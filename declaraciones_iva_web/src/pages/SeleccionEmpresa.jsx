@@ -9,7 +9,7 @@ export default function SeleccionEmpresa() {
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newEmpresa, setNewEmpresa] = useState({ razon_social: '', nit: '', nrc: '' });
+  const [newEmpresa, setNewEmpresa] = useState({ razon_social: '', nit: '', nrc: '', actividad_economica: '', combustible_50_porciento: false });
   
   const { user, token, selectEmpresa, logout } = useAuth();
   const navigate = useNavigate();
