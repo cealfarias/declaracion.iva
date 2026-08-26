@@ -17,12 +17,8 @@ export default function Terminos() {
     try {
       await axios.post(`${API_URL}/api/v1/auth/aceptar-terminos`, { usuario_id: user.id });
       // Update local storage and context
-      const userData = JSON.parse(localStorage.getItem('user'));
-      if (userData) {
-        userData.terminos_aceptados = true;
-        localStorage.setItem('user', JSON.stringify(userData));
-        login(userData, localStorage.getItem('token'));
-      }
+      const updatedUser = { ...user, terminos_aceptados: true };
+      login(localStorage.getItem('iva_token'), updatedUser);
       navigate('/dashboard');
     } catch (error) {
       console.error("Error aceptando términos:", error);

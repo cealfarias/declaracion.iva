@@ -24,7 +24,8 @@ export function AuthProvider({ children }) {
       
       setUser({ 
         nombre: localStorage.getItem('iva_user_name') || 'Usuario',
-        id: localStorage.getItem('iva_user_id') ? parseInt(localStorage.getItem('iva_user_id')) : decodedId
+        id: localStorage.getItem('iva_user_id') ? parseInt(localStorage.getItem('iva_user_id')) : decodedId,
+        terminos_aceptados: localStorage.getItem('iva_terminos_aceptados') === 'true'
       });
       
       const storedEmpresa = localStorage.getItem('iva_active_empresa');
@@ -40,6 +41,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem('iva_token', newToken);
     localStorage.setItem('iva_user_name', userData.nombre);
     if (userData.id) localStorage.setItem('iva_user_id', userData.id);
+    if (userData.terminos_aceptados !== undefined) {
+      localStorage.setItem('iva_terminos_aceptados', userData.terminos_aceptados);
+    }
   };
 
   const logout = () => {
