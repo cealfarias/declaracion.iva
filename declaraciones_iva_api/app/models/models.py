@@ -25,7 +25,6 @@ class Empresa(Base):
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     usuarios = relationship("UsuarioEmpresa", back_populates="empresa")
-    periodos = relationship("PeriodoFiscal", back_populates="empresa")
 
 class UsuarioEmpresa(Base):
     __tablename__ = "iva_usuario_empresa"
@@ -38,26 +37,4 @@ class UsuarioEmpresa(Base):
     usuario = relationship("Usuario", back_populates="empresas")
     empresa = relationship("Empresa", back_populates="usuarios")
 
-class PeriodoFiscal(Base):
-    __tablename__ = "iva_periodos_fiscales"
 
-    id = Column(Integer, primary_key=True, index=True)
-    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"))
-    anio = Column(Integer, nullable=False)
-    mes = Column(Integer, nullable=False)
-    estado = Column(String, default="borrador")  # borrador, cerrado
-    
-    empresa = relationship("Empresa", back_populates="periodos")
-    dtes = relationship("DteProcesado", back_populates="periodo")
-
-class DteProcesado(Base):
-    __tablename__ = "iva_dtes_procesados"
-
-    id = Column(Integer, primary_key=True, index=True)
-    periodo_id = Column(Integer, ForeignKey("iva_periodos_fiscales.id"))
-    tipo_documento = Column(String, nullable=False)  # CCF, FCF, NC, ND
-    clasificacion = Column(String, nullable=False)  # compra, venta
-    datos_json = Column(JSON, nullable=False)
-    fecha_procesamiento = Column(DateTime, default=datetime.utcnow)
-
-    periodo = relationship("PeriodoFiscal", back_populates="dtes")

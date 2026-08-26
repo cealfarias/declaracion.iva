@@ -32,12 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.routers import procesamiento, auth, empresas, periodos
+from app.routers import auth, empresas
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(empresas.router, prefix="/api/v1", tags=["Empresas"])
-app.include_router(periodos.router, prefix="/api/v1", tags=["Periodos"])
-app.include_router(procesamiento.router, prefix="/api/v1", tags=["Procesamiento"])
 
 @app.get("/")
 def root():
