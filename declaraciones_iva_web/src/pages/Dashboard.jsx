@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
 
-const APP_VERSION = "v1.6 (API Fix)";
+const APP_VERSION = "v1.7 (Data Fix)";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [activeTabs, setActiveTabs] = useState({ compras: 'admitidos', ventasContribuyentes: 'admitidos', ventasConsumidor: 'admitidos' });
   const [activeWizardTab, setActiveWizardTab] = useState('subir_detalle');
   const [selectedJson, setSelectedJson] = useState('');
+  const [remanenteAnterior, setRemanenteAnterior] = useState(0.0);
 
   const meses = [
     { id: 1, nombre: 'Enero' }, { id: 2, nombre: 'Febrero' }, { id: 3, nombre: 'Marzo' },
@@ -42,7 +43,8 @@ export default function Dashboard() {
       if (resp.data.data === null) {
         setResumen(null);
       } else {
-        setResumen(resp.data);
+        setResumen(resp.data.data);
+        if(resp.data.data.remanente_anterior) setRemanenteAnterior(resp.data.data.remanente_anterior);
       }
     } catch (error) {
       console.error("Error al cargar datos del periodo:", error);
@@ -287,9 +289,21 @@ export default function Dashboard() {
 
   const sumaVentasGravadas = (resumen?.ventasContribuyentes?.gravado || 0) + (resumen?.ventasConsumidor?.gravado || 0);
   const debitoFiscalReal = sumaVentasGravadas * 0.13;
-  const creditoFiscalReal = (resumen?.compras?.iva || 0);
+  const creditoFiscalReal = (resumen?.compras?.iva || 0) + remanenteAnterior;
   const impuestoDeterminado = debitoFiscalReal > creditoFiscalReal ? debitoFiscalReal - creditoFiscalReal : 0;
   const remanenteFavor = creditoFiscalReal > debitoFiscalReal ? creditoFiscalReal - debitoFiscalReal : 0;
+
+  
+  const handleGuardarLiquidacion = async () => {
+    try {
+      await axios.post(`${API_URL}/api/v1/procesar/guardar-remanente`, {
+        mes, anio, usuario_id: user?.id || 1, remanente_anterior: parseFloat(remanenteAnterior) || 0.0
+      });
+      enqueueMessages([{ text: "Liquidación y remanente guardados con éxito.", type: 'success' }]);
+    } catch (error) {
+      enqueueMessages([{ text: "Error al guardar: " + error.message, type: 'error' }]);
+    }
+  };
 
   const TabButton = ({ id, icon, label }) => (
     <button 
@@ -508,13 +522,23 @@ export default function Dashboard() {
                       <span className="font-mono text-lg text-red-600 font-bold">${debitoFiscalReal.toFixed(2)}</span>
                     </td>
                     <td className="px-6 py-4 flex justify-between items-center border-l border-slate-200">
-                      <span className="font-bold text-slate-700">Suma de Créditos (IVA Compras)</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-700 mb-2">Suma de Créditos (IVA Compras)</span>
+                        <div className="flex items-center text-xs mt-1 bg-yellow-50 p-2 border border-yellow-200 rounded">
+                          <span className="mr-2 font-semibold text-yellow-800">+ Remanente Anterior: $</span>
+                          <input type="number" step="0.01" value={remanenteAnterior} onChange={(e) => setRemanenteAnterior(parseFloat(e.target.value) || 0)} className="w-24 p-1 border border-yellow-300 rounded text-right outline-none focus:ring-1 focus:ring-yellow-500 font-mono" />
+                        </div>
+                      </div>
                       <span className="font-mono text-lg text-green-600 font-bold">${creditoFiscalReal.toFixed(2)}</span>
                     </td>
                   </tr>
                 </tbody>
               </table>
-              <div className="border-t-4 border-slate-300 p-6 bg-white">
+              <div className="border-t-4 border-slate-300 p-6 bg-white relative">
+                <button onClick={handleGuardarLiquidacion} className="absolute -top-5 right-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full shadow-lg text-xs font-bold uppercase tracking-wider flex items-center transition">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                  Guardar Liquidación
+                </button>
                 {impuestoDeterminado > 0 ? (
                   <div className="flex justify-between items-center">
                     <div>
