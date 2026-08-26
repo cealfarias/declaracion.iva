@@ -141,6 +141,21 @@ export default function Dashboard() {
     if (!data) return null;
     const activeTab = activeTabs[tipoKey] || 'admitidos';
     
+    let registrosSorted = [];
+    if (data.registros) {
+      registrosSorted = [...data.registros].sort((a, b) => {
+        try {
+          const [d1, m1, y1] = a[0].split('/');
+          const [d2, m2, y2] = b[0].split('/');
+          const date1 = new Date(y1, m1 - 1, d1);
+          const date2 = new Date(y2, m2 - 1, d2);
+          return date1 - date2;
+        } catch(e) {
+          return 0;
+        }
+      });
+    }
+
     return (
       <div key={tipoKey} className="bg-white p-6 rounded shadow-sm border border-slate-200 mb-8">
         <div className="flex justify-between items-center mb-6">
@@ -186,7 +201,7 @@ export default function Dashboard() {
               onClick={() => handleTabChange(tipoKey, 'admitidos')}
               className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'admitidos' ? 'border-[#004b79] text-[#004b79]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             >
-              Archivos Admitidos ({data.registros?.length || 0})
+              Archivos Admitidos ({registrosSorted.length})
             </button>
             <button
               onClick={() => handleTabChange(tipoKey, 'rechazados')}
@@ -196,49 +211,129 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {activeTab === 'admitidos' && data.registros && data.registros.length > 0 && (
-            <div className="overflow-x-auto bg-white border border-slate-200 rounded">
-              <table className="w-full text-left text-xs whitespace-nowrap">
+          {activeTab === 'admitidos' && registrosSorted.length > 0 && (
+            <div className="overflow-x-auto bg-white border border-slate-200 rounded pb-2">
+              <table className="w-full text-left text-[10px] whitespace-nowrap min-w-max">
                 <thead className="bg-[#004b79] text-white uppercase font-semibold">
-                  <tr>
-                    <th className="px-4 py-2 border-r border-[#00385c]">Fecha</th>
-                    <th className="px-4 py-2 border-r border-[#00385c]">Tipo</th>
-                    <th className="px-4 py-2 border-r border-[#00385c]">Núm. Documento</th>
-                    <th className="px-4 py-2 border-r border-[#00385c]">NIT/NRC</th>
-                    <th className="px-4 py-2 border-r border-[#00385c]">Razón Social</th>
-                    <th className="px-4 py-2 border-r border-[#00385c] text-right">Gravado ($)</th>
-                    <th className="px-4 py-2 border-r border-[#00385c] text-right">IVA ($)</th>
-                    <th className="px-4 py-2 text-right">Total ($)</th>
-                  </tr>
+                  {tipoKey === 'compras' && (
+                    <tr>
+                      <th className="px-3 py-2 border-r border-[#00385c]">N°</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Fecha</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Clase</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Tipo</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Núm. Documento</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">NIT/NRC/DUI</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Razón Social del Proveedor</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Exentas Internas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Exentas Import.</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Gravadas Internas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Gravadas Import.</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Crédito Fiscal</th>
+                      <th className="px-3 py-2 text-right">Total Compras</th>
+                    </tr>
+                  )}
+                  {tipoKey === 'ventasContribuyentes' && (
+                    <tr>
+                      <th className="px-3 py-2 border-r border-[#00385c]">N°</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Fecha</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Clase</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Tipo</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Núm. Documento</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">NIT/NRC</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Razón Social del Cliente</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Ventas Exentas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Ventas No Sujetas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Ventas Gravadas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Débito Fiscal</th>
+                      <th className="px-3 py-2 text-right">Total Ventas</th>
+                    </tr>
+                  )}
+                  {tipoKey === 'ventasConsumidor' && (
+                    <tr>
+                      <th className="px-3 py-2 border-r border-[#00385c]">N°</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Fecha</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Clase</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Tipo</th>
+                      <th className="px-3 py-2 border-r border-[#00385c]">Núm. Documento</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Ventas Exentas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Ventas No Sujetas</th>
+                      <th className="px-3 py-2 border-r border-[#00385c] text-right">Ventas Gravadas</th>
+                      <th className="px-3 py-2 text-right">Total Ventas</th>
+                    </tr>
+                  )}
                 </thead>
-                <tbody className="text-slate-600 divide-y divide-slate-100">
-                  {data.registros.map((reg, idx) => {
-                    let fecha = '', tipo = '', doc = '', nit = '', nombre = '', gravado = '', iva = '', total = '';
+                <tbody className="text-slate-700 divide-y divide-slate-100 font-mono">
+                  {registrosSorted.map((reg, idx) => {
                     if (tipoKey === 'compras') {
-                      fecha = reg[0]; tipo = reg[2]; doc = reg[3]; nit = reg[4]; nombre = reg[5]; gravado = (parseFloat(reg[9])+parseFloat(reg[11])+parseFloat(reg[12])).toFixed(2); iva = reg[13]; total = reg[14];
+                      const fecha = reg[0]; const clase = reg[1]; const tipo = reg[2]; const doc = reg[3];
+                      const nrc = reg[4] || reg[15]; const nombre = reg[5]; 
+                      const exInt = (parseFloat(reg[6]||0) + parseFloat(reg[8]||0)).toFixed(2);
+                      const exImp = parseFloat(reg[7]||0).toFixed(2);
+                      const grInt = (parseFloat(reg[9]||0) + parseFloat(reg[11]||0) + parseFloat(reg[12]||0)).toFixed(2);
+                      const grImp = parseFloat(reg[10]||0).toFixed(2);
+                      const iva = reg[13]; const total = reg[14];
+                      return (
+                        <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center text-slate-500">{idx+1}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{fecha}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center">{clase}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center">{tipo}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{doc}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{nrc}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 truncate max-w-[200px]" title={nombre}>{nombre}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{exInt}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{exImp}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{grInt}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{grImp}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right text-blue-700 font-bold">{iva}</td>
+                          <td className="px-3 py-1.5 text-right font-bold text-slate-800">{total}</td>
+                        </tr>
+                      );
                     } else if (tipoKey === 'ventasContribuyentes') {
-                      fecha = reg[0]; tipo = reg[2]; doc = reg[5] || reg[7]; nit = reg[7]; nombre = reg[8]; gravado = reg[11]; iva = reg[12]; total = reg[15];
+                      const fecha = reg[0]; const clase = reg[1]; const tipo = reg[2]; 
+                      const doc = reg[5] || reg[7]; const nrc = reg[7]; const nombre = reg[8];
+                      const exe = reg[9]; const nosuj = reg[10]; const grav = reg[11];
+                      const iva = reg[12]; const total = reg[15];
+                      return (
+                        <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center text-slate-500">{idx+1}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{fecha}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center">{clase}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center">{tipo}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{doc}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{nrc}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 truncate max-w-[200px]" title={nombre}>{nombre}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{exe}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{nosuj}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{grav}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right text-red-700 font-bold">{iva}</td>
+                          <td className="px-3 py-1.5 text-right font-bold text-slate-800">{total}</td>
+                        </tr>
+                      );
                     } else if (tipoKey === 'ventasConsumidor') {
-                      fecha = reg[0]; tipo = reg[2]; doc = reg[8]; nit = ''; nombre = ''; gravado = reg[13]; iva = '0.00'; total = reg[19];
+                      const fecha = reg[0]; const clase = reg[1]; const tipo = reg[2]; 
+                      const doc = reg[8]; const exe = reg[10]; const nosuj = reg[12]; 
+                      const grav = reg[13]; const total = reg[19];
+                      return (
+                        <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center text-slate-500">{idx+1}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{fecha}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center">{clase}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-center">{tipo}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200">{doc}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{exe}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{nosuj}</td>
+                          <td className="px-3 py-1.5 border-r border-slate-200 text-right">{grav}</td>
+                          <td className="px-3 py-1.5 text-right font-bold text-slate-800">{total}</td>
+                        </tr>
+                      );
                     }
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-4 py-2 border-r border-slate-100">{fecha}</td>
-                        <td className="px-4 py-2 border-r border-slate-100 text-center">{tipo}</td>
-                        <td className="px-4 py-2 border-r border-slate-100 font-mono">{doc}</td>
-                        <td className="px-4 py-2 border-r border-slate-100">{nit}</td>
-                        <td className="px-4 py-2 border-r border-slate-100 truncate max-w-[200px]" title={nombre}>{nombre}</td>
-                        <td className="px-4 py-2 border-r border-slate-100 text-right">{gravado}</td>
-                        <td className="px-4 py-2 border-r border-slate-100 text-right">{iva}</td>
-                        <td className="px-4 py-2 text-right font-bold">{total}</td>
-                      </tr>
-                    );
                   })}
                 </tbody>
               </table>
             </div>
           )}
-          {activeTab === 'admitidos' && (!data.registros || data.registros.length === 0) && (
+          {activeTab === 'admitidos' && (!registrosSorted || registrosSorted.length === 0) && (
             <p className="text-center text-slate-500 py-4">No hay archivos admitidos.</p>
           )}
 
@@ -406,18 +501,22 @@ export default function Dashboard() {
               <div className="border-b-2 border-orange-400 pb-2 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-bold text-slate-700">Importar Compras (Créditos Fiscales)</h2>
               </div>
-              <div className="flex items-center gap-4">
-                <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
-                  <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de Compras</span>
-                  <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
-                </label>
-                <button 
-                  onClick={() => handleProcesar('compras', '/procesar/compras')}
-                  disabled={loading || archivos.compras.length === 0}
-                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
-                >
-                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos.compras ? archivos.compras.length : 0})`}
-                </button>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                  <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-white text-[#004b79] font-bold rounded border-2 border-[#004b79] hover:bg-slate-50 transition cursor-pointer shadow-sm">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    <span>Seleccionar Carpeta (Compras)</span>
+                    <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
+                  </label>
+                  <button 
+                    onClick={() => handleProcesar('compras', '/procesar/compras')}
+                    disabled={loading || archivos.compras.length === 0}
+                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    {loading ? 'Procesando...' : `Procesar Archivos (${archivos.compras ? archivos.compras.length : 0})`}
+                  </button>
+                </div>
               </div>
             </div>
             
