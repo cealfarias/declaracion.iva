@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
 
-const APP_VERSION = "v1.9 (Formato Contable)";
+const APP_VERSION = "v2.0 (Multi-Empresas)";
 
 export default function Dashboard() {
   const { user, logout, activeEmpresa } = useAuth();
