@@ -86,7 +86,7 @@ async def procesar_compras(
         content = await file.read()
         try:
             try:
-                text = content.decode('utf-8')
+                text = content.decode('utf-8-sig')
             except UnicodeDecodeError:
                 text = content.decode('latin-1')
             dte_json = json.loads(text)
@@ -159,7 +159,7 @@ async def procesar_ventas(
         content = await file.read()
         try:
             try:
-                text = content.decode('utf-8')
+                text = content.decode('utf-8-sig')
             except UnicodeDecodeError:
                 text = content.decode('latin-1')
             dte_json = json.loads(text)
@@ -223,7 +223,7 @@ async def procesar_ventas_consumidor(
         content = await file.read()
         try:
             try:
-                text = content.decode('utf-8')
+                text = content.decode('utf-8-sig')
             except UnicodeDecodeError:
                 text = content.decode('latin-1')
             dte_json = json.loads(text)
