@@ -470,11 +470,14 @@ async def procesar_gmail(
             total_general += factor * total
             total_docs += 1
             
+            tipo_doc = dte_json.get("identificacion", {}).get("tipoDte", "00")
+            clasificacion = 'compra' if tipo_anexo == 'compras' else 'venta' if tipo_anexo == 'ventas_ccf' else 'venta_consumidor'
+            
             db_dte = DteProcesado(
                 periodo_id=periodo.id,
-                tipo_anexo=tipo_anexo,
-                datos_json=dte_json,
-                procesado_en=datetime.utcnow()
+                tipo_documento=tipo_doc,
+                clasificacion=clasificacion,
+                datos_json=dte_json
             )
             db.add(db_dte)
         except Exception as e:
