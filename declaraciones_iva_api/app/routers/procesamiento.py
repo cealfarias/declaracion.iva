@@ -23,7 +23,7 @@ def get_or_create_periodo(db: Session, empresa_id: int, anio: int, mes: int):
     return periodo
 
 def _validar_dte(dte_json, mes_declaracion, anio_declaracion, empresa_nrc, empresa_nit, tipo_anexo, filename, db: Session):
-ident = dte_json.get("identificacion", {})
+    ident = dte_json.get("identificacion", {})
     tipo_dte = ident.get("tipoDte", "")
     codigo_gen = ident.get("codigoGeneracion", "").replace("-", "").upper()
     fecha_raw = ident.get("fecEmi", "")
