@@ -37,8 +37,8 @@ export default function Dashboard() {
         });
 
         if (resp.data.documentos === undefined) {
-           // Si devolvió el mensaje de que no encontró
-           enqueueMessages([{ text: resp.data.message || "No se encontraron adjuntos en Gmail.", type: "warning" }]);
+           const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][mes - 1];
+           enqueueMessages([{ text: `No se encontraron DTEs (adjuntos JSON) en tu Gmail para ${nombreMes} de ${anio}.`, type: "warning" }]);
         } else {
            await cargarDatosHistoricos();
            enqueueMessages([{ text: `Se extrajeron ${resp.data.documentos} documentos de Gmail exitosamente.`, type: 'success' }]);
