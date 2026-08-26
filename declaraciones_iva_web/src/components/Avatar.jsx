@@ -17,11 +17,27 @@ export default function Avatar() {
   // Menu state
   const [showMenu, setShowMenu] = useState(false);
 
-  // Efecto de mquina de escribir
+  // Efecto de mquina de escribir y Voz (TTS)
   useEffect(() => {
     if (!message) {
       setDisplayedText('');
+      window.speechSynthesis.cancel();
       return;
+    }
+    
+    // Iniciar Voz
+    window.speechSynthesis.cancel();
+    const cleanMessage = message.replace(/[✅❌ℹ️]/g, '').trim();
+    if (cleanMessage) {
+      const utterance = new SpeechSynthesisUtterance(cleanMessage);
+      utterance.lang = 'es-ES';
+      utterance.rate = 1.05;
+      
+      const voices = window.speechSynthesis.getVoices();
+      const esVoice = voices.find(v => v.lang.startsWith('es'));
+      if (esVoice) utterance.voice = esVoice;
+      
+      window.speechSynthesis.speak(utterance);
     }
     
     setDisplayedText('');
@@ -32,7 +48,9 @@ export default function Avatar() {
       if (i >= message.length) clearInterval(interval);
     }, 20);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, [message]);
 
   useEffect(() => {

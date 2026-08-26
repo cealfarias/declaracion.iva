@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
 
-const APP_VERSION = "v1.3 (Tabs & Assistant)";
+const APP_VERSION = "v1.4 (Voice TTS)";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
