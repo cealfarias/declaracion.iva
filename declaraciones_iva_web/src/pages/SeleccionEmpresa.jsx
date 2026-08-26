@@ -8,6 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 export default function SeleccionEmpresa() {
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [newEmpresa, setNewEmpresa] = useState({ razon_social: '', nit: '', nrc: '', actividad_economica: '', combustible_50_porciento: false });
   
@@ -32,6 +33,19 @@ export default function SeleccionEmpresa() {
   const handleSelect = (empresa) => {
     selectEmpresa(empresa);
     navigate('/dashboard');
+  };
+
+  
+  const handleEditClick = (e, emp) => {
+    e.stopPropagation();
+    setEditingId(emp.id);
+    setNewEmpresa({
+      razon_social: emp.razon_social,
+      nit: emp.nit,
+      nrc: emp.nrc || '',
+      combustible_50_porciento: emp.combustible_50_porciento || false
+    });
+    setShowModal(true);
   };
 
   const handleCreate = async (e) => {
@@ -77,7 +91,7 @@ export default function SeleccionEmpresa() {
             <p className="text-slate-500 mt-2">Elige el perfil con el que trabajarás hoy o registra uno nuevo.</p>
           </div>
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={() => { setShowModal(true); setEditingId(null); setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false }); }}
             className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition shadow-sm flex items-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
@@ -110,7 +124,7 @@ export default function SeleccionEmpresa() {
               <div className="col-span-full bg-indigo-50 border border-dashed border-indigo-200 rounded-xl p-12 text-center">
                 <h3 className="text-lg font-bold text-indigo-900 mb-2">No tienes empresas registradas</h3>
                 <p className="text-indigo-700 mb-4">Comienza registrando tu primera empresa para generar declaraciones.</p>
-                <button onClick={() => setShowModal(true)} className="text-indigo-600 font-semibold hover:underline">
+                <button onClick={() => { setShowModal(true); setEditingId(null); setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false }); }} className="text-indigo-600 font-semibold hover:underline">
                   Registrar mi primera empresa
                 </button>
               </div>
