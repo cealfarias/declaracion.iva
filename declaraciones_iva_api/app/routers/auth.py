@@ -36,6 +36,14 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
         if db_user:
             raise HTTPException(status_code=400, detail="El correo ya está registrado.")
+            
+        db_empresa_nit = db.query(Empresa).filter(Empresa.nit == user.nit).first()
+        if db_empresa_nit:
+            raise HTTPException(status_code=400, detail="El NIT ya está registrado.")
+            
+        db_empresa_nrc = db.query(Empresa).filter(Empresa.nrc == user.nrc).first()
+        if db_empresa_nrc:
+            raise HTTPException(status_code=400, detail="El NRC ya está registrado.")
         
         # 1. Crear Usuario
         hashed_password = get_password_hash(user.password)
