@@ -5,7 +5,7 @@ import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
 import { useGoogleLogin } from '@react-oauth/google';
 
-const APP_VERSION = "v2.0 (Multi-Empresas)";
+const APP_VERSION = "v2.1 (Integración Gmail)";
 
 export default function Dashboard() {
   const { user, logout, activeEmpresa } = useAuth();
