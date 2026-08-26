@@ -165,7 +165,7 @@ export default function Dashboard() {
               {data.documentos} DTEs Validados
             </span>
             {data.csv && (
-              <button 
+              <button type="button" 
                 onClick={() => descargarCSV(data.csv, data.filename)}
                 className="text-sm px-4 py-1.5 bg-green-600 hover:bg-green-700 transition text-white rounded shadow-sm inline-flex items-center font-medium"
               >
@@ -359,7 +359,7 @@ export default function Dashboard() {
                 <div className="bg-[#2d2d2d] text-slate-300 px-3 py-2 text-xs font-semibold uppercase flex justify-between items-center border-b border-black">
                   <span className="flex items-center"><svg className="w-4 h-4 mr-1 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg> Inconsistencia JSON</span>
                   {selectedJson && (
-                    <button className="text-blue-400 hover:text-blue-300 transition" onClick={() => navigator.clipboard.writeText(selectedJson)}>Copiar</button>
+                    <button type="button" className="text-blue-400 hover:text-blue-300 transition" onClick={() => navigator.clipboard.writeText(selectedJson)}>Copiar</button>
                   )}
                 </div>
                 <div className="overflow-y-auto flex-1 p-4 text-[11px] leading-relaxed font-mono text-[#d4d4d4]">
@@ -401,7 +401,7 @@ export default function Dashboard() {
   };
 
   const TabButton = ({ id, icon, label, badgeCount }) => (
-    <button 
+    <button type="button" 
       onClick={() => setActiveWizardTab(id)}
       className={`flex flex-col items-center justify-center py-4 px-6 min-w-[160px] flex-1 border-b-4 transition-all duration-200 ${
         activeWizardTab === id 
@@ -456,7 +456,7 @@ export default function Dashboard() {
           </select>
         </div>
         <div className="ml-auto flex flex-col items-end">
-          <button onClick={() => {
+          <button type="button" onClick={() => {
             if(activeWizardTab==='compras') setActiveWizardTab('ventas_ccf');
             else if(activeWizardTab==='ventas_ccf') setActiveWizardTab('ventas_fcf');
             else if(activeWizardTab==='ventas_fcf') setActiveWizardTab('liquidacion');
@@ -508,7 +508,7 @@ export default function Dashboard() {
                     <span>Seleccionar Carpeta (Compras)</span>
                     <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
                   </label>
-                  <button 
+                  <button type="button" 
                     onClick={() => handleProcesar('compras', '/procesar/compras')}
                     disabled={loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0}
                     className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
@@ -539,7 +539,7 @@ export default function Dashboard() {
                   <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de CCF Emitidos</span>
                   <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
                 </label>
-                <button 
+                <button type="button" 
                   onClick={() => handleProcesar('ventasContribuyentes', '/procesar/ventas-contribuyentes')}
                   disabled={loading || archivos.ventasContribuyentes.length === 0}
                   className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
@@ -568,7 +568,7 @@ export default function Dashboard() {
                   <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de FCF Emitidos</span>
                   <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
                 </label>
-                <button 
+                <button type="button" 
                   onClick={() => handleProcesar('ventasConsumidor', '/procesar/ventas-consumidor')}
                   disabled={loading || archivos.ventasConsumidor.length === 0}
                   className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
@@ -629,7 +629,7 @@ export default function Dashboard() {
                 </tbody>
               </table>
               <div className="border-t-4 border-slate-300 p-6 bg-white relative">
-                <button onClick={handleGuardarLiquidacion} className="absolute -top-5 right-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full shadow-lg text-xs font-bold uppercase tracking-wider flex items-center transition">
+                <button type="button" onClick={handleGuardarLiquidacion} className="absolute -top-5 right-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full shadow-lg text-xs font-bold uppercase tracking-wider flex items-center transition">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
                   Guardar Liquidación
                 </button>
