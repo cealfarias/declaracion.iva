@@ -85,16 +85,22 @@ async def procesar_compras(
     for file in files:
         content = await file.read()
         try:
-            dte_json = json.loads(content)
+            try:
+                text = content.decode('utf-8')
+            except UnicodeDecodeError:
+                text = content.decode('latin-1')
+            dte_json = json.loads(text)
+            if "dteJson" in dte_json and isinstance(dte_json["dteJson"], dict):
+                dte_json = dte_json["dteJson"]
             es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'compras', file.filename, db)
             
             if not es_valido:
-                omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
+                if "ya declarado" not in resultado.lower():
+                    omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             codigo_gen = resultado
             if codigo_gen in codigos_vistos:
-                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en este mismo lote de archivos", "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             codigos_vistos.add(codigo_gen)
@@ -152,14 +158,20 @@ async def procesar_ventas(
     for file in files:
         content = await file.read()
         try:
-            dte_json = json.loads(content)
+            try:
+                text = content.decode('utf-8')
+            except UnicodeDecodeError:
+                text = content.decode('latin-1')
+            dte_json = json.loads(text)
+            if "dteJson" in dte_json and isinstance(dte_json["dteJson"], dict):
+                dte_json = dte_json["dteJson"]
             es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas', file.filename, db)
             if not es_valido:
-                omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
+                if "ya declarado" not in resultado.lower():
+                    omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             if resultado in codigos_vistos:
-                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en lote", "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
             codigos_vistos.add(resultado)
             
@@ -210,14 +222,20 @@ async def procesar_ventas_consumidor(
     for file in files:
         content = await file.read()
         try:
-            dte_json = json.loads(content)
+            try:
+                text = content.decode('utf-8')
+            except UnicodeDecodeError:
+                text = content.decode('latin-1')
+            dte_json = json.loads(text)
+            if "dteJson" in dte_json and isinstance(dte_json["dteJson"], dict):
+                dte_json = dte_json["dteJson"]
             es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas', file.filename, db)
             if not es_valido:
-                omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
+                if "ya declarado" not in resultado.lower():
+                    omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
                 
             if resultado in codigos_vistos:
-                omitidos.append({"archivo": file.filename, "motivo": "Duplicado en lote", "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
                 continue
             codigos_vistos.add(resultado)
             
