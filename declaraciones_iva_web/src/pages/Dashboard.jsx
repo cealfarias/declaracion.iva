@@ -39,6 +39,11 @@ export default function Dashboard() {
         if (resp.data.documentos === undefined) {
            const nombreMes = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][mes - 1];
            enqueueMessages([{ text: `No se encontraron DTEs (adjuntos JSON) en tu Gmail para ${nombreMes} de ${anio}.`, type: "warning" }]);
+        } else if (resp.data.documentos === 0) {
+           let razonesText = resp.data.omitidos?.map(o => `• ${o.razon}`).join('\n') || "";
+           if (razonesText) razonesText = `\n\nMotivos de rechazo:\n${razonesText}`;
+           
+           enqueueMessages([{ text: `Se extrajeron 0 documentos válidos de Gmail.${razonesText}`, type: "error" }]);
         } else {
            await cargarDatosHistoricos();
            enqueueMessages([{ text: `Se extrajeron ${resp.data.documentos} documentos de Gmail exitosamente.`, type: 'success' }]);

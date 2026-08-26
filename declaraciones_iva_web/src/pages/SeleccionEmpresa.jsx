@@ -51,15 +51,19 @@ export default function SeleccionEmpresa() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${API_URL}/api/v1/empresas`, {
-        ...newEmpresa,
-        usuario_id: user?.id || 1
-      });
-      
-      const created = { id: response.data.empresa_id, ...newEmpresa };
-      setEmpresas([...empresas, created]);
+      if (editingId) {
+        await axios.put(`${API_URL}/api/v1/empresas/${editingId}`, newEmpresa);
+        setEmpresas(empresas.map(emp => emp.id === editingId ? { ...emp, ...newEmpresa } : emp));
+      } else {
+        const response = await axios.post(`${API_URL}/api/v1/empresas`, {
+          ...newEmpresa,
+          usuario_id: user?.id || 1
+        });
+        const created = { id: response.data.empresa_id, ...newEmpresa };
+        setEmpresas([...empresas, created]);
+      }
       setShowModal(false);
-      setNewEmpresa({ razon_social: '', nit: '', nrc: '' });
+      setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false });
     } catch (error) {
       console.error('Error creando empresa', error);
     }
