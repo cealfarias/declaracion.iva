@@ -20,15 +20,8 @@ export default function SeleccionEmpresa() {
 
   const fetchEmpresas = async () => {
     try {
-      // Si tenemos backend real conectado:
-      // const response = await axios.get(`${API_URL}/api/v1/empresas/usuario/${user?.id || 1}`);
-      // setEmpresas(response.data);
-      
-      // Simularemos unas de prueba mientras conectamos el backend 100%
-      setEmpresas([
-        { id: 1, razon_social: 'Iva Marielos', nit: '0614-123456-101-1', nrc: '123456-7' },
-        { id: 2, razon_social: 'Zenia Mendoza', nit: '0614-654321-102-2', nrc: '765432-1' }
-      ]);
+      const response = await axios.get(`${API_URL}/api/v1/empresas/usuario/${user?.id || 1}`);
+      setEmpresas(response.data);
     } catch (error) {
       console.error('Error fetching empresas', error);
     } finally {
@@ -44,15 +37,12 @@ export default function SeleccionEmpresa() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      /* 
       const response = await axios.post(`${API_URL}/api/v1/empresas`, {
         ...newEmpresa,
         usuario_id: user?.id || 1
       });
-      */
       
-      // Simulación visual por ahora
-      const created = { id: Date.now(), ...newEmpresa };
+      const created = { id: response.data.empresa_id, ...newEmpresa };
       setEmpresas([...empresas, created]);
       setShowModal(false);
       setNewEmpresa({ razon_social: '', nit: '', nrc: '' });
