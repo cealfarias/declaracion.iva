@@ -134,6 +134,7 @@ export default function Dashboard() {
     formData.append('mes', mes);
     formData.append('anio', anio);
     formData.append('usuario_id', user?.id || 1);
+    formData.append('empresa_id', activeEmpresa?.id || 1);
     
     try {
       await axios.post(`${API_URL}/api/v1${endpoint}`, formData, {
