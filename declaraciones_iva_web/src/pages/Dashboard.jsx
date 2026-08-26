@@ -510,11 +510,11 @@ export default function Dashboard() {
                   </label>
                   <button 
                     onClick={() => handleProcesar('compras', '/procesar/compras')}
-                    disabled={loading || archivos.compras.length === 0}
-                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                    disabled={loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0}
+                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    {loading ? 'Procesando...' : `Procesar Archivos (${archivos.compras ? archivos.compras.length : 0})`}
+                    {loading ? 'Procesando...' : `Procesar Archivos (${archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'] ? archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length : 0})`}
                   </button>
                 </div>
               </div>
@@ -542,9 +542,9 @@ export default function Dashboard() {
                 <button 
                   onClick={() => handleProcesar('ventasContribuyentes', '/procesar/ventas-contribuyentes')}
                   disabled={loading || archivos.ventasContribuyentes.length === 0}
-                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
                 >
-                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos.compras ? archivos.compras.length : 0})`}
+                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'] ? archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length : 0})`}
                 </button>
               </div>
             </div>
@@ -571,9 +571,9 @@ export default function Dashboard() {
                 <button 
                   onClick={() => handleProcesar('ventasConsumidor', '/procesar/ventas-consumidor')}
                   disabled={loading || archivos.ventasConsumidor.length === 0}
-                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
                 >
-                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos.compras ? archivos.compras.length : 0})`}
+                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'] ? archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length : 0})`}
                 </button>
               </div>
             </div>
