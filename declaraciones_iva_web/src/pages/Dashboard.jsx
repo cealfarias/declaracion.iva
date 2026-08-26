@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
 
-const APP_VERSION = "v1.5 (Hacienda UI)";
+const APP_VERSION = "v1.6 (API Fix)";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -36,7 +36,7 @@ export default function Dashboard() {
 
   const cargarDatosHistoricos = async () => {
     try {
-      const resp = await axios.get(`${API_URL}/procesar/consultar`, {
+      const resp = await axios.get(`${API_URL}/api/v1/procesar/consultar`, {
         params: { mes, anio, usuario_id: user?.id || 1 }
       });
       if (resp.data.data === null) {
@@ -83,7 +83,7 @@ export default function Dashboard() {
         formData.append('usuario_id', user?.id || 1);
         
         try {
-          const resp = await axios.post(`${API_URL}${endpoint}`, formData, {
+          const resp = await axios.post(`${API_URL}/api/v1${endpoint}`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
           
@@ -100,7 +100,7 @@ export default function Dashboard() {
     };
 
     await processFiles('compras', '/procesar/compras');
-    await processFiles('ventasContribuyentes', '/procesar/ventas');
+    await processFiles('ventasContribuyentes', '/procesar/ventas-contribuyentes');
     await processFiles('ventasConsumidor', '/procesar/ventas-consumidor');
 
     await cargarDatosHistoricos();
