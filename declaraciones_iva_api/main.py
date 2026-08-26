@@ -6,6 +6,15 @@ from app.models import models
 # Crear tablas en la base de datos local SQLite (o PostgreSQL)
 Base.metadata.create_all(bind=engine)
 
+# Migración para la nueva columna combustible_50_porciento
+from sqlalchemy import text
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE iva_empresas ADD COLUMN combustible_50_porciento BOOLEAN DEFAULT FALSE;"))
+except Exception as e:
+    # La columna ya existe o hay un error, se ignora
+    pass
+
 app = FastAPI(title="Declaraciones de IVA API", version="1.0.0")
 
 origins = [
