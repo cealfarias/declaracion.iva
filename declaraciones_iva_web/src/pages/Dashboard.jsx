@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
 
-const APP_VERSION = "v1.7 (Data Fix)";
+const APP_VERSION = "v1.8 (Tabs Unificados)";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -24,7 +24,7 @@ export default function Dashboard() {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTabs, setActiveTabs] = useState({ compras: 'admitidos', ventasContribuyentes: 'admitidos', ventasConsumidor: 'admitidos' });
-  const [activeWizardTab, setActiveWizardTab] = useState('subir_detalle');
+  const [activeWizardTab, setActiveWizardTab] = useState('compras');
   const [selectedJson, setSelectedJson] = useState('');
   const [remanenteAnterior, setRemanenteAnterior] = useState(0.0);
 
@@ -305,7 +305,7 @@ export default function Dashboard() {
     }
   };
 
-  const TabButton = ({ id, icon, label }) => (
+  const TabButton = ({ id, icon, label, badgeCount }) => (
     <button 
       onClick={() => setActiveWizardTab(id)}
       className={`flex flex-col items-center justify-center py-4 px-6 min-w-[160px] flex-1 border-b-4 transition-all duration-200 ${
@@ -362,10 +362,10 @@ export default function Dashboard() {
         </div>
         <div className="ml-auto flex flex-col items-end">
           <button onClick={() => {
-            if(activeWizardTab==='subir_detalle') setActiveWizardTab('ventas');
-            else if(activeWizardTab==='ventas') setActiveWizardTab('compras');
-            else if(activeWizardTab==='compras') setActiveWizardTab('liquidacion');
-            else if(activeWizardTab==='liquidacion') setActiveWizardTab('subir_detalle');
+            if(activeWizardTab==='compras') setActiveWizardTab('ventas_ccf');
+            else if(activeWizardTab==='ventas_ccf') setActiveWizardTab('ventas_fcf');
+            else if(activeWizardTab==='ventas_fcf') setActiveWizardTab('liquidacion');
+            else if(activeWizardTab==='liquidacion') setActiveWizardTab('compras');
           }} className="bg-[#5cb85c] hover:bg-[#4cae4c] text-white px-8 py-3 rounded shadow flex items-center font-bold transition uppercase tracking-wider text-sm">
             Siguiente <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
           </button>
@@ -382,11 +382,13 @@ export default function Dashboard() {
           <TabButton 
             id="ventas" 
             label="Ventas y Débitos" 
+            badgeCount={resumen ? ((resumen.ventasContribuyentes?.documentos || 0) + (resumen.ventasConsumidor?.documentos || 0)) : 0} 
             icon={<svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>} 
           />
           <TabButton 
             id="compras" 
             label="Compras y Créditos" 
+            badgeCount={resumen ? (resumen.compras?.documentos || 0) : 0} 
             icon={<svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>} 
           />
           <TabButton 
@@ -398,97 +400,90 @@ export default function Dashboard() {
       </div>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8">
-        {activeWizardTab === 'subir_detalle' && (
-          <div className="bg-white border border-slate-200 rounded shadow-sm p-6 animate-in fade-in zoom-in-95 duration-300">
-            <div className="border-b-2 border-orange-400 pb-2 mb-6">
-              <h2 className="text-lg font-bold text-slate-700">Subir Detalle de Ventas y Compras</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="border border-slate-200 rounded overflow-hidden shadow-sm hover:shadow-md transition bg-white flex flex-col h-full">
-                <div className="bg-[#004b79] p-4 flex items-center justify-center text-white h-20">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                </div>
-                <div className="p-4 flex flex-col flex-1">
-                  <h3 className="font-bold text-[#004b79] mb-1 text-sm uppercase">Detalle de Compras</h3>
-                  <p className="text-xs text-slate-500 mb-4 flex-1">Sube los DTEs de compras y créditos fiscales recibidos.</p>
-                  <label className="w-full relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
-                    <span className="text-xs font-medium text-center">Haz clic para seleccionar carpeta</span>
-                    <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
-                  </label>
-                  {archivos.compras.length > 0 && <p className="mt-2 text-xs text-green-600 font-bold text-center">✓ {archivos.compras.length} archivos listos</p>}
-                </div>
-              </div>
-
-              <div className="border border-slate-200 rounded overflow-hidden shadow-sm hover:shadow-md transition bg-white flex flex-col h-full">
-                <div className="bg-[#004b79] p-4 flex items-center justify-center text-white h-20">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                </div>
-                <div className="p-4 flex flex-col flex-1">
-                  <h3 className="font-bold text-[#004b79] mb-1 text-sm uppercase">Detalle de Ventas a Contribuyentes</h3>
-                  <p className="text-xs text-slate-500 mb-4 flex-1">Sube los Créditos Fiscales emitidos.</p>
-                  <label className="w-full relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
-                    <span className="text-xs font-medium text-center">Haz clic para seleccionar carpeta</span>
-                    <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
-                  </label>
-                  {archivos.ventasContribuyentes.length > 0 && <p className="mt-2 text-xs text-green-600 font-bold text-center">✓ {archivos.ventasContribuyentes.length} archivos listos</p>}
-                </div>
-              </div>
-
-              <div className="border border-slate-200 rounded overflow-hidden shadow-sm hover:shadow-md transition bg-white flex flex-col h-full">
-                <div className="bg-[#004b79] p-4 flex items-center justify-center text-white h-20">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                </div>
-                <div className="p-4 flex flex-col flex-1">
-                  <h3 className="font-bold text-[#004b79] mb-1 text-sm uppercase">Detalle de Ventas Consumidor Final</h3>
-                  <p className="text-xs text-slate-500 mb-4 flex-1">Sube las Facturas emitidas a consumidores.</p>
-                  <label className="w-full relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
-                    <span className="text-xs font-medium text-center">Haz clic para seleccionar carpeta</span>
-                    <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
-                  </label>
-                  {archivos.ventasConsumidor.length > 0 && <p className="mt-2 text-xs text-green-600 font-bold text-center">✓ {archivos.ventasConsumidor.length} archivos listos</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4 border-t border-slate-200">
-              <button 
-                onClick={handleProcesarTodo}
-                disabled={loading || (archivos.compras.length === 0 && archivos.ventasContribuyentes.length === 0 && archivos.ventasConsumidor.length === 0)}
-                className={`flex items-center space-x-2 px-8 py-3 rounded font-bold shadow transition ${loading || (archivos.compras.length === 0 && archivos.ventasContribuyentes.length === 0 && archivos.ventasConsumidor.length === 0) ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Procesando Archivos...
-                  </>
-                ) : (
-                  <>
-                    <span>Cargar Datos al Servidor</span>
-                    <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {activeWizardTab === 'ventas' && (
-          <div className="animate-in fade-in zoom-in-95 duration-300 space-y-6">
-            <div className="border-b-2 border-orange-400 pb-2 mb-2">
-              <h2 className="text-lg font-bold text-slate-700">Ventas de Bienes y/o Servicios</h2>
-            </div>
-            {resumen && resumen.ventasContribuyentes ? renderResumen('ventasContribuyentes', 'Ventas a Contribuyentes (CCF)') : <p className="text-sm text-slate-500">No hay datos de CCF procesados en este periodo.</p>}
-            {resumen && resumen.ventasConsumidor ? renderResumen('ventasConsumidor', 'Ventas a Consumidor Final (FCF)') : <p className="text-sm text-slate-500">No hay datos de FCF procesados en este periodo.</p>}
-          </div>
-        )}
-
         {activeWizardTab === 'compras' && (
           <div className="animate-in fade-in zoom-in-95 duration-300 space-y-6">
-            <div className="border-b-2 border-orange-400 pb-2 mb-2">
-              <h2 className="text-lg font-bold text-slate-700">Compras de Bienes y/o Servicios</h2>
+            <div className="bg-white border border-slate-200 rounded shadow-sm p-6">
+              <div className="border-b-2 border-orange-400 pb-2 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-700">Importar Compras (Créditos Fiscales)</h2>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
+                  <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de Compras</span>
+                  <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'compras')} />
+                </label>
+                <button 
+                  onClick={() => handleProcesar('compras', '/procesar/compras')}
+                  disabled={loading || archivos.compras.length === 0}
+                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                >
+                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos.compras ? archivos.compras.length : 0})`}
+                </button>
+              </div>
             </div>
-            {resumen && resumen.compras ? renderResumen('compras', 'Detalle de Compras (CCF recibidos)') : <p className="text-sm text-slate-500">No hay datos de Compras procesados en este periodo.</p>}
+            
+            {resumen && resumen.compras ? renderResumen('compras', 'Detalle de Compras (CCF recibidos)') : (
+              <div className="bg-white p-6 rounded shadow-sm border border-slate-200 text-center text-slate-500">
+                No hay datos de Compras procesados en este periodo. Sube una carpeta para comenzar.
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeWizardTab === 'ventas_ccf' && (
+          <div className="animate-in fade-in zoom-in-95 duration-300 space-y-6">
+            <div className="bg-white border border-slate-200 rounded shadow-sm p-6">
+              <div className="border-b-2 border-orange-400 pb-2 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-700">Importar Ventas a Contribuyentes (CCF Emitidos)</h2>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
+                  <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de CCF Emitidos</span>
+                  <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
+                </label>
+                <button 
+                  onClick={() => handleProcesar('ventasContribuyentes', '/procesar/ventas-contribuyentes')}
+                  disabled={loading || archivos.ventasContribuyentes.length === 0}
+                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                >
+                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos.compras ? archivos.compras.length : 0})`}
+                </button>
+              </div>
+            </div>
+            
+            {resumen && resumen.ventasContribuyentes ? renderResumen('ventasContribuyentes', 'Ventas a Contribuyentes (CCF)') : (
+              <div className="bg-white p-6 rounded shadow-sm border border-slate-200 text-center text-slate-500">
+                No hay datos de CCF procesados en este periodo.
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeWizardTab === 'ventas_fcf' && (
+          <div className="animate-in fade-in zoom-in-95 duration-300 space-y-6">
+            <div className="bg-white border border-slate-200 rounded shadow-sm p-6">
+              <div className="border-b-2 border-orange-400 pb-2 mb-4 flex justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-700">Importar Ventas a Consumidor Final (FCF Emitidos)</h2>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
+                  <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de FCF Emitidos</span>
+                  <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
+                </label>
+                <button 
+                  onClick={() => handleProcesar('ventasConsumidor', '/procesar/ventas-consumidor')}
+                  disabled={loading || archivos.ventasConsumidor.length === 0}
+                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos.compras.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                >
+                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos.compras ? archivos.compras.length : 0})`}
+                </button>
+              </div>
+            </div>
+            
+            {resumen && resumen.ventasConsumidor ? renderResumen('ventasConsumidor', 'Ventas a Consumidor Final (FCF)') : (
+              <div className="bg-white p-6 rounded shadow-sm border border-slate-200 text-center text-slate-500">
+                No hay datos de FCF procesados en este periodo.
+              </div>
+            )}
           </div>
         )}
 
@@ -509,19 +504,19 @@ export default function Dashboard() {
                   <tr className="bg-white">
                     <td className="px-6 py-4 flex justify-between items-center">
                       <span className="text-slate-600">Suma de Ventas Gravadas</span>
-                      <span className="font-mono font-bold">${sumaVentasGravadas.toFixed(2)}</span>
+                      <span className="font-mono font-bold"></span>
                     </td>
                     <td className="px-6 py-4 flex justify-between items-center border-l border-slate-200">
                       <span className="text-slate-600">Suma de Compras Gravadas</span>
-                      <span className="font-mono font-bold">${(resumen?.compras?.gravado || 0).toFixed(2)}</span>
+                      <span className="font-mono font-bold"></span>
                     </td>
                   </tr>
                   <tr className="bg-slate-50">
                     <td className="px-6 py-4 flex justify-between items-center">
                       <span className="font-bold text-slate-700">Suma de Débitos (IVA Ventas 13%)</span>
-                      <span className="font-mono text-lg text-red-600 font-bold">${debitoFiscalReal.toFixed(2)}</span>
+                      <span className="font-mono text-lg text-red-600 font-bold"></span>
                     </td>
-                    <td className="px-6 py-4 flex justify-between items-center border-l border-slate-200">
+                    <td className="px-6 py-4 flex justify-between items-start border-l border-slate-200">
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-700 mb-2">Suma de Créditos (IVA Compras)</span>
                         <div className="flex items-center text-xs mt-1 bg-yellow-50 p-2 border border-yellow-200 rounded">
@@ -529,7 +524,7 @@ export default function Dashboard() {
                           <input type="number" step="0.01" value={remanenteAnterior} onChange={(e) => setRemanenteAnterior(parseFloat(e.target.value) || 0)} className="w-24 p-1 border border-yellow-300 rounded text-right outline-none focus:ring-1 focus:ring-yellow-500 font-mono" />
                         </div>
                       </div>
-                      <span className="font-mono text-lg text-green-600 font-bold">${creditoFiscalReal.toFixed(2)}</span>
+                      <span className="font-mono text-lg text-green-600 font-bold"></span>
                     </td>
                   </tr>
                 </tbody>
@@ -540,27 +535,27 @@ export default function Dashboard() {
                   Guardar Liquidación
                 </button>
                 {impuestoDeterminado > 0 ? (
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mt-2">
                     <div>
                       <span className="font-bold text-red-800 text-lg uppercase block">Impuesto Determinado</span>
                       <span className="text-xs text-slate-500">(Cuando el débito excede al crédito)</span>
                     </div>
-                    <span className="font-mono text-3xl font-bold text-red-700">${impuestoDeterminado.toFixed(2)}</span>
+                    <span className="font-mono text-3xl font-bold text-red-700"></span>
                   </div>
                 ) : (
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mt-2">
                     <div>
                       <span className="font-bold text-green-800 text-lg uppercase block">Remanente de Crédito para el Próximo Periodo</span>
                       <span className="text-xs text-slate-500">(Cuando el crédito excede al débito)</span>
                     </div>
-                    <span className="font-mono text-3xl font-bold text-green-700">${remanenteFavor.toFixed(2)}</span>
+                    <span className="font-mono text-3xl font-bold text-green-700"></span>
                   </div>
                 )}
               </div>
             </div>
           </div>
         )}
-      </main>
+</main>
     </div>
   );
 }
