@@ -53,7 +53,7 @@ def parse_compras(dte: dict):
         g = float(total_exenta)
         j = float(total_gravada)
     
-    total_compras_neto = g + h + i + j + k + l + m
+    total_compras_neto = float(resumen.get("montoTotalOperacion", 0.0) or 0.0)
     clase_doc = '4'
     
     if tipo == '14' and 'sujetoExcluido' in dte:
