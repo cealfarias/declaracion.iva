@@ -543,7 +543,7 @@ export default function Dashboard() {
                 <h2 className="text-lg font-bold text-slate-700">Importar Compras (Créditos Fiscales)</h2>
               </div>
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col md:flex-row items-center gap-4">
                   <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-white text-[#004b79] font-bold rounded border-2 border-[#004b79] hover:bg-slate-50 transition cursor-pointer shadow-sm">
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                     <span>Seleccionar Carpeta (Compras)</span>
@@ -551,13 +551,23 @@ export default function Dashboard() {
                   </label>
                   <button type="button" 
                     onClick={() => handleProcesar('compras', '/procesar/compras')}
-                    disabled={loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0}
-                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                    disabled={loading || archivos.compras?.length === 0}
+                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos.compras?.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    {loading ? 'Procesando...' : `Procesar Archivos (${archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'] ? archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length : 0})`}
+                    {loading ? 'Procesando...' : `Procesar Archivos (${archivos.compras?.length || 0})`}
                   </button>
                 </div>
+                <button type="button" 
+                  onClick={() => handleGmailImport()}
+                  disabled={loadingGmail || loading}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white font-bold rounded shadow-sm hover:bg-red-700 transition disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12.713l-11.985-9.713h23.971l-11.986 9.713zm-12 1.545v-10.258l12 9.728 12-9.728v10.258l-12 9.728-12-9.728z"/>
+                  </svg>
+                  {loadingGmail ? 'Importando desde Gmail...' : 'Importar Automáticamente desde Gmail'}
+                </button>
               </div>
             </div>
             
@@ -575,17 +585,29 @@ export default function Dashboard() {
               <div className="border-b-2 border-orange-400 pb-2 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-bold text-slate-700">Importar Ventas a Contribuyentes (CCF Emitidos)</h2>
               </div>
-              <div className="flex items-center gap-4">
-                <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
-                  <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de CCF Emitidos</span>
-                  <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
-                </label>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
+                    <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de CCF Emitidos</span>
+                    <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasContribuyentes')} />
+                  </label>
+                  <button type="button" 
+                    onClick={() => handleProcesar('ventasContribuyentes', '/procesar/ventas-contribuyentes')}
+                    disabled={loading || archivos.ventasContribuyentes?.length === 0}
+                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos.ventasContribuyentes?.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  >
+                    {loading ? 'Procesando...' : `Procesar (${archivos.ventasContribuyentes?.length || 0})`}
+                  </button>
+                </div>
                 <button type="button" 
-                  onClick={() => handleProcesar('ventasContribuyentes', '/procesar/ventas-contribuyentes')}
-                  disabled={loading || archivos.ventasContribuyentes.length === 0}
-                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  onClick={() => handleGmailImport()}
+                  disabled={loadingGmail || loading}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white font-bold rounded shadow-sm hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'] ? archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length : 0})`}
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12.713l-11.985-9.713h23.971l-11.986 9.713zm-12 1.545v-10.258l12 9.728 12-9.728v10.258l-12 9.728-12-9.728z"/>
+                  </svg>
+                  {loadingGmail ? 'Importando desde Gmail...' : 'Importar Automáticamente desde Gmail'}
                 </button>
               </div>
             </div>
@@ -604,17 +626,29 @@ export default function Dashboard() {
               <div className="border-b-2 border-orange-400 pb-2 mb-4 flex justify-between items-center">
                 <h2 className="text-lg font-bold text-slate-700">Importar Ventas a Consumidor Final (FCF Emitidos)</h2>
               </div>
-              <div className="flex items-center gap-4">
-                <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
-                  <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de FCF Emitidos</span>
-                  <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
-                </label>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <label className="flex-1 relative flex items-center justify-center px-4 py-3 bg-slate-50 text-slate-600 rounded border border-slate-300 border-dashed hover:bg-slate-100 hover:border-[#004b79] transition cursor-pointer">
+                    <span className="text-sm font-medium text-center">Haz clic para seleccionar la carpeta de FCF Emitidos</span>
+                    <input type="file" webkitdirectory="" directory="" multiple className="hidden" onChange={(e) => handleFileChange(e, 'ventasConsumidor')} />
+                  </label>
+                  <button type="button" 
+                    onClick={() => handleProcesar('ventasConsumidor', '/procesar/ventas-consumidor')}
+                    disabled={loading || archivos.ventasConsumidor?.length === 0}
+                    className={`flex-1 px-6 py-3 rounded font-bold shadow transition flex items-center justify-center whitespace-nowrap ${loading || archivos.ventasConsumidor?.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  >
+                    {loading ? 'Procesando...' : `Subir y Procesar (${archivos.ventasConsumidor?.length || 0})`}
+                  </button>
+                </div>
                 <button type="button" 
-                  onClick={() => handleProcesar('ventasConsumidor', '/procesar/ventas-consumidor')}
-                  disabled={loading || archivos.ventasConsumidor.length === 0}
-                  className={`px-6 py-3 rounded font-bold shadow transition flex items-center whitespace-nowrap ${loading || archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#004b79] hover:bg-[#00385c] text-white'}`}
+                  onClick={() => handleGmailImport()}
+                  disabled={loadingGmail || loading}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white font-bold rounded shadow-sm hover:bg-red-700 transition disabled:opacity-50"
                 >
-                  {loading ? 'Procesando...' : `Subir y Procesar (${archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'] ? archivos[activeWizardTab === 'ventas_ccf' ? 'ventasContribuyentes' : activeWizardTab === 'ventas_fcf' ? 'ventasConsumidor' : 'compras'].length : 0})`}
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12.713l-11.985-9.713h23.971l-11.986 9.713zm-12 1.545v-10.258l12 9.728 12-9.728v10.258l-12 9.728-12-9.728z"/>
+                  </svg>
+                  {loadingGmail ? 'Importando desde Gmail...' : 'Importar Automáticamente desde Gmail'}
                 </button>
               </div>
             </div>
