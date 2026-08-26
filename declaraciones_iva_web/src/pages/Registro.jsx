@@ -72,7 +72,7 @@ export default function Registro() {
         email: payload.email || '',
         password: 'google-auth-random-pass-xyz'
       });
-      setError('Datos de Google cargados. Por favor completa los Datos de Empresa y acepta los términos para finalizar.');
+      // Dejamos que el Avatar o el usuario maneje el siguiente paso
     } else {
       setError('No se pudo extraer la información de Google.');
     }
@@ -193,7 +193,7 @@ export default function Registro() {
               />
             </div>
             <label htmlFor="terminos" className="ml-3 text-sm text-slate-600">
-              He leído y acepto los <a href="#" className="font-medium text-indigo-600 hover:underline">Términos de Referencia</a> y la política de privacidad de la plataforma. Entiendo que los datos fiscales son de mi entera responsabilidad.
+              He leído y acepto los <Link to="/terminos" target="_blank" className="font-medium text-indigo-600 hover:underline">Términos de Referencia</Link> y la política de privacidad de la plataforma. Entiendo que los datos fiscales son de mi entera responsabilidad.
             </label>
           </div>
 
