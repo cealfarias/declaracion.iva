@@ -23,9 +23,17 @@ def get_or_create_periodo(db: Session, empresa_id: int, anio: int, mes: int):
     return periodo
 
 def _validar_dte(dte_json, mes_declaracion, anio_declaracion, empresa_nrc, empresa_nit, tipo_anexo, filename, db: Session):
-    ident = dte_json.get("identificacion", {})
+ident = dte_json.get("identificacion", {})
+    tipo_dte = ident.get("tipoDte", "")
     codigo_gen = ident.get("codigoGeneracion", "").replace("-", "").upper()
     fecha_raw = ident.get("fecEmi", "")
+    
+    if tipo_anexo == 'compras' and tipo_dte not in ["03", "11", "12", "14"]:
+        return False, f"Tipo incorrecto para Compras: DTE {tipo_dte} (Se esperan CCF 03, FSE 14, NC/ND)"
+    if tipo_anexo == 'ventas_ccf' and tipo_dte not in ["03", "11", "12"]:
+        return False, f"Tipo incorrecto para Ventas CCF: DTE {tipo_dte} (Se esperan CCF 03 o NC/ND)"
+    if tipo_anexo == 'ventas_consumidor' and tipo_dte not in ["01", "11", "12"]:
+        return False, f"Tipo incorrecto para Consumidor: DTE {tipo_dte} (Se esperan Facturas 01 o NC/ND)"
     
     try:
         fecha_dte = datetime.strptime(fecha_raw[:10], '%Y-%m-%d')
@@ -46,7 +54,7 @@ def _validar_dte(dte_json, mes_declaracion, anio_declaracion, empresa_nrc, empre
         rec_nrc = str(receptor.get("nrc", "")).replace("-", "")
         if rec_nrc != empresa_nrc and rec_nit != empresa_nit:
             return False, f"El DTE de compra no pertenece a esta empresa (Receptor difiere)"
-    else:
+    elif tipo_anexo in ['ventas_ccf', 'ventas_consumidor']:
         emi_nit = str(emisor.get("nit", "")).replace("-", "")
         emi_nrc = str(emisor.get("nrc", "")).replace("-", "")
         if emi_nrc != empresa_nrc and emi_nit != empresa_nit:
@@ -165,7 +173,7 @@ async def procesar_ventas(
             dte_json = json.loads(text)
             if "dteJson" in dte_json and isinstance(dte_json["dteJson"], dict):
                 dte_json = dte_json["dteJson"]
-            es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas', file.filename, db)
+            es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas_ccf', file.filename, db)
             if not es_valido:
                 if "ya declarado" not in resultado.lower():
                     omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
@@ -229,7 +237,7 @@ async def procesar_ventas_consumidor(
             dte_json = json.loads(text)
             if "dteJson" in dte_json and isinstance(dte_json["dteJson"], dict):
                 dte_json = dte_json["dteJson"]
-            es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas', file.filename, db)
+            es_valido, resultado = _validar_dte(dte_json, mes, anio, emp_nrc, emp_nit, 'ventas_consumidor', file.filename, db)
             if not es_valido:
                 if "ya declarado" not in resultado.lower():
                     omitidos.append({"archivo": file.filename, "motivo": resultado, "contenido": json.dumps(dte_json, indent=2, ensure_ascii=False)})
