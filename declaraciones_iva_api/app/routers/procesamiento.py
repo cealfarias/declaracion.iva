@@ -353,8 +353,9 @@ async def consultar_periodo(
                 factor = -1 if tipo == "05" else 1
                 resultado["ventasConsumidor"]["gravado"] += factor * float(row[13])
                 resultado["ventasConsumidor"]["total"] += factor * float(row[19])
-        except Exception:
-            pass # ignore corrupt DB entries if any
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            pass
             
     resultado["compras"]["csv"] = out_compras.getvalue()
     resultado["ventasContribuyentes"]["csv"] = out_ccf.getvalue()
