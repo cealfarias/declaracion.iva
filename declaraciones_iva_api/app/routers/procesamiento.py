@@ -28,11 +28,11 @@ ident = dte_json.get("identificacion", {})
     codigo_gen = ident.get("codigoGeneracion", "").replace("-", "").upper()
     fecha_raw = ident.get("fecEmi", "")
     
-    if tipo_anexo == 'compras' and tipo_dte not in ["03", "11", "12", "14"]:
+    if tipo_anexo == 'compras' and tipo_dte not in ["03", "05", "06", "14"]:
         return False, f"Tipo incorrecto para Compras: DTE {tipo_dte} (Se esperan CCF 03, FSE 14, NC/ND)"
-    if tipo_anexo == 'ventas_ccf' and tipo_dte not in ["03", "11", "12"]:
+    if tipo_anexo == 'ventas_ccf' and tipo_dte not in ["03", "05", "06"]:
         return False, f"Tipo incorrecto para Ventas CCF: DTE {tipo_dte} (Se esperan CCF 03 o NC/ND)"
-    if tipo_anexo == 'ventas_consumidor' and tipo_dte not in ["01", "11", "12"]:
+    if tipo_anexo == 'ventas_consumidor' and tipo_dte not in ["01", "05", "06"]:
         return False, f"Tipo incorrecto para Consumidor: DTE {tipo_dte} (Se esperan Facturas 01 o NC/ND)"
     
     try:
@@ -118,10 +118,14 @@ async def procesar_compras(
             writer.writerow(row)
             registros_validos.append(row)
             
+            
+            tipo = dte_json.get("identificacion", {}).get("tipoDte", "")
+            factor = -1 if tipo == "05" else 1
+            
             total_docs += 1
-            total_gravado += float(row[9]) + float(row[11]) + float(row[12]) # J, L, M
-            total_iva += float(row[13]) # N
-            total_general += float(row[14]) # O
+            total_gravado += factor * (float(row[9]) + float(row[11]) + float(row[12]))
+            total_iva += factor * float(row[13])
+            total_general += factor * float(row[14])
             
             db.add(DteProcesado(
                 periodo_id=periodo.id,
@@ -189,10 +193,14 @@ async def procesar_ventas(
             writer.writerow(row)
             registros_validos.append(row)
             
+            
+            tipo = dte_json.get("identificacion", {}).get("tipoDte", "")
+            factor = -1 if tipo == "05" else 1
+
             total_docs += 1
-            total_gravado += float(row[11])
-            total_iva += float(row[12])
-            total_general += float(row[15])
+            total_gravado += factor * float(row[11])
+            total_iva += factor * float(row[12])
+            total_general += factor * float(row[15])
             
             db.add(DteProcesado(periodo_id=periodo.id, tipo_documento="03", clasificacion='venta', datos_json=dte_json))
         except Exception as e:
@@ -253,9 +261,13 @@ async def procesar_ventas_consumidor(
             writer.writerow(row)
             registros_validos.append(row)
             
+            
+            tipo = dte_json.get("identificacion", {}).get("tipoDte", "")
+            factor = -1 if tipo == "05" else 1
+
             total_docs += 1
-            total_gravado += float(row[13])
-            total_general += float(row[19])
+            total_gravado += factor * float(row[13])
+            total_general += factor * float(row[19])
             
             db.add(DteProcesado(periodo_id=periodo.id, tipo_documento="01", clasificacion='venta_consumidor', datos_json=dte_json))
         except Exception as e:
@@ -308,26 +320,34 @@ async def consultar_periodo(
                 w_compras.writerow(row)
                 resultado["compras"]["registros"].append(row)
                 resultado["compras"]["documentos"] += 1
-                resultado["compras"]["gravado"] += float(row[9]) + float(row[11]) + float(row[12])
-                resultado["compras"]["iva"] += float(row[13])
-                resultado["compras"]["total"] += float(row[14])
+                
+                tipo = d.datos_json.get("identificacion", {}).get("tipoDte", "")
+                factor = -1 if tipo == "05" else 1
+                
+                resultado["compras"]["gravado"] += factor * (float(row[9]) + float(row[11]) + float(row[12]))
+                resultado["compras"]["iva"] += factor * float(row[13])
+                resultado["compras"]["total"] += factor * float(row[14])
             elif d.clasificacion == 'venta':
                 row = parse_ventas_contribuyente(d.datos_json)
                 row = [f"{float(x):.2f}" if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.','',1).isdigit() and '.' in x and len(x)>0 and x.count('.')==1) else x for x in row]
                 w_ccf.writerow(row)
                 resultado["ventasContribuyentes"]["registros"].append(row)
                 resultado["ventasContribuyentes"]["documentos"] += 1
-                resultado["ventasContribuyentes"]["gravado"] += float(row[11])
-                resultado["ventasContribuyentes"]["iva"] += float(row[12])
-                resultado["ventasContribuyentes"]["total"] += float(row[15])
+                tipo = d.datos_json.get("identificacion", {}).get("tipoDte", "")
+                factor = -1 if tipo == "05" else 1
+                resultado["ventasContribuyentes"]["gravado"] += factor * float(row[11])
+                resultado["ventasContribuyentes"]["iva"] += factor * float(row[12])
+                resultado["ventasContribuyentes"]["total"] += factor * float(row[15])
             elif d.clasificacion == 'venta_consumidor':
                 row = parse_ventas_consumidor(d.datos_json)
                 row = [f"{float(x):.2f}" if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.','',1).isdigit() and '.' in x and len(x)>0 and x.count('.')==1) else x for x in row]
                 w_fcf.writerow(row)
                 resultado["ventasConsumidor"]["registros"].append(row)
                 resultado["ventasConsumidor"]["documentos"] += 1
-                resultado["ventasConsumidor"]["gravado"] += float(row[13])
-                resultado["ventasConsumidor"]["total"] += float(row[19])
+                tipo = d.datos_json.get("identificacion", {}).get("tipoDte", "")
+                factor = -1 if tipo == "05" else 1
+                resultado["ventasConsumidor"]["gravado"] += factor * float(row[13])
+                resultado["ventasConsumidor"]["total"] += factor * float(row[19])
         except Exception:
             pass # ignore corrupt DB entries if any
             
