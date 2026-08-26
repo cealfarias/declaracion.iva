@@ -3,12 +3,57 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 import axios from 'axios';
+import { useGoogleLogin } from '@react-oauth/google';
 
 const APP_VERSION = "v2.0 (Multi-Empresas)";
 
 export default function Dashboard() {
   const { user, logout, activeEmpresa } = useAuth();
+  
+  const [loadingGmail, setLoadingGmail] = useState(false);
   const { say, enqueueMessages } = useAssistant();
+
+  const handleGmailImport = useGoogleLogin({
+    scope: 'https://www.googleapis.com/auth/gmail.readonly',
+    onSuccess: async (tokenResponse) => {
+      try {
+        setLoadingGmail(true);
+        enqueueMessages([{ text: "Buscando DTEs en tu correo, esto puede tomar unos segundos...", type: "info" }]);
+        
+        let targetTipo = '';
+        if (activeWizardTab === 'compras') targetTipo = 'compras';
+        else if (activeWizardTab === 'ventas_ccf') targetTipo = 'ventas_ccf';
+        else if (activeWizardTab === 'ventas_fcf') targetTipo = 'ventas_consumidor';
+
+        const formData = new FormData();
+        formData.append('access_token', tokenResponse.access_token);
+        formData.append('tipo_anexo', targetTipo);
+        formData.append('mes', mes);
+        formData.append('anio', anio);
+        formData.append('empresa_id', activeEmpresa?.id || 1);
+
+        const resp = await axios.post(`${API_URL}/api/v1/procesar/gmail`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (resp.data.documentos === undefined) {
+           // Si devolvió el mensaje de que no encontró
+           enqueueMessages([{ text: resp.data.message || "No se encontraron adjuntos en Gmail.", type: "warning" }]);
+        } else {
+           await cargarDatosHistoricos();
+           enqueueMessages([{ text: `Se extrajeron ${resp.data.documentos} documentos de Gmail exitosamente.`, type: 'success' }]);
+        }
+      } catch (error) {
+        enqueueMessages([{ text: `Error al importar de Gmail: ${error.response?.data?.detail || error.message}`, type: 'error' }]);
+      } finally {
+        setLoadingGmail(false);
+      }
+    },
+    onError: (error) => {
+      enqueueMessages([{ text: "Error de autenticación con Google.", type: "error" }]);
+    }
+  });
+
 
   const fmt = (val) => {
     const num = parseFloat(val);
