@@ -137,11 +137,20 @@ export default function Dashboard() {
     formData.append('empresa_id', activeEmpresa?.id || 1);
     
     try {
-      await axios.post(`${API_URL}/api/v1${endpoint}`, formData, {
+      const resp = await axios.post(`${API_URL}/api/v1${endpoint}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      await cargarDatosHistoricos();
-      enqueueMessages([{ text: `Se procesó ${tipo} correctamente.`, type: 'success' }]);
+      
+      const documentosProcesados = resp.data?.resumen?.documentos || 0;
+      
+      if (documentosProcesados === 0) {
+        let razonesText = resp.data?.omitidos?.map(o => `• ${o.archivo}: ${o.motivo}`).join('\n') || "";
+        if (razonesText) razonesText = `\n\nMotivos de rechazo:\n${razonesText}`;
+        enqueueMessages([{ text: `Se extrajeron 0 documentos válidos de los archivos subidos.${razonesText}`, type: "error" }]);
+      } else {
+        await cargarDatosHistoricos();
+        enqueueMessages([{ text: `Se procesaron ${documentosProcesados} documentos de ${tipo} exitosamente.`, type: 'success' }]);
+      }
     } catch (error) {
       enqueueMessages([{ text: `Error al procesar: ${error.message}`, type: 'error' }]);
     } finally {
