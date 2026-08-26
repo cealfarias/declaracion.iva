@@ -10,8 +10,6 @@ export default function Terminos() {
   const { user, login } = useAuth();
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  const fromGuard = location.state?.fromGuard || false;
 
   const handleAccept = async () => {
     if (!accepted) return;
@@ -108,7 +106,7 @@ export default function Terminos() {
           </section>
         </div>
 
-        {fromGuard && (
+        {user && !user.terminos_aceptados && (
           <div style={{ marginTop: '3rem', borderTop: '1px solid #e2e8f0', paddingTop: '2rem' }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer' }}>
               <input 
