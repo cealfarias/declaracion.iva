@@ -46,7 +46,12 @@ export default function Dashboard() {
            enqueueMessages([{ text: `Se extrajeron 0 documentos válidos de Gmail.${razonesText}`, type: "error" }]);
         } else {
            await cargarDatosHistoricos();
-           enqueueMessages([{ text: `Se extrajeron ${resp.data.documentos} documentos de Gmail exitosamente.`, type: 'success' }]);
+           if (resp.data.omitidos?.length > 0) {
+             let razonesText = resp.data.omitidos.map(o => `• ${o.razon}`).join('\n');
+             enqueueMessages([{ text: `Se extrajeron ${resp.data.documentos} documentos exitosamente. Sin embargo, ${resp.data.omitidos.length} correos fueron omitidos:\n${razonesText}`, type: 'warning' }]);
+           } else {
+             enqueueMessages([{ text: `Se extrajeron ${resp.data.documentos} documentos de Gmail exitosamente.`, type: 'success' }]);
+           }
         }
       } catch (error) {
         enqueueMessages([{ text: `Error al importar de Gmail: ${error.response?.data?.detail || error.message}`, type: 'error' }]);
@@ -149,7 +154,14 @@ export default function Dashboard() {
         enqueueMessages([{ text: `Se extrajeron 0 documentos válidos de los archivos subidos.${razonesText}`, type: "error" }]);
       } else {
         await cargarDatosHistoricos();
-        enqueueMessages([{ text: `Se procesaron ${documentosProcesados} documentos de ${tipo} exitosamente.`, type: 'success' }]);
+        if (resp.data?.omitidos?.length > 0) {
+          let razonesText = resp.data.omitidos.map(o => `• ${o.archivo}: ${o.motivo}`).join('\n');
+          enqueueMessages([
+            { text: `Se procesaron ${documentosProcesados} documentos exitosamente. Sin embargo, ${resp.data.omitidos.length} archivos fueron rechazados:\n${razonesText}`, type: 'warning' }
+          ]);
+        } else {
+          enqueueMessages([{ text: `Se procesaron ${documentosProcesados} documentos de ${tipo} exitosamente.`, type: 'success' }]);
+        }
       }
     } catch (error) {
       enqueueMessages([{ text: `Error al procesar: ${error.message}`, type: 'error' }]);
