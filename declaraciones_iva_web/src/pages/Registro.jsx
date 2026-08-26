@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { GoogleLogin } from '@react-oauth/google';
+import { useAssistant } from '../contexts/AssistantContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -16,16 +17,15 @@ export default function Registro() {
     aceptaTerminos: false
   });
   
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { enqueueMessages } = useAssistant();
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError('');
 
     if (!formData.aceptaTerminos) {
-      setError('Debes aceptar los Términos de Referencia para continuar.');
+      enqueueMessages([{ text: "Debes aceptar los Términos de Referencia para continuar.", type: "error" }]);
       return;
     }
 
@@ -42,9 +42,19 @@ export default function Registro() {
       });
 
       // Registro exitoso
-      navigate('/login', { state: { message: 'Registro exitoso. Por favor inicia sesión.' } });
+      enqueueMessages([{ text: "¡Registro exitoso! Por favor inicia sesión.", type: "success" }]);
+      navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al registrar usuario.');
+      const errorDetail = err.response?.data?.detail || 'Error al registrar usuario.';
+      
+      if (errorDetail.includes("correo ya está registrado")) {
+        enqueueMessages([{ text: "Ese correo ya está registrado. Te voy a redirigir para que inicies sesión.", type: "info" }]);
+        setTimeout(() => navigate('/login'), 2500);
+      } else if (errorDetail.includes("NIT") || errorDetail.includes("NRC")) {
+        enqueueMessages([{ text: `Parece que hay un problema: ${errorDetail} Verifica si ya tenías una cuenta.`, type: "error" }]);
+      } else {
+        enqueueMessages([{ text: errorDetail, type: "error" }]);
+      }
     } finally {
       setLoading(false);
     }
@@ -74,7 +84,7 @@ export default function Registro() {
       });
       // Dejamos que el Avatar o el usuario maneje el siguiente paso
     } else {
-      setError('No se pudo extraer la información de Google.');
+      enqueueMessages([{ text: "No se pudo extraer la información de Google.", type: "error" }]);
     }
   };
 
@@ -88,7 +98,7 @@ export default function Registro() {
           <div className="flex justify-center mb-6">
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setError('No se pudo conectar con Google.')}
+              onError={() => enqueueMessages([{ text: "No se pudo conectar con Google.", type: "error" }])}
               theme="outline"
               size="large"
               shape="pill"
@@ -101,12 +111,6 @@ export default function Registro() {
             <div className="h-px bg-slate-200 flex-1"></div>
           </div>
         </div>
-
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm mb-6 border border-red-200">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleRegister} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
