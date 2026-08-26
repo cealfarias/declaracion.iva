@@ -401,11 +401,27 @@ export default function Dashboard() {
         <div className="flex items-center space-x-4 font-bold">
           <span className="uppercase tracking-wider">Ministerio de Hacienda</span>
         </div>
-        <div className="text-right hidden md:block">
-          <span>Nombre: <span className="font-bold bg-blue-100 text-[#004b79] px-2 py-0.5 rounded">{user?.nombre || 'Usuario'}</span></span>
-          <span className="ml-4">Versión del Sistema <span className="font-mono bg-blue-100 text-[#004b79] px-2 py-0.5 rounded ml-1">{APP_VERSION}</span></span>
+        <div className="text-right flex items-center space-x-4">
+          <span className="hidden md:inline">Nombre: <span className="font-bold bg-blue-100 text-[#004b79] px-2 py-0.5 rounded">{user?.nombre || 'Usuario'}</span></span>
+          <span className="hidden lg:inline ml-2">Versión del Sistema <span className="font-mono bg-blue-100 text-[#004b79] px-2 py-0.5 rounded ml-1">{APP_VERSION}</span></span>
+          
+          <button type="button" onClick={() => navigate('/empresas')} className="ml-4 text-xs font-bold uppercase bg-white text-[#5a1e2f] px-3 py-1 rounded hover:bg-slate-200 transition">
+            Cambiar Empresa
+          </button>
+          <button type="button" onClick={() => { logout(); navigate('/login'); }} className="text-xs font-bold uppercase text-white hover:text-red-200 transition underline">
+            Salir
+          </button>
         </div>
       </div>
+      {activeEmpresa && (
+        <div className="bg-[#004b79] text-white px-6 py-1.5 flex text-xs justify-end items-center space-x-3 font-mono shadow-inner border-b border-[#00385c]">
+          <span className="font-bold text-blue-100 uppercase">{activeEmpresa.razon_social}</span>
+          <span className="text-blue-300">|</span>
+          <span>NIT: {activeEmpresa.nit}</span>
+          <span className="text-blue-300">|</span>
+          <span>NRC: {activeEmpresa.nrc}</span>
+        </div>
+      )}
 
       <div className="bg-[#004b79] text-white px-6 py-2 flex items-center text-xs font-bold uppercase space-x-6 tracking-wide shadow-sm z-0">
         <span className="text-blue-200 cursor-pointer">Inicio</span>
@@ -416,13 +432,14 @@ export default function Dashboard() {
       <div className="bg-white border-b border-slate-200 shadow-sm px-6 py-4 flex flex-wrap gap-6 items-end relative z-0">
         <div>
           <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Ejercicio:</label>
-          <select 
+          <input 
+            type="number" 
             value={anio} 
-            onChange={(e) => setAnio(parseInt(e.target.value))}
+            onChange={(e) => setAnio(parseInt(e.target.value) || new Date().getFullYear())}
+            min="2000"
+            max="2100"
             className="w-32 border border-slate-300 p-2 text-sm rounded focus:ring-1 focus:ring-[#004b79] focus:border-[#004b79] outline-none"
-          >
-            {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+          />
         </div>
         <div>
           <label className="block text-[11px] font-bold text-slate-500 mb-1 uppercase">Periodo:</label>
