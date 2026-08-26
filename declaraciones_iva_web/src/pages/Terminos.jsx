@@ -105,38 +105,40 @@ export default function Terminos() {
           </section>
         </div>
 
-        <div style={{ marginTop: '3rem', borderTop: '1px solid #e2e8f0', paddingTop: '2rem' }}>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer' }}>
-            <input 
-              type="checkbox" 
-              checked={accepted} 
-              onChange={(e) => setAccepted(e.target.checked)}
-              style={{ marginTop: '0.25rem', width: '1.25rem', height: '1.25rem' }}
-            />
-            <span style={{ fontSize: '1rem', color: '#1e293b', fontWeight: '500' }}>
-              He leído, comprendido y acepto en su totalidad los Términos de Referencia y Condiciones de Servicio, en especial la cláusula sobre la responsabilidad exclusiva del usuario en el respaldo de datos.
-            </span>
-          </label>
-          
-          <button 
-            onClick={handleAccept}
-            disabled={!accepted || loading}
-            style={{ 
-              marginTop: '2rem', 
-              width: '100%', 
-              padding: '1rem', 
-              backgroundColor: accepted ? '#0284c7' : '#94a3b8', 
-              color: 'white', 
-              fontWeight: 'bold', 
-              borderRadius: '0.5rem', 
-              cursor: accepted ? 'pointer' : 'not-allowed',
-              border: 'none',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            {loading ? 'Procesando...' : 'Aceptar Términos y Continuar'}
-          </button>
-        </div>
+        {user && (
+          <div style={{ marginTop: '3rem', borderTop: '1px solid #e2e8f0', paddingTop: '2rem' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                checked={accepted} 
+                onChange={(e) => setAccepted(e.target.checked)}
+                style={{ marginTop: '0.25rem', width: '1.25rem', height: '1.25rem' }}
+              />
+              <span style={{ fontSize: '1rem', color: '#1e293b', fontWeight: '500' }}>
+                He leído, comprendido y acepto en su totalidad los Términos de Referencia y Condiciones de Servicio, en especial la cláusula sobre la responsabilidad exclusiva del usuario en el respaldo de datos.
+              </span>
+            </label>
+            
+            <button 
+              onClick={handleAccept}
+              disabled={!accepted || loading}
+              style={{ 
+                marginTop: '2rem', 
+                width: '100%', 
+                padding: '1rem', 
+                backgroundColor: accepted ? '#0284c7' : '#94a3b8', 
+                color: 'white', 
+                fontWeight: 'bold', 
+                borderRadius: '0.5rem', 
+                cursor: accepted ? 'pointer' : 'not-allowed',
+                border: 'none',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              {loading ? 'Procesando...' : 'Aceptar Términos y Continuar'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

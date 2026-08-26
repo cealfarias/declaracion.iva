@@ -8,11 +8,21 @@ import SeleccionEmpresa from './pages/SeleccionEmpresa';
 import Registro from './pages/Registro';
 import Avatar from './components/Avatar';
 
+import Terminos from './pages/Terminos';
 import Dashboard from './pages/Dashboard';
 
-const ProtectedRoute = ({ children }) => {
-  const { token } = useAuth();
+const ProtectedRoute = ({ children, requireTerms = true }) => {
+  const { token, user } = useAuth();
   if (!token) return <Navigate to="/login" />;
+  
+  if (requireTerms && user && user.terminos_aceptados !== true) {
+    return <Navigate to="/terminos" />;
+  }
+  
+  if (!requireTerms && user && user.terminos_aceptados === true) {
+    return <Navigate to="/dashboard" />;
+  }
+
   return children;
 };
 
@@ -22,6 +32,8 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/login" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
+      
+      <Route path="/terminos" element={<Terminos />} />
       
       <Route path="/empresas" element={
         <ProtectedRoute>
