@@ -19,16 +19,32 @@ class EmpresaCreate(BaseModel):
 
 @router.post("/empresas")
 def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db)):
-    # Verify if NIT or NRC already exists
-    existing_empresa = db.query(Empresa).filter(
-        (Empresa.nit == empresa.nit) | (Empresa.nrc == empresa.nrc)
-    ).first()
-    
-    if existing_empresa:
-        raise HTTPException(status_code=400, detail=f"El NIT o NRC ingresado ya se encuentra registrado.")
-
     try:
-        # Crear Empresa
+        # Verify if NIT or NRC already exists
+        existing_empresa = db.query(Empresa).filter(
+            (Empresa.nit == empresa.nit) | (Empresa.nrc == empresa.nrc)
+        ).first()
+        
+        if existing_empresa:
+            # If it already exists, just link the user to the existing company
+            # Check if link already exists
+            existing_link = db.query(UsuarioEmpresa).filter(
+                UsuarioEmpresa.usuario_id == empresa.usuario_id,
+                UsuarioEmpresa.empresa_id == existing_empresa.id
+            ).first()
+            
+            if not existing_link:
+                db_usuario_empresa = UsuarioEmpresa(
+                    usuario_id=empresa.usuario_id,
+                    empresa_id=existing_empresa.id,
+                    rol="admin"
+                )
+                db.add(db_usuario_empresa)
+                db.commit()
+                
+            return {"message": "Empresa vinculada exitosamente", "empresa_id": existing_empresa.id}
+
+        # Crear nueva Empresa si no existe
         db_empresa = Empresa(
             razon_social=empresa.razon_social,
             nit=empresa.nit,
@@ -51,7 +67,7 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db)):
         return {"message": "Empresa creada", "empresa_id": db_empresa.id}
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error interno al crear la empresa.")
+        raise HTTPException(status_code=500, detail="Error interno al crear o vincular la empresa.")
 
 @router.get("/empresas/usuario/{usuario_id}")
 def get_empresas(usuario_id: int, db: Session = Depends(get_db)):
