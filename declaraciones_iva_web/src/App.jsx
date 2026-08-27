@@ -4,7 +4,6 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AssistantProvider } from './contexts/AssistantContext';
 import Login from './pages/Login';
-import SeleccionEmpresa from './pages/SeleccionEmpresa';
 import Registro from './pages/Registro';
 import Avatar from './components/Avatar';
 
@@ -34,12 +33,6 @@ function AppRoutes() {
       <Route path="/registro" element={<Registro />} />
       
       <Route path="/terminos" element={<Terminos />} />
-      
-      <Route path="/empresas" element={
-        <ProtectedRoute>
-          <SeleccionEmpresa />
-        </ProtectedRoute>
-      } />
       
       <Route path="/dashboard" element={
         <ProtectedRoute>
