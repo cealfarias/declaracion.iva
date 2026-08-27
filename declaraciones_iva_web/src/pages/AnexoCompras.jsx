@@ -159,6 +159,17 @@ export default function AnexoCompras() {
     }
   };
 
+  const limpiarAnexo = async () => {
+    if (!window.confirm("¿Estás seguro de eliminar TODOS los registros de este mes? Esta acción no se puede deshacer y tendrás que volver a subir los archivos.")) return;
+    try {
+      await axios.delete(`${API_URL}/api/v1/compras/limpiar/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      enqueueMessages([{ text: "Anexo limpiado exitosamente.", type: "success" }]);
+      fetchCompras();
+    } catch (error) {
+      enqueueMessages([{ text: "Error al limpiar el anexo.", type: "error" }]);
+    }
+  };
+
   if (!activeEmpresa) return null;
 
   return (
@@ -177,12 +188,20 @@ export default function AnexoCompras() {
         </div>
         <div className="flex space-x-3">
           {!isDeclarado && (
-            <button 
-              onClick={declararAnexo}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
-            >
-              🔒 Marcar como Declarado
-            </button>
+            <>
+              <button 
+                onClick={limpiarAnexo}
+                className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 transition-colors"
+              >
+                🗑️ Limpiar Anexo
+              </button>
+              <button 
+                onClick={declararAnexo}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+              >
+                🔒 Marcar como Declarado
+              </button>
+            </>
           )}
           <button 
             onClick={exportCSV}

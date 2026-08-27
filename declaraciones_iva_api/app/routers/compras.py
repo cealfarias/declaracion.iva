@@ -47,6 +47,20 @@ def marcar_como_declarado(empresa_id: int, mes: str, anio: str, db: Session = De
     db.commit()
     return {"mensaje": "Período marcado como declarado"}
 
+@router.delete("/limpiar/{empresa_id}")
+def limpiar_periodo(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+    if is_periodo_declarado(db, empresa_id, anio, mes):
+        raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
+        
+    db.query(DteCompra).filter(
+        DteCompra.empresa_id == empresa_id,
+        DteCompra.periodo_mes == mes,
+        DteCompra.periodo_anio == anio
+    ).delete()
+    
+    db.commit()
+    return {"mensaje": "Período limpiado correctamente"}
+
 @router.post("/upload")
 async def upload_dtes(
     empresa_id: int = Form(...),
