@@ -35,13 +35,19 @@ async def upload_dtes(
             
         content = await file.read()
         try:
-            dte_json = json.loads(content)
-        except json.JSONDecodeError:
-            errores.append(f"{file.filename}: JSON inválido.")
+            # decodificar usando utf-8-sig elimina el BOM si existe, el cual es común en archivos MH
+            decoded_content = content.decode('utf-8-sig').strip()
+            dte_json = json.loads(decoded_content)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            errores.append(f"{file.filename}: No es un JSON válido o tiene codificación incorrecta.")
             continue
             
         # Extraer campos clave
         try:
+            # Algunos sistemas devuelven el DTE envuelto en la llave 'dteJson'
+            if "dteJson" in dte_json and isinstance(dte_json["dteJson"], dict):
+                dte_json = dte_json["dteJson"]
+                
             identificacion = dte_json.get("identificacion", {})
             tipo_dte = identificacion.get("tipoDte", "")
             
