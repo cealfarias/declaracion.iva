@@ -117,9 +117,9 @@ async def upload_dtes(
                 credito_fiscal=iva,
                 total_compras=total_compras,
                 tipo_operacion="1",
-                clasificacion="2",
-                sector="4",
-                tipo_costo_gasto="2",
+                clasificacion="1",
+                sector="2",
+                tipo_costo_gasto="0",
                 raw_json=dte_json
             )
             
@@ -175,7 +175,7 @@ def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_d
         return f"{val or 0.0:.2f}"
 
     def get_valid(val, default_val):
-        return default_val if not val or val == "0" else val
+        return default_val if not val else val
         
     for c in compras:
         row = [
@@ -197,10 +197,10 @@ def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_d
             f"{c.credito_fiscal:.2f}",
             f"{c.total_compras:.2f}",
             "", # DUI Proveedor (vacío si hay NIT)
-            get_valid(c.tipo_operacion, "1"),
-            get_valid(c.clasificacion, "2"),  
-            get_valid(c.sector, "4"),
-            get_valid(c.tipo_costo_gasto, "2"),
+            get_valid(c.tipo_operacion, "1") if get_valid(c.tipo_operacion, "1") != "0" else "1",
+            get_valid(c.clasificacion, "1") if get_valid(c.clasificacion, "1") != "0" else "1",  
+            get_valid(c.sector, "2") if get_valid(c.sector, "2") != "0" else "2",
+            get_valid(c.tipo_costo_gasto, "0"), # Para costos, el tipo es 0
             "3" # Número de Anexo (siempre 3 para compras)
         ]
         writer.writerow(row)
