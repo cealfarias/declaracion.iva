@@ -10,6 +10,7 @@ import Avatar from './components/Avatar';
 import Terminos from './pages/Terminos';
 import Dashboard from './pages/Dashboard';
 import AnexoCompras from './pages/AnexoCompras';
+import AnexoVentasCF from './pages/AnexoVentasCF';
 
 const ProtectedRoute = ({ children, requireTerms = true }) => {
   const { token, user } = useAuth();
@@ -44,6 +45,12 @@ function AppRoutes() {
       <Route path="/compras" element={
         <ProtectedRoute>
           <AnexoCompras />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/consumidor-final" element={
+        <ProtectedRoute>
+          <AnexoVentasCF />
         </ProtectedRoute>
       } />
     </Routes>

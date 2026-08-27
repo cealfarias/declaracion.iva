@@ -210,7 +210,10 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Consumidor Final</h3>
           <p className="text-sm text-slate-500 mb-5">Importa tus FCF emitidas para tu anexo a consumidor final.</p>
-          <button className="w-full bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-emerald-700 transition">
+          <button 
+            onClick={() => navigate(`/consumidor-final?mes=${mes}&anio=${anio}`)}
+            className="w-full bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-emerald-700 transition"
+          >
             Generar Anexo
           </button>
         </div>

@@ -37,11 +37,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.routers import auth, empresas, compras
+from app.routers import auth, empresas, compras, ventas_cf
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(empresas.router, prefix="/api/v1", tags=["Empresas"])
 app.include_router(compras.router, prefix="/api/v1/compras", tags=["Compras"])
+app.include_router(ventas_cf.router, prefix="/api/v1/ventas-cf", tags=["Ventas Consumidor Final"])
 
 @app.get("/")
 def root():

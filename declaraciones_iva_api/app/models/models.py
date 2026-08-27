@@ -81,6 +81,42 @@ class DteCompra(Base):
 
     empresa = relationship("Empresa")
 
+class DteVenta(Base):
+    __tablename__ = "iva_dtes_ventas_cf"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), index=True, nullable=False)
+    
+    # Contexto
+    periodo_mes = Column(String(2), nullable=False)
+    periodo_anio = Column(String(4), nullable=False)
+    
+    fecha_emision = Column(String, nullable=False)
+    clase_documento = Column(String, nullable=False, default="4")
+    tipo_documento = Column(String, nullable=False, default="01")
+    numero_resolucion = Column(String, nullable=False) # N/A para DTE
+    serie_documento = Column(String, nullable=False) # N/A
+    numero_control_del = Column(String, nullable=False) # N/A
+    numero_control_al = Column(String, nullable=False) # N/A
+    codigo_generacion = Column(String, nullable=False) # Máquina
+    sello_recepcion = Column(String, nullable=False) # Control interno
+    
+    nit_cliente = Column(String, nullable=True)
+    
+    ventas_exentas = Column(Float, default=0.0)
+    ventas_no_sujetas = Column(Float, default=0.0)
+    ventas_gravadas = Column(Float, default=0.0)
+    exportaciones = Column(Float, default=0.0)
+    ventas_zona_franca = Column(Float, default=0.0)
+    ventas_terceros = Column(Float, default=0.0)
+    total_ventas = Column(Float, default=0.0)
+    
+    raw_json = Column(JSON, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
+
 class DeclaracionEstado(Base):
     __tablename__ = "iva_declaraciones_estado"
 
