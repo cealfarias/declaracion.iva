@@ -82,6 +82,9 @@ async def upload_dtes(
             
             # Montos
             tributos = resumen.get("tributos", [])
+            if not isinstance(tributos, list):
+                tributos = []
+                
             iva = 0.0
             for t in tributos:
                 if t.get("codigo") == "20":
