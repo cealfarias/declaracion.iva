@@ -41,9 +41,11 @@ export default function AnexoCompras() {
   };
 
   const handleFileUpload = async (files) => {
-    const jsonFiles = Array.from(files).filter(f => f.name.endsWith('.json'));
+    // Solo permitir enviar archivos con extensión .json (ignorando mayúsculas/minúsculas)
+    const jsonFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.json'));
+    
     if (jsonFiles.length === 0) {
-      enqueueMessages([{ text: "Por favor selecciona archivos JSON válidos.", type: "error" }]);
+      enqueueMessages([{ text: "Por favor selecciona una carpeta que contenga archivos JSON válidos.", type: "error" }]);
       return;
     }
 
