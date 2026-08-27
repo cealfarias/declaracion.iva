@@ -116,6 +116,10 @@ async def upload_dtes(
                 compras_internas_gravadas=total_gravada,
                 credito_fiscal=iva,
                 total_compras=total_compras,
+                tipo_operacion="1",
+                clasificacion="1",
+                sector="2",
+                tipo_costo_gasto="1",
                 raw_json=dte_json
             )
             
@@ -185,10 +189,10 @@ def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_d
             f"{c.credito_fiscal:.2f}",
             f"{c.total_compras:.2f}",
             "", # DUI Proveedor (vacío si hay NIT)
-            c.tipo_operacion if c.tipo_operacion else "0",
-            c.clasificacion if c.clasificacion else "0",
-            c.sector if c.sector else "0",
-            c.tipo_costo_gasto if c.tipo_costo_gasto else "0",
+            c.tipo_operacion or "1",
+            c.clasificacion or "1",
+            c.sector or "2",
+            c.tipo_costo_gasto or "1",
             "3" # Número de Anexo (siempre 3 para compras)
         ]
         writer.writerow(row)
