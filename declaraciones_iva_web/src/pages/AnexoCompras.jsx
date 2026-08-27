@@ -194,12 +194,23 @@ export default function AnexoCompras() {
       </div>
 
       {/* Resumen Superior */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Registros</p>
+            <h3 className="text-xl font-bold text-slate-900">
+              {compras.length}
+            </h3>
+          </div>
+          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+        </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Gravadas</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${compras.reduce((sum, item) => sum + (item.compras_internas_gravadas || 0), 0).toFixed(2)}
+              ${compras.reduce((sum, item) => sum + (item.compras_internas_gravadas || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
@@ -210,7 +221,7 @@ export default function AnexoCompras() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Crédito Fiscal</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${compras.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toFixed(2)}
+              ${compras.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
@@ -221,7 +232,7 @@ export default function AnexoCompras() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Compras</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${compras.reduce((sum, item) => sum + (item.total_compras || 0), 0).toFixed(2)}
+              ${compras.reduce((sum, item) => sum + (item.total_compras || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
