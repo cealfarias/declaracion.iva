@@ -138,44 +138,44 @@ export default function Dashboard() {
   );
 
   const renderF07Dashboard = () => (
-    <div className="flex flex-col space-y-8 animate-fade-in-up">
-      <div className="flex justify-between items-end mb-4">
+    <div className="flex flex-col space-y-6 animate-fade-in-up">
+      <div className="flex justify-between items-end mb-2">
         <div>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Panel Principal - {activeEmpresa.razon_social}</h2>
-          <p className="text-slate-500 mt-2">NIT: {activeEmpresa.nit} | NRC: {activeEmpresa.nrc}</p>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Panel Principal - {activeEmpresa.razon_social}</h2>
+          <p className="text-sm text-slate-500 mt-1">NIT: {activeEmpresa.nit} | NRC: {activeEmpresa.nrc}</p>
         </div>
         <button 
           onClick={() => selectEmpresa(null)}
-          className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium hover:bg-slate-50 transition shadow-sm"
+          className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition shadow-sm"
         >
           Cambiar Empresa
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Card for Ventas */}
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-          <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6">
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card for Contribuyentes */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-4">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-2">Libro de Ventas</h3>
-          <p className="text-slate-500 mb-6">Importa tus FCF, CCF, NC y ND generados para tu anexo de ventas.</p>
-          <button className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition">
-            Generar Anexo de Ventas
+          <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Contribuyentes</h3>
+          <p className="text-sm text-slate-500 mb-5">Importa tus CCF, NC y ND generados para tu anexo de contribuyentes.</p>
+          <button className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition">
+            Generar Anexo
           </button>
         </div>
 
-        {/* Card for Compras */}
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-          <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-6">
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+        {/* Card for Consumidor Final */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center mb-4">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-2">Libro de Compras</h3>
-          <p className="text-slate-500 mb-6">Importa los comprobantes recibidos de tus proveedores para tu anexo de compras.</p>
-          <button className="w-full bg-emerald-600 text-white font-semibold py-3 rounded-xl hover:bg-emerald-700 transition">
-            Generar Anexo de Compras
+          <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Consumidor Final</h3>
+          <p className="text-sm text-slate-500 mb-5">Importa tus FCF emitidas para tu anexo a consumidor final.</p>
+          <button className="w-full bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-emerald-700 transition">
+            Generar Anexo
           </button>
         </div>
       </div>
