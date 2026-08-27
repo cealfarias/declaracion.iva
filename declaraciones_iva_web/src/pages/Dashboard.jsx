@@ -152,11 +152,14 @@ export default function Dashboard() {
           <div className="flex items-center space-x-4 mt-3">
             <div className="flex items-center space-x-2">
               <label className="text-sm font-semibold text-slate-700">Año:</label>
-              <select className="border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={anio} onChange={(e) => setAnio(e.target.value)}>
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-              </select>
+              <input 
+                type="number" 
+                min="2000" 
+                max="2100" 
+                className="border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-24" 
+                value={anio} 
+                onChange={(e) => setAnio(e.target.value)} 
+              />
             </div>
             <div className="flex items-center space-x-2">
               <label className="text-sm font-semibold text-slate-700">Mes:</label>
