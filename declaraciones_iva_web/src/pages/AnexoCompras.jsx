@@ -50,37 +50,40 @@ export default function AnexoCompras() {
     setLoading(true);
     let totalProcesados = 0;
     let todosErrores = [];
-    const BATCH_SIZE = 20;
 
     try {
-      for (let i = 0; i < jsonFiles.length; i += BATCH_SIZE) {
-        const batch = jsonFiles.slice(i, i + BATCH_SIZE);
+      // Para evitar bloqueos del WAF o Proxy (CORS ERR_FAILED) por múltiples archivos, subimos 1 por 1.
+      for (let i = 0; i < jsonFiles.length; i++) {
         const formData = new FormData();
         formData.append("empresa_id", activeEmpresa.id);
         formData.append("periodo_mes", mes);
         formData.append("periodo_anio", anio);
-        batch.forEach(f => formData.append("files", f));
+        formData.append("files", jsonFiles[i]);
 
-        const response = await axios.post(`${API_URL}/api/v1/compras/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        
-        if (response.data.errores) {
-          todosErrores = [...todosErrores, ...response.data.errores];
+        try {
+          const response = await axios.post(`${API_URL}/api/v1/compras/upload`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          
+          if (response.data.errores && response.data.errores.length > 0) {
+            todosErrores = [...todosErrores, ...response.data.errores];
+          } else {
+            totalProcesados += 1;
+          }
+        } catch (err) {
+           todosErrores.push(`${jsonFiles[i].name}: Falló la conexión (Network Error).`);
         }
-        totalProcesados += batch.length;
       }
       
       if (todosErrores.length > 0) {
-        enqueueMessages([{ text: `Subida completada con advertencias. Errores en ${todosErrores.length} archivos: ${todosErrores.slice(0,2).join(", ")}...`, type: "warning" }]);
+        enqueueMessages([{ text: `Subida completada. Éxitos: ${totalProcesados}. Errores en ${todosErrores.length} archivos: ${todosErrores.slice(0,2).join(", ")}...`, type: "warning" }]);
       } else {
         enqueueMessages([{ text: `Se procesaron ${totalProcesados} comprobantes exitosamente.`, type: "success" }]);
       }
       fetchCompras();
     } catch (error) {
       console.error(error);
-      const errorMsg = error.response?.data?.detail || error.message || "Error desconocido";
-      enqueueMessages([{ text: `Error al subir un lote de archivos: ${errorMsg}. Algunos pudieron haberse guardado.`, type: "error" }]);
+      enqueueMessages([{ text: `Error inesperado al procesar los archivos.`, type: "error" }]);
       fetchCompras();
     } finally {
       setLoading(false);
