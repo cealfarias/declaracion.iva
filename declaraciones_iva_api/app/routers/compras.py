@@ -87,11 +87,18 @@ async def upload_dtes(
             continue
             
         content = await file.read()
-        try:
-            # decodificar usando utf-8-sig elimina el BOM si existe, el cual es común en archivos MH
-            decoded_content = content.decode('utf-8-sig').strip()
-            dte_json = json.loads(decoded_content)
-        except (json.JSONDecodeError, UnicodeDecodeError):
+        # Intentar múltiples codificaciones
+        decoded_content = None
+        dte_json = None
+        for encoding in ['utf-8-sig', 'latin-1', 'windows-1252', 'utf-16']:
+            try:
+                decoded_content = content.decode(encoding).strip()
+                dte_json = json.loads(decoded_content)
+                break # Si tiene éxito, salir del bucle
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+                
+        if dte_json is None:
             errores.append(f"{file.filename}: No es un JSON válido o tiene codificación incorrecta.")
             continue
             
