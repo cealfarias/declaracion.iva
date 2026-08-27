@@ -317,7 +317,7 @@ export default function AnexoCompras() {
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.clasificacion || "1"} 
+                        value={compra.clasificacion || "2"} 
                         onChange={(e) => updateConfig(compra.id, "clasificacion", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
@@ -328,7 +328,7 @@ export default function AnexoCompras() {
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.sector || "2"} 
+                        value={compra.sector || "4"} 
                         onChange={(e) => updateConfig(compra.id, "sector", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
@@ -342,7 +342,7 @@ export default function AnexoCompras() {
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.tipo_costo_gasto || "0"} 
+                        value={compra.tipo_costo_gasto || "2"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_costo_gasto", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >

@@ -117,9 +117,9 @@ async def upload_dtes(
                 credito_fiscal=iva,
                 total_compras=total_compras,
                 tipo_operacion="1",
-                clasificacion="1",
-                sector="2",
-                tipo_costo_gasto="0",
+                clasificacion="2",
+                sector="4",
+                tipo_costo_gasto="2",
                 raw_json=dte_json
             )
             
@@ -183,8 +183,6 @@ def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_d
             c.clase_documento,
             c.tipo_documento,
             c.numero_resolucion,
-            c.serie_documento,
-            c.numero_documento,
             c.nit_proveedor,
             c.nombre_proveedor,
             format_money(c.compras_internas_exentas),
@@ -197,10 +195,10 @@ def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_d
             f"{c.credito_fiscal:.2f}",
             f"{c.total_compras:.2f}",
             "", # DUI Proveedor (vacío si hay NIT)
-            get_valid(c.tipo_operacion, "1") if get_valid(c.tipo_operacion, "1") != "0" else "1",
-            get_valid(c.clasificacion, "1") if get_valid(c.clasificacion, "1") != "0" else "1",  
-            get_valid(c.sector, "2") if get_valid(c.sector, "2") != "0" else "2",
-            get_valid(c.tipo_costo_gasto, "0"), # Para costos, el tipo es 0
+            get_valid(c.tipo_operacion, "1"),
+            get_valid(c.clasificacion, "2"),  
+            get_valid(c.sector, "4"),
+            get_valid(c.tipo_costo_gasto, "2"),
             "3" # Número de Anexo (siempre 3 para compras)
         ]
         writer.writerow(row)
