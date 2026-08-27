@@ -158,6 +158,8 @@ export default function AnexoCompras() {
         <input 
           type="file" 
           multiple 
+          webkitdirectory="true"
+          directory="true"
           accept=".json" 
           className="hidden" 
           ref={fileInputRef}
@@ -168,8 +170,8 @@ export default function AnexoCompras() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-slate-800 mb-1">Arrastra tus archivos JSON de compras aquí</h3>
-        <p className="text-sm text-slate-500">o haz clic para buscar en tu equipo (Comprobantes de Crédito Fiscal emitidos por proveedores)</p>
+        <h3 className="text-lg font-medium text-slate-800 mb-1">Arrastra tus archivos JSON o una carpeta completa aquí</h3>
+        <p className="text-sm text-slate-500">o haz clic para buscar la carpeta en tu equipo (Comprobantes de Crédito Fiscal emitidos por proveedores)</p>
       </div>
 
       {/* Tabla */}
