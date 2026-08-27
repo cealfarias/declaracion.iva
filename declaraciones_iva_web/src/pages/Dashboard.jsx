@@ -13,6 +13,10 @@ export default function Dashboard() {
   const [showModal, setShowModal] = useState(false);
   const [newEmpresa, setNewEmpresa] = useState({ razon_social: '', nit: '', nrc: '', actividad_economica: '', combustible_50_porciento: false });
   
+  const currentDate = new Date();
+  const [mes, setMes] = useState((currentDate.getMonth() + 1).toString().padStart(2, '0'));
+  const [anio, setAnio] = useState(currentDate.getFullYear().toString());
+
   const { user, selectEmpresa, activeEmpresa, logout } = useAuth();
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
@@ -144,6 +148,34 @@ export default function Dashboard() {
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">Panel Principal - {activeEmpresa.razon_social}</h2>
           <p className="text-sm text-slate-500 mt-1">NIT: {activeEmpresa.nit} | NRC: {activeEmpresa.nrc}</p>
+          
+          <div className="flex items-center space-x-4 mt-3">
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-semibold text-slate-700">Año:</label>
+              <select className="border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={anio} onChange={(e) => setAnio(e.target.value)}>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+              </select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-semibold text-slate-700">Mes:</label>
+              <select className="border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={mes} onChange={(e) => setMes(e.target.value)}>
+                <option value="01">Enero</option>
+                <option value="02">Febrero</option>
+                <option value="03">Marzo</option>
+                <option value="04">Abril</option>
+                <option value="05">Mayo</option>
+                <option value="06">Junio</option>
+                <option value="07">Julio</option>
+                <option value="08">Agosto</option>
+                <option value="09">Septiembre</option>
+                <option value="10">Octubre</option>
+                <option value="11">Noviembre</option>
+                <option value="12">Diciembre</option>
+              </select>
+            </div>
+          </div>
         </div>
         <button 
           onClick={() => selectEmpresa(null)}
