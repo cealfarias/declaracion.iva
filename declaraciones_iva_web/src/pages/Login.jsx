@@ -24,7 +24,11 @@ export default function Login() {
       });
       
       if (response.data.access_token) {
-        login(response.data.access_token, { nombre: response.data.nombre, id: response.data.id });
+        login(response.data.access_token, { 
+          nombre: response.data.nombre, 
+          id: response.data.id,
+          terminos_aceptados: response.data.terminos_aceptados 
+        });
         navigate('/dashboard');
       }
     } catch (err) {
@@ -50,8 +54,12 @@ export default function Login() {
       });
 
       if (response.data.access_token) {
-        login(response.data.access_token, { nombre: response.data.nombre, id: response.data.id });
-        navigate('/empresas');
+        login(response.data.access_token, { 
+          nombre: response.data.nombre, 
+          id: response.data.id,
+          terminos_aceptados: response.data.terminos_aceptados 
+        });
+        navigate('/dashboard');
       }
     } catch (err) {
       if (err.response?.status === 401 && err.response.data.detail.includes("registrado")) {
