@@ -19,27 +19,39 @@ class EmpresaCreate(BaseModel):
 
 @router.post("/empresas")
 def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db)):
-    # Crear Empresa
-    db_empresa = Empresa(
-        razon_social=empresa.razon_social,
-        nit=empresa.nit,
-        nrc=empresa.nrc,
-        combustible_50_porciento=empresa.combustible_50_porciento
-    )
-    db.add(db_empresa)
-    db.commit()
-    db.refresh(db_empresa)
+    # Verify if NIT or NRC already exists
+    existing_empresa = db.query(Empresa).filter(
+        (Empresa.nit == empresa.nit) | (Empresa.nrc == empresa.nrc)
+    ).first()
     
-    # Vincular al usuario
-    db_usuario_empresa = UsuarioEmpresa(
-        usuario_id=empresa.usuario_id,
-        empresa_id=db_empresa.id,
-        rol="admin"
-    )
-    db.add(db_usuario_empresa)
-    db.commit()
-    
-    return {"message": "Empresa creada", "empresa_id": db_empresa.id}
+    if existing_empresa:
+        raise HTTPException(status_code=400, detail=f"El NIT o NRC ingresado ya se encuentra registrado.")
+
+    try:
+        # Crear Empresa
+        db_empresa = Empresa(
+            razon_social=empresa.razon_social,
+            nit=empresa.nit,
+            nrc=empresa.nrc,
+            combustible_50_porciento=empresa.combustible_50_porciento
+        )
+        db.add(db_empresa)
+        db.commit()
+        db.refresh(db_empresa)
+        
+        # Vincular al usuario
+        db_usuario_empresa = UsuarioEmpresa(
+            usuario_id=empresa.usuario_id,
+            empresa_id=db_empresa.id,
+            rol="admin"
+        )
+        db.add(db_usuario_empresa)
+        db.commit()
+        
+        return {"message": "Empresa creada", "empresa_id": db_empresa.id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error interno al crear la empresa.")
 
 @router.get("/empresas/usuario/{usuario_id}")
 def get_empresas(usuario_id: int, db: Session = Depends(get_db)):

@@ -73,7 +73,8 @@ export default function Dashboard() {
       setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false });
     } catch (error) {
       console.error('Error creando empresa', error);
-      enqueueMessages([{ text: "Hubo un error al guardar los datos de la empresa.", type: "error" }]);
+      const errorMsg = error.response?.data?.detail || "Hubo un error al guardar los datos de la empresa.";
+      enqueueMessages([{ text: errorMsg, type: "error" }]);
     }
   };
 
