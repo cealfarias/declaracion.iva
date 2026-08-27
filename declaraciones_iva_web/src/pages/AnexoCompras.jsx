@@ -194,36 +194,46 @@ export default function AnexoCompras() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
+          <table className="min-w-max w-full divide-y divide-slate-200">
+            <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Proveedor</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Gravadas</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">IVA</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider" colSpan="4">Configuración F07</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="A: Fecha de Emisión">A. Fecha</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="B: Clase de Documento">B. Clase</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="C: Tipo de Documento">C. Tipo</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="D: Número de Resolución / Código de Generación">D. Resolución / Cód. Generación</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="E: NIT Proveedor">E. NIT Prov.</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="F: Nombre Proveedor">F. Nombre Proveedor</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="G: Compras Internas Exentas">G. Exent. Int.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="H: Internaciones Exentas">H. Internac. Exent.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="I: Importaciones Exentas">I. Import. Exent.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="J: Compras Internas Gravadas">J. Gravadas Int.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="K: Internaciones Gravadas Bienes">K. Internac. Grav.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="L: Importaciones Gravadas Bienes">L. Import. Grav. Bs.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="M: Importaciones Gravadas Servicios">M. Import. Grav. Sv.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="N: Crédito Fiscal">N. Crédito Fiscal</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="O: Total Compras">O. Total</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-l border-slate-200" colSpan="4">Configuración F07</th>
               </tr>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th colSpan="5"></th>
-                <th className="px-2 py-2 text-xs text-slate-500 font-normal">T. Operación</th>
-                <th className="px-2 py-2 text-xs text-slate-500 font-normal">Clasificación</th>
-                <th className="px-2 py-2 text-xs text-slate-500 font-normal">Sector</th>
-                <th className="px-2 py-2 text-xs text-slate-500 font-normal">Costo/Gasto</th>
+              <tr className="bg-slate-100 border-b border-slate-300">
+                <th colSpan="15" className="border-r border-slate-200"></th>
+                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">T. Operación</th>
+                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">Clasificación</th>
+                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">Sector</th>
+                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">Costo/Gasto</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
               {loading && compras.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan="19" className="px-6 py-10 text-center text-slate-500">
                     Cargando compras...
                   </td>
                 </tr>
               ) : compras.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan="19" className="px-6 py-10 text-center text-slate-500">
                     <div className="flex flex-col items-center">
                       <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                       <p>No hay compras procesadas en {mes}/{anio}.</p>
@@ -231,21 +241,37 @@ export default function AnexoCompras() {
                   </td>
                 </tr>
               ) : (
-                compras.map((compra) => (
+                [...compras]
+                  .sort((a, b) => {
+                    // Convertir "DD/MM/YYYY" a Date para ordenar
+                    const dateA = a.fecha_emision.split('/').reverse().join('-');
+                    const dateB = b.fecha_emision.split('/').reverse().join('-');
+                    return new Date(dateA) - new Date(dateB);
+                  })
+                  .map((compra) => (
                   <tr key={compra.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">{compra.fecha_emision}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                      <div className="truncate max-w-xs" title={compra.nombre_proveedor}>{compra.nombre_proveedor}</div>
-                      <div className="text-xs text-slate-500">{compra.nit_proveedor}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">${compra.compras_internas_gravadas.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">${compra.credito_fiscal.toFixed(2)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-slate-900">${compra.total_compras.toFixed(2)}</td>
-                    <td className="px-2 py-4 whitespace-nowrap text-sm text-center">
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900">{compra.fecha_emision}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 text-center">{compra.clase_documento}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 text-center">{compra.tipo_documento}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 truncate max-w-[150px]" title={compra.numero_resolucion}>{compra.numero_resolucion}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{compra.nit_proveedor}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 truncate max-w-[200px]" title={compra.nombre_proveedor}>{compra.nombre_proveedor}</td>
+                    
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.compras_internas_exentas.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.internaciones_exentas.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_exentas.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.compras_internas_gravadas.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.internaciones_gravadas_bienes.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_gravadas_bienes.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_gravadas_servicios.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.credito_fiscal.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-emerald-700 font-bold">${compra.total_compras.toFixed(2)}</td>
+                    
+                    <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
                         value={compra.tipo_operacion || "0"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20"
+                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
                         <option value="0">-</option>
                         <option value="1">1 Grav</option>
