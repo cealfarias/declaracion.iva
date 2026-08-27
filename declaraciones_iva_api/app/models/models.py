@@ -38,4 +38,45 @@ class UsuarioEmpresa(Base):
     usuario = relationship("Usuario", back_populates="empresas")
     empresa = relationship("Empresa", back_populates="usuarios")
 
+class DteCompra(Base):
+    __tablename__ = "iva_dtes_compras"
 
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), index=True, nullable=False)
+    
+    # Contexto
+    periodo_mes = Column(String(2), nullable=False)
+    periodo_anio = Column(String(4), nullable=False)
+    
+    # Datos extraídos del DTE necesarios para F-07
+    fecha_emision = Column(String, nullable=False)
+    clase_documento = Column(String, nullable=False, default="4") # 4=DTE
+    tipo_documento = Column(String, nullable=False, default="03") # 03=CCF
+    numero_resolucion = Column(String, nullable=False) # Código de generación
+    serie_documento = Column(String, nullable=False) # Sello de recepción
+    numero_documento = Column(String, nullable=False) # Código de generación o correlativo
+    nit_proveedor = Column(String, nullable=False)
+    nombre_proveedor = Column(String, nullable=False)
+    
+    compras_internas_exentas = Column(Float, default=0.0)
+    internaciones_exentas = Column(Float, default=0.0)
+    importaciones_exentas = Column(Float, default=0.0)
+    compras_internas_gravadas = Column(Float, default=0.0)
+    internaciones_gravadas_bienes = Column(Float, default=0.0)
+    importaciones_gravadas_bienes = Column(Float, default=0.0)
+    importaciones_gravadas_servicios = Column(Float, default=0.0)
+    credito_fiscal = Column(Float, default=0.0)
+    total_compras = Column(Float, default=0.0)
+    
+    # Nuevas casillas a partir de Feb 2024
+    tipo_operacion = Column(String(1), nullable=True) # 1 Gravada, 2 No Gravada...
+    clasificacion = Column(String(1), nullable=True) # 1 Costo, 2 Gasto
+    sector = Column(String(1), nullable=True) # 1 Industria, 2 Comercio...
+    tipo_costo_gasto = Column(String(1), nullable=True) # 1,2,3,4...
+    
+    # Payload crudo
+    raw_json = Column(JSON, nullable=False)
+    
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")

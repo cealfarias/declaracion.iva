@@ -9,6 +9,7 @@ import Avatar from './components/Avatar';
 
 import Terminos from './pages/Terminos';
 import Dashboard from './pages/Dashboard';
+import AnexoCompras from './pages/AnexoCompras';
 
 const ProtectedRoute = ({ children, requireTerms = true }) => {
   const { token, user } = useAuth();
@@ -37,6 +38,12 @@ function AppRoutes() {
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Dashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/compras" element={
+        <ProtectedRoute>
+          <AnexoCompras />
         </ProtectedRoute>
       } />
     </Routes>

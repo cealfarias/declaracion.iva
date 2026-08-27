@@ -37,11 +37,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.routers import auth, empresas
+from app.routers import auth, empresas, compras
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(empresas.router, prefix="/api/v1", tags=["Empresas"])
+app.include_router(compras.router, prefix="/api/v1/compras", tags=["Compras"])
 
 @app.get("/")
 def root():
     return {"message": "API de Declaraciones de IVA en funcionamiento"}
+
+@app.delete("/api/v1/debug/wipe_db")
+def wipe_database():
+    try:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        return {"message": "Base de datos borrada y recreada exitosamente"}
+    except Exception as e:
+        return {"error": str(e)}

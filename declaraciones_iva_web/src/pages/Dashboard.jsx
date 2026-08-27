@@ -223,7 +223,10 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Compras</h3>
           <p className="text-sm text-slate-500 mb-5">Importa los comprobantes recibidos de tus proveedores para tu anexo de compras.</p>
-          <button className="w-full bg-amber-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-amber-700 transition">
+          <button 
+            onClick={() => navigate(`/compras?mes=${mes}&anio=${anio}`)}
+            className="w-full bg-amber-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-amber-700 transition"
+          >
             Generar Anexo
           </button>
         </div>
