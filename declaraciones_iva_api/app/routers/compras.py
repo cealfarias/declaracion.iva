@@ -7,10 +7,45 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.models import DteCompra, Empresa
+from app.models.models import DteCompra, Empresa, DeclaracionEstado
 import json
 
 router = APIRouter()
+
+def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str) -> bool:
+    estado = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes
+    ).first()
+    return estado.declarado if estado else False
+
+@router.get("/estado/{empresa_id}")
+def get_estado_declaracion(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+    declarado = is_periodo_declarado(db, empresa_id, anio, mes)
+    return {"declarado": declarado}
+
+@router.post("/declarar/{empresa_id}")
+def marcar_como_declarado(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+    estado = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes
+    ).first()
+    
+    if not estado:
+        estado = DeclaracionEstado(
+            empresa_id=empresa_id,
+            anio=anio,
+            mes=mes,
+            declarado=True
+        )
+        db.add(estado)
+    else:
+        estado.declarado = True
+        
+    db.commit()
+    return {"mensaje": "Período marcado como declarado"}
 
 @router.post("/upload")
 async def upload_dtes(
@@ -20,6 +55,10 @@ async def upload_dtes(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
+    # Verificar si está bloqueado
+    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes):
+        raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
+
     # Validar que la empresa exista
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
     if not empresa:
@@ -151,6 +190,9 @@ def update_operacion(dte_id: int, tipo_operacion: str, clasificacion: str, secto
     dte = db.query(DteCompra).filter(DteCompra.id == dte_id).first()
     if not dte:
         raise HTTPException(status_code=404, detail="DTE no encontrado")
+        
+    if is_periodo_declarado(db, dte.empresa_id, dte.periodo_anio, dte.periodo_mes):
+        raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
         
     dte.tipo_operacion = tipo_operacion
     dte.clasificacion = clasificacion

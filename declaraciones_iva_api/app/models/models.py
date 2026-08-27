@@ -80,3 +80,15 @@ class DteCompra(Base):
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
+
+class DeclaracionEstado(Base):
+    __tablename__ = "iva_declaraciones_estado"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), nullable=False)
+    anio = Column(String(4), nullable=False)
+    mes = Column(String(2), nullable=False)
+    declarado = Column(Boolean, default=False)
+    fecha_declaracion = Column(DateTime, default=datetime.utcnow)
+    
+    empresa = relationship("Empresa")

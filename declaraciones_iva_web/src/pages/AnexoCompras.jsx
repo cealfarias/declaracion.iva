@@ -18,6 +18,7 @@ export default function AnexoCompras() {
   const [compras, setCompras] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDeclarado, setIsDeclarado] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -25,8 +26,18 @@ export default function AnexoCompras() {
       navigate('/dashboard');
       return;
     }
+    fetchEstadoDeclaracion();
     fetchCompras();
   }, [activeEmpresa, mes, anio]);
+
+  const fetchEstadoDeclaracion = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      setIsDeclarado(response.data.declarado);
+    } catch (error) {
+      console.error("Error al cargar el estado de la declaración");
+    }
+  };
 
   const fetchCompras = async () => {
     setLoading(true);
@@ -37,6 +48,17 @@ export default function AnexoCompras() {
       enqueueMessages([{ text: "Error al cargar las compras.", type: "error" }]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const declararAnexo = async () => {
+    if (!window.confirm("¿Estás seguro de marcar este anexo como Declarado? Ya no podrás subir ni modificar compras para este mes.")) return;
+    try {
+      await axios.post(`${API_URL}/api/v1/compras/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      setIsDeclarado(true);
+      enqueueMessages([{ text: "Anexo marcado como Declarado exitosamente.", type: "success" }]);
+    } catch (error) {
+      enqueueMessages([{ text: "Error al marcar como declarado.", type: "error" }]);
     }
   };
 
@@ -141,7 +163,6 @@ export default function AnexoCompras() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up">
-      {/* Cabecera */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <div className="flex items-center space-x-2 text-sm text-slate-500 mb-2">
@@ -149,24 +170,49 @@ export default function AnexoCompras() {
             <span>/</span>
             <span className="text-slate-800 font-medium">Anexo de Compras</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Anexo de Compras (F07)</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {activeEmpresa.razon_social} | NIT: {activeEmpresa.nit} | Período: {mes}/{anio}
-          </p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            {activeEmpresa.razon_social}
+          </h1>
+          <p className="text-slate-500 mt-1">Período: {mes}/{anio}</p>
         </div>
         <div className="flex space-x-3">
+          {!isDeclarado && (
+            <button 
+              onClick={declararAnexo}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+            >
+              🔒 Marcar como Declarado
+            </button>
+          )}
           <button 
             onClick={exportCSV}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:bg-emerald-700 transition"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
-            Exportar CSV
+            Descargar CSV F07
           </button>
         </div>
       </div>
 
+      {isDeclarado && (
+        <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-amber-700 font-medium">
+                Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones a la contabilidad.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Zona de Drag and Drop */}
       <div 
-        className={`mb-8 border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer ${
+        className={`mb-8 border-2 border-dashed rounded-xl p-10 text-center transition-colors ${!isDeclarado ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'} ${
           isDragging ? 'border-amber-500 bg-amber-50' : 'border-slate-300 bg-white hover:border-amber-400 hover:bg-slate-50'
         }`}
         onDragOver={onDragOver}
@@ -320,6 +366,7 @@ export default function AnexoCompras() {
                         value={compra.tipo_operacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        disabled={isDeclarado}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Grav</option>
@@ -331,6 +378,7 @@ export default function AnexoCompras() {
                         value={compra.clasificacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "clasificacion", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        disabled={isDeclarado}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Costo</option>
@@ -342,6 +390,7 @@ export default function AnexoCompras() {
                         value={compra.sector || "2"} 
                         onChange={(e) => updateConfig(compra.id, "sector", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        disabled={isDeclarado}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Ind</option>
@@ -356,6 +405,7 @@ export default function AnexoCompras() {
                         value={compra.tipo_costo_gasto || "5"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_costo_gasto", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        disabled={isDeclarado}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Venta</option>
