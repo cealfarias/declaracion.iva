@@ -117,7 +117,7 @@ async def upload_dtes(
                 credito_fiscal=iva,
                 total_compras=total_compras,
                 tipo_operacion="1",
-                clasificacion="1",
+                clasificacion="2",
                 sector="2",
                 tipo_costo_gasto="1",
                 raw_json=dte_json
@@ -171,28 +171,36 @@ def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_d
     output = StringIO()
     writer = csv.writer(output, delimiter=';', lineterminator='\n')
     
+    def format_money(val):
+        return f"{val or 0.0:.2f}"
+
+    def get_valid(val, default_val):
+        return default_val if not val or val == "0" else val
+        
     for c in compras:
         row = [
             c.fecha_emision,
             c.clase_documento,
             c.tipo_documento,
             c.numero_resolucion,
+            c.serie_documento,
+            c.numero_documento,
             c.nit_proveedor,
             c.nombre_proveedor,
-            f"{c.compras_internas_exentas:.2f}",
-            f"{c.internaciones_exentas:.2f}",
-            f"{c.importaciones_exentas:.2f}",
-            f"{c.compras_internas_gravadas:.2f}",
-            f"{c.internaciones_gravadas_bienes:.2f}",
-            f"{c.importaciones_gravadas_bienes:.2f}",
-            f"{c.importaciones_gravadas_servicios:.2f}",
+            format_money(c.compras_internas_exentas),
+            format_money(c.internaciones_exentas),
+            format_money(c.importaciones_exentas),
+            format_money(c.compras_internas_gravadas),
+            format_money(c.internaciones_gravadas_bienes),
+            format_money(c.importaciones_gravadas_bienes),
+            format_money(c.importaciones_gravadas_servicios),
             f"{c.credito_fiscal:.2f}",
             f"{c.total_compras:.2f}",
             "", # DUI Proveedor (vacío si hay NIT)
-            c.tipo_operacion or "1",
-            c.clasificacion or "1",
-            c.sector or "2",
-            c.tipo_costo_gasto or "1",
+            get_valid(c.tipo_operacion, "1"),
+            get_valid(c.clasificacion, "2"),  # 2=Gasto (para que coincida con 1=Venta)
+            get_valid(c.sector, "2"),
+            get_valid(c.tipo_costo_gasto, "1"),
             "3" # Número de Anexo (siempre 3 para compras)
         ]
         writer.writerow(row)
