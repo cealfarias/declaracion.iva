@@ -193,6 +193,43 @@ export default function AnexoCompras() {
         <p className="text-sm text-slate-500">o haz clic para buscar la carpeta en tu equipo (Comprobantes de Crédito Fiscal emitidos por proveedores)</p>
       </div>
 
+      {/* Resumen Superior */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Gravadas</p>
+            <h3 className="text-xl font-bold text-slate-900">
+              ${compras.reduce((sum, item) => sum + (item.compras_internas_gravadas || 0), 0).toFixed(2)}
+            </h3>
+          </div>
+          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Crédito Fiscal</p>
+            <h3 className="text-xl font-bold text-slate-900">
+              ${compras.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toFixed(2)}
+            </h3>
+          </div>
+          <div className="w-12 h-12 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"></path></svg>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Compras</p>
+            <h3 className="text-xl font-bold text-slate-900">
+              ${compras.reduce((sum, item) => sum + (item.total_compras || 0), 0).toFixed(2)}
+            </h3>
+          </div>
+          <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          </div>
+        </div>
+      </div>
+
       {/* Tabla */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto custom-scrollbar">
@@ -269,7 +306,7 @@ export default function AnexoCompras() {
                     
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.tipo_operacion || "0"} 
+                        value={compra.tipo_operacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
@@ -278,40 +315,42 @@ export default function AnexoCompras() {
                         <option value="2">2 No Grav</option>
                       </select>
                     </td>
-                    <td className="px-2 py-4 whitespace-nowrap text-sm text-center">
+                    <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.clasificacion || "0"} 
+                        value={compra.clasificacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "clasificacion", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20"
+                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
                         <option value="0">-</option>
                         <option value="1">1 Costo</option>
                         <option value="2">2 Gasto</option>
                       </select>
                     </td>
-                    <td className="px-2 py-4 whitespace-nowrap text-sm text-center">
+                    <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.sector || "0"} 
+                        value={compra.sector || "2"} 
                         onChange={(e) => updateConfig(compra.id, "sector", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20"
+                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
                         <option value="0">-</option>
                         <option value="1">1 Ind</option>
                         <option value="2">2 Com</option>
-                        <option value="3">3 Agro</option>
-                        <option value="4">4 Serv</option>
+                        <option value="3">3 Serv</option>
+                        <option value="4">4 Agro</option>
+                        <option value="5">5 Otro</option>
                       </select>
                     </td>
-                    <td className="px-2 py-4 whitespace-nowrap text-sm text-center">
+                    <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.tipo_costo_gasto || "0"} 
+                        value={compra.tipo_costo_gasto || "1"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_costo_gasto", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20"
+                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
                       >
                         <option value="0">-</option>
                         <option value="1">1 Venta</option>
                         <option value="2">2 Admin</option>
-                        <option value="3">3 Fin</option>
+                        <option value="3">3 Finan</option>
+                        <option value="4">4 Produc</option>
                       </select>
                     </td>
                   </tr>
