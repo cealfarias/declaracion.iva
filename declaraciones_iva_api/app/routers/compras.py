@@ -82,7 +82,7 @@ async def upload_dtes(
     errores = []
 
     for file in files:
-        if not file.filename.endswith('.json'):
+        if not file.filename.lower().endswith('.json'):
             errores.append(f"{file.filename}: No es un archivo JSON.")
             continue
             
