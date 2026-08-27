@@ -47,27 +47,41 @@ export default function AnexoCompras() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("empresa_id", activeEmpresa.id);
-    formData.append("periodo_mes", mes);
-    formData.append("periodo_anio", anio);
-    jsonFiles.forEach(f => formData.append("files", f));
-
     setLoading(true);
+    let totalProcesados = 0;
+    let todosErrores = [];
+    const BATCH_SIZE = 20;
+
     try {
-      const response = await axios.post(`${API_URL}/api/v1/compras/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      for (let i = 0; i < jsonFiles.length; i += BATCH_SIZE) {
+        const batch = jsonFiles.slice(i, i + BATCH_SIZE);
+        const formData = new FormData();
+        formData.append("empresa_id", activeEmpresa.id);
+        formData.append("periodo_mes", mes);
+        formData.append("periodo_anio", anio);
+        batch.forEach(f => formData.append("files", f));
+
+        const response = await axios.post(`${API_URL}/api/v1/compras/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        if (response.data.errores) {
+          todosErrores = [...todosErrores, ...response.data.errores];
+        }
+        totalProcesados += batch.length;
+      }
       
-      const { message, errores } = response.data;
-      if (errores && errores.length > 0) {
-        enqueueMessages([{ text: `${message} Algunos errores: ${errores.slice(0,3).join(", ")}`, type: "warning" }]);
+      if (todosErrores.length > 0) {
+        enqueueMessages([{ text: `Subida completada con advertencias. Errores en ${todosErrores.length} archivos: ${todosErrores.slice(0,2).join(", ")}...`, type: "warning" }]);
       } else {
-        enqueueMessages([{ text: message, type: "success" }]);
+        enqueueMessages([{ text: `Se procesaron ${totalProcesados} comprobantes exitosamente.`, type: "success" }]);
       }
       fetchCompras();
     } catch (error) {
-      enqueueMessages([{ text: "Error al subir los archivos.", type: "error" }]);
+      console.error(error);
+      const errorMsg = error.response?.data?.detail || error.message || "Error desconocido";
+      enqueueMessages([{ text: `Error al subir un lote de archivos: ${errorMsg}. Algunos pudieron haberse guardado.`, type: "error" }]);
+      fetchCompras();
     } finally {
       setLoading(false);
     }
