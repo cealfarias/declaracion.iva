@@ -121,6 +121,11 @@ async def upload_dtes(
                 
             # Evitar duplicados (mismo sello/resolucion en mismo periodo para la empresa)
             sello = identificacion.get("selloRecibido", "")
+            if not sello:
+                sello = dte_json.get("selloRecibido", "")
+            if not sello:
+                sello = dte_json.get("selloRecepcion", "")
+                
             codigo_generacion = identificacion.get("codigoGeneracion", "")
             
             # El "Número de Documento" para DTE (clase 4) debe ser el código de generación sin guiones
