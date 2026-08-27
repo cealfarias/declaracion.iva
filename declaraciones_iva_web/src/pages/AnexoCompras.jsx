@@ -34,6 +34,9 @@ export default function AnexoCompras() {
     try {
       const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
       setIsDeclarado(response.data.declarado);
+      if (response.data.declarado) {
+        enqueueMessages([{ text: "Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones a la contabilidad.", type: "warning" }]);
+      }
     } catch (error) {
       console.error("Error al cargar el estado de la declaración");
     }
@@ -211,23 +214,6 @@ export default function AnexoCompras() {
           </button>
         </div>
       </div>
-
-      {isDeclarado && (
-        <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-amber-700 font-medium">
-                Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones a la contabilidad.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Zona de Drag and Drop */}
       <div 
