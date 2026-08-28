@@ -305,7 +305,7 @@ def export_anulados_csv(empresa_id: int, mes: str, anio: str, version: int = 1, 
         
     content = output.getvalue().encode("utf-8")
     headers = {
-        "Content-Disposition": f"attachment; filename="F07_Anulados_{mes}_{anio}_v{version}.csv""
+        "Content-Disposition": f"attachment; filename='F07_Anulados_{mes}_{anio}_v{version}.csv'"
     }
     return StreamingResponse(
         iter([content]),
