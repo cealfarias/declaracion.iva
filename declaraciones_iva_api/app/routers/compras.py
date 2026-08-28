@@ -12,25 +12,27 @@ import json
 
 router = APIRouter()
 
-def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str) -> bool:
+def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str, tipo_libro: str = "compras") -> bool:
     estado = db.query(DeclaracionEstado).filter(
         DeclaracionEstado.empresa_id == empresa_id,
         DeclaracionEstado.anio == anio,
-        DeclaracionEstado.mes == mes
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro
     ).first()
     return estado.declarado if estado else False
 
 @router.get("/estado/{empresa_id}")
-def get_estado_declaracion(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
-    declarado = is_periodo_declarado(db, empresa_id, anio, mes)
+def get_estado_declaracion(empresa_id: int, mes: str, anio: str, tipo_libro: str = "compras", db: Session = Depends(get_db)):
+    declarado = is_periodo_declarado(db, empresa_id, anio, mes, tipo_libro)
     return {"declarado": declarado}
 
 @router.post("/declarar/{empresa_id}")
-def marcar_como_declarado(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+def marcar_como_declarado(empresa_id: int, mes: str, anio: str, tipo_libro: str = "compras", db: Session = Depends(get_db)):
     estado = db.query(DeclaracionEstado).filter(
         DeclaracionEstado.empresa_id == empresa_id,
         DeclaracionEstado.anio == anio,
-        DeclaracionEstado.mes == mes
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro
     ).first()
     
     if not estado:
@@ -38,6 +40,7 @@ def marcar_como_declarado(empresa_id: int, mes: str, anio: str, db: Session = De
             empresa_id=empresa_id,
             anio=anio,
             mes=mes,
+            tipo_libro=tipo_libro,
             declarado=True
         )
         db.add(estado)

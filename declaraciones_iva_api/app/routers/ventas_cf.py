@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.delete("/limpiar/{empresa_id}")
 def limpiar_periodo(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
-    if is_periodo_declarado(db, empresa_id, anio, mes):
+    if is_periodo_declarado(db, empresa_id, anio, mes, tipo_libro="ventas_cf"):
         raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
         
     db.query(DteVenta).filter(
@@ -34,7 +34,7 @@ async def upload_dtes_cf(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes):
+    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes, tipo_libro="ventas_cf"):
         raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
 
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
@@ -167,8 +167,7 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, db: Session = Depend
     ).order_by(DteVenta.fecha_emision).all()
 
     output = StringIO()
-    writer = csv.writer(output, delimiter=";", lineterminator="
-")
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
 
     for v in ventas:
         def fmt(val):
@@ -205,7 +204,7 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, db: Session = Depend
     content = output.getvalue().encode("utf-8")
 
     headers = {
-        "Content-Disposition": f"attachment; filename="F07_Ventas_CF_{mes}_{anio}.csv""
+        "Content-Disposition": f'attachment; filename="F07_Ventas_CF_{mes}_{anio}.csv"'
     }
 
     return StreamingResponse(

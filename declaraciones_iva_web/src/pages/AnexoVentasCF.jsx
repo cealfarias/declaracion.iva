@@ -32,7 +32,7 @@ export default function AnexoVentasCF() {
 
   const fetchEstadoDeclaracion = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventas_cf`);
       setIsDeclarado(response.data.declarado);
       if (response.data.declarado) {
         enqueueMessages([{ text: "Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones.", type: "warning" }]);
@@ -57,7 +57,7 @@ export default function AnexoVentasCF() {
   const declararAnexo = async () => {
     if (!window.confirm("¿Seguro que deseas marcar este período como DECLARADO? Ya no podrás agregar, modificar ni eliminar archivos.")) return;
     try {
-      await axios.post(`${API_URL}/api/v1/compras/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      await axios.post(`${API_URL}/api/v1/compras/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventas_cf`);
       setIsDeclarado(true);
       enqueueMessages([{ text: "Anexo marcado como Declarado exitosamente. Las modificaciones han sido bloqueadas.", type: "success" }]);
     } catch (error) {

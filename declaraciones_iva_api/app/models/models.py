@@ -124,6 +124,7 @@ class DeclaracionEstado(Base):
     empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), nullable=False)
     anio = Column(String(4), nullable=False)
     mes = Column(String(2), nullable=False)
+    tipo_libro = Column(String(50), nullable=False, default="compras")
     declarado = Column(Boolean, default=False)
     fecha_declaracion = Column(DateTime, default=datetime.utcnow)
     

@@ -20,6 +20,12 @@ try:
 except Exception:
     pass
 
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE iva_declaraciones_estado ADD COLUMN tipo_libro VARCHAR(50) DEFAULT 'compras' NOT NULL;"))
+except Exception:
+    pass
+
 app = FastAPI(title="Declaraciones de IVA API", version="1.0.0")
 
 origins = [
