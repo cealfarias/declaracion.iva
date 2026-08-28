@@ -325,8 +325,7 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db
             agrupado[v.fecha_emision].append(v)
             
     output = StringIO()
-    writer = csv.writer(output, delimiter=";", lineterminator="
-")
+    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
 
     for fecha, lista_dia in agrupado.items():
         def fmt(val):
