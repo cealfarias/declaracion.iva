@@ -22,6 +22,8 @@ export default function AnexoVentasContribuyentes() {
   const [versiones, setVersiones] = useState([{version: 1, declarado: false, numero_declaracion: ""}]);
   const [activeVersion, setActiveVersion] = useState(1);
   const [numeroInput, setNumeroInput] = useState("");
+  const [showModificatoriaModal, setShowModificatoriaModal] = useState(false);
+  const [numeroDeclaracionOriginal, setNumeroDeclaracionOriginal] = useState("");
 
   const fileInputRef = useRef(null);
 
@@ -61,13 +63,17 @@ export default function AnexoVentasContribuyentes() {
     }
   };
   
-  const handleCrearModificatoria = async () => {
-    const original = prompt("Ingresa el Número de la Declaración original que vas a modificar:");
-    if (!original) return;
+    const handleCrearModificatoria = async () => {
+    if (!numeroDeclaracionOriginal) {
+      enqueueMessages([{ text: "Por favor, ingresa el número de declaración original.", type: "error" }]);
+      return;
+    }
     
     try {
-      await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=ventas_contribuyentes`);
+      await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${numeroDeclaracionOriginal}&tipo_libro=ventas_contribuyentes`);
       enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
+      setShowModificatoriaModal(false);
+      setNumeroDeclaracionOriginal("");
       fetchEstadoDeclaracion();
       fetchventasContribuyentes();
     } catch (error) {
