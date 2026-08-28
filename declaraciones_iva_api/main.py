@@ -52,12 +52,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.routers import auth, empresas, compras, ventas_cf
+from app.routers import auth, empresas, compras, ventas_cf, anulados
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
-app.include_router(empresas.router, prefix="/api/v1", tags=["Empresas"])
-app.include_router(compras.router, prefix="/api/v1/compras", tags=["Compras"])
-app.include_router(ventas_cf.router, prefix="/api/v1/ventas-cf", tags=["Ventas Consumidor Final"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(empresas.router, prefix="/api/v1/empresas", tags=["empresas"])
+app.include_router(compras.router, prefix="/api/v1/compras", tags=["compras"])
+app.include_router(ventas_cf.router, prefix="/api/v1/ventas-cf", tags=["ventas-cf"])
+app.include_router(anulados.router, prefix="/api/v1/anulados", tags=["anulados"])
 
 @app.get("/")
 def root():

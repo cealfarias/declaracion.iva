@@ -270,6 +270,7 @@ async def upload_dtes_cf(
         "errores": errores
     }
 
+from app.models.models import DteAnulado
 @router.get("/list/{empresa_id}")
 def get_ventas(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     ventas = db.query(DteVenta).filter(
@@ -277,8 +278,26 @@ def get_ventas(empresa_id: int, mes: str, anio: str, version: int = 1, db: Sessi
         DteVenta.periodo_mes == mes,
         DteVenta.periodo_anio == anio,
         DteVenta.version == version
+    ).order_by(DteVenta.fecha_emision).all()
+    
+    anulados = db.query(DteAnulado).filter(
+        DteAnulado.empresa_id == empresa_id,
+        DteAnulado.periodo_mes == mes,
+        DteAnulado.periodo_anio == anio,
+        DteAnulado.version == version
     ).all()
-    return ventas
+    
+    set_anulados = {a.codigo_generacion for a in anulados}
+    
+    res = []
+    for v in ventas:
+        cg_clean = v.codigo_generacion.replace("-", "")
+        v_dict = v.__dict__.copy()
+        v_dict.pop("_sa_instance_state", None)
+        v_dict["anulado"] = cg_clean in set_anulados
+        res.append(v_dict)
+        
+    return res
 
 @router.get("/export_csv/{empresa_id}")
 def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
@@ -287,39 +306,65 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db
         DteVenta.periodo_mes == mes,
         DteVenta.periodo_anio == anio,
         DteVenta.version == version
-    ).order_by(DteVenta.fecha_emision).all()
-
-    output = StringIO()
-    writer = csv.writer(output, delimiter=";", lineterminator="\r\n")
-
+    ).order_by(DteVenta.fecha_emision, DteVenta.creado_en).all()
+    
+    anulados = db.query(DteAnulado).filter(
+        DteAnulado.empresa_id == empresa_id,
+        DteAnulado.periodo_mes == mes,
+        DteAnulado.periodo_anio == anio,
+        DteAnulado.version == version
+    ).all()
+    set_anulados = {a.codigo_generacion for a in anulados}
+    
+    # Agrupar por dia
+    from collections import defaultdict
+    agrupado = defaultdict(list)
     for v in ventas:
-        def fmt(val):
-            return f"{val:.0f}" if val.is_integer() else str(val)
+        cg_clean = v.codigo_generacion.replace("-", "")
+        if cg_clean not in set_anulados:
+            agrupado[v.fecha_emision].append(v)
             
+    output = StringIO()
+    writer = csv.writer(output, delimiter=";", lineterminator="
+")
+
+    for fecha, lista_dia in agrupado.items():
+        def fmt(val):
+            return f"{val:.2f}"
+            
+        v_exentas = sum(v.ventas_exentas for v in lista_dia)
+        v_no_sujetas = sum(v.ventas_no_sujetas for v in lista_dia)
+        v_gravadas = sum(v.ventas_gravadas for v in lista_dia)
+        t_ventas = sum(v.total_ventas for v in lista_dia)
+        
+        # El primero y el ultimo emitido en el dia
+        primer_dte = lista_dia[0].codigo_generacion.replace("-", "")
+        ultimo_dte = lista_dia[-1].codigo_generacion.replace("-", "")
+        
         row = [
-            v.fecha_emision,
-            v.clase_documento,
-            v.tipo_documento,
-            v.numero_resolucion,
-            v.serie_documento,
-            v.numero_control_del,
-            v.numero_control_al,
-            v.codigo_generacion,
-            v.sello_recepcion,
-            v.nit_cliente or "",
-            fmt(v.ventas_exentas),
-            fmt(v.ventas_no_sujetas),
-            "0", # Ventas No Sujetas Exportaciones
-            fmt(v.ventas_gravadas), 
-            "0", # Ventas Zona Franca
-            "0", # Exportaciones Fuera CA
-            "0", # Exportaciones CA
-            "0", # Ventas a Terceros
-            "0", # IVA Retenido?
-            fmt(v.total_ventas),
-            "1", # Tipo Operacion / Anexo
-            "3", # Ingreso
-            "2"  # ???
+            fecha,
+            "4", # Clase
+            "01", # Tipo
+            "N/A", # Resolución
+            "N/A", # Serie
+            "N/A", # Control Del
+            "N/A", # Control Al
+            primer_dte, # Documento Del (Código Generación Inicial)
+            ultimo_dte, # Documento Al (Código Generación Final)
+            "", # Maquina registradora
+            fmt(v_exentas),
+            "0", # Internas exentas no sujetas a proporcionalidad
+            fmt(v_no_sujetas),
+            fmt(v_gravadas),
+            "0", # Exp CA
+            "0", # Exp Fuera CA
+            "0", # Exp Servicios
+            "0", # Zonas Francas
+            "0", # Terceros no domiciliados
+            fmt(t_ventas),
+            "1", # Tipo Operacion
+            "3", # Tipo Ingreso
+            "1"  # Numero de Anexo (según F07 v14 es 1)
         ]
         writer.writerow(row)
 
@@ -327,7 +372,7 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db
     content = output.getvalue().encode("utf-8")
 
     headers = {
-        "Content-Disposition": f'attachment; filename="F07_Ventas_CF_{mes}_{anio}.csv"'
+        "Content-Disposition": f"attachment; filename=\"F07_Ventas_CF_{mes}_{anio}_v{version}.csv\""
     }
 
     return StreamingResponse(
@@ -335,3 +380,4 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db
         media_type="text/csv",
         headers=headers
     )
+

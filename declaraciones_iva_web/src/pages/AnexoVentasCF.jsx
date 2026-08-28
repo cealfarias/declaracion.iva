@@ -296,7 +296,7 @@ export default function AnexoVentasCF() {
             Detalle de Ventas ({ventas.length})
           </h2>
           <div className="text-sm text-slate-600 font-medium">
-            Total Ventas: <span className="text-indigo-600">${ventas.reduce((acc, v) => acc + v.total_ventas, 0).toFixed(2)}</span>
+            Total Ventas: <span className="text-indigo-600">${ventas.filter(v => !v.anulado).reduce((acc, v) => acc + (v.total_ventas || 0), 0).toFixed(2)}</span>
           </div>
         </div>
         
@@ -321,13 +321,16 @@ export default function AnexoVentasCF() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {ventas.map((v) => (
-                  <tr key={v.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-slate-600">{v.fecha_emision}</td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{v.nit_cliente || "Consumidor Final"}</td>
-                    <td className="px-4 py-3 text-slate-500 font-mono text-xs">{v.codigo_generacion}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">${v.ventas_gravadas.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right text-slate-700">${v.ventas_exentas.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900">${v.total_ventas.toFixed(2)}</td>
+                  <tr key={v.id} className={`${v.anulado ? "bg-red-50 hover:bg-red-100" : "hover:bg-slate-50"} transition-colors`} title={v.anulado ? "DTE anulado, y no se toma en cuenta en el cálculo" : ""}>
+                    <td className={`px-4 py-3 ${v.anulado ? "text-red-500" : "text-slate-600"}`}>
+                      {v.fecha_emision}
+                      {v.anulado && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Anulado</span>}
+                    </td>
+                    <td className={`px-4 py-3 font-medium ${v.anulado ? "text-red-700" : "text-slate-900"}`}>{v.nit_cliente || "Consumidor Final"}</td>
+                    <td className={`px-4 py-3 font-mono text-xs ${v.anulado ? "text-red-400" : "text-slate-500"}`}>{v.codigo_generacion}</td>
+                    <td className={`px-4 py-3 text-right ${v.anulado ? "text-red-500 line-through" : "text-slate-700"}`}>${v.ventas_gravadas?.toFixed(2)}</td>
+                    <td className={`px-4 py-3 text-right ${v.anulado ? "text-red-500 line-through" : "text-slate-700"}`}>${v.ventas_exentas?.toFixed(2)}</td>
+                    <td className={`px-4 py-3 text-right font-medium ${v.anulado ? "text-red-700 line-through" : "text-slate-900"}`}>${v.total_ventas?.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>

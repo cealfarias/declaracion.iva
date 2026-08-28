@@ -119,6 +119,26 @@ class DteVenta(Base):
     empresa = relationship("Empresa")
 
 
+class DteAnulado(Base):
+    __tablename__ = "iva_dtes_anulados"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), index=True, nullable=False)
+    
+    periodo_mes = Column(String(2), nullable=False)
+    periodo_anio = Column(String(4), nullable=False)
+    
+    fecha_emision = Column(String, nullable=False) # Fecha de invalidación
+    tipo_documento = Column(String, nullable=False) # 01, 03, etc
+    codigo_generacion = Column(String, nullable=False) # El UUID del DTE original (sin guiones)
+    sello_recepcion = Column(String, nullable=False) # Sello original del DTE o el de invalidación, el MH pide el sello de recepción obtenido tras la respuesta (sello de la invalidación o del original? el manual a veces dice sello de recepcion. Guardaremos el del DTE)
+    
+    raw_json = Column(JSON, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
 class DeclaracionEstado(Base):
     __tablename__ = "iva_declaraciones_estado"
 
