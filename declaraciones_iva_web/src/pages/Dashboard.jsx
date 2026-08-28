@@ -14,8 +14,16 @@ export default function Dashboard() {
   const [newEmpresa, setNewEmpresa] = useState({ razon_social: '', nit: '', nrc: '', actividad_economica: '', combustible_50_porciento: false });
   
   const currentDate = new Date();
-  const [mes, setMes] = useState((currentDate.getMonth() + 1).toString().padStart(2, '0'));
-  const [anio, setAnio] = useState(currentDate.getFullYear().toString());
+  const [mes, setMes] = useState(localStorage.getItem('dashboard_mes') || (currentDate.getMonth() + 1).toString().padStart(2, '0'));
+  const [anio, setAnio] = useState(localStorage.getItem('dashboard_anio') || currentDate.getFullYear().toString());
+
+  useEffect(() => {
+    localStorage.setItem('dashboard_mes', mes);
+  }, [mes]);
+
+  useEffect(() => {
+    localStorage.setItem('dashboard_anio', anio);
+  }, [anio]);
 
   const { user, selectEmpresa, activeEmpresa, logout } = useAuth();
   const { enqueueMessages } = useAssistant();
