@@ -37,7 +37,7 @@ export default function AnexoVentasContribuyentes() {
   
   const fetchEstadoDeclaracion = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventasContribuyentes`);
+      const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventas_contribuyentes`);
       const vers = response.data.versiones || [{version: 1, declarado: false, numero_declaracion: ""}];
       setVersiones(vers);
       const maxV = Math.max(...vers.map(v => v.version));
@@ -53,7 +53,7 @@ export default function AnexoVentasContribuyentes() {
   
   const handleSaveNumero = async () => {
     try {
-      await axios.put(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=ventasContribuyentes`);
+      await axios.put(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=ventas_contribuyentes`);
       enqueueMessages([{ text: "Número de declaración guardado correctamente.", type: "success" }]);
       fetchEstadoDeclaracion();
     } catch (error) {
@@ -66,7 +66,7 @@ export default function AnexoVentasContribuyentes() {
     if (!original) return;
     
     try {
-      await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=ventasContribuyentes`);
+      await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=ventas_contribuyentes`);
       enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
       fetchEstadoDeclaracion();
       if(api_path === "ventasContribuyentes") fetchventasContribuyentes(); else fetchVentas();
@@ -81,7 +81,7 @@ export default function AnexoVentasContribuyentes() {
   const fetchventasContribuyentes = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
       setventasContribuyentes(response.data);
     } catch (error) {
       enqueueMessages([{ text: "Error al cargar las ventasContribuyentes.", type: "error" }]);
@@ -173,7 +173,7 @@ export default function AnexoVentasContribuyentes() {
   };
 
   const exportCSV = () => {
-    window.location.href = `${API_URL}/api/v1/ventas-contribuyentes/${activeEmpresa.id}/export?mes=${mes}&anio=${anio}`;
+    window.open(`${API_URL}/api/v1/ventas-contribuyentes/export_csv/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`, "_blank");
   };
 
   const updateConfig = async (id, field, value) => {
