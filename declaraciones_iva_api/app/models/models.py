@@ -128,10 +128,48 @@ class DteAnulado(Base):
     periodo_mes = Column(String(2), nullable=False)
     periodo_anio = Column(String(4), nullable=False)
     
-    fecha_emision = Column(String, nullable=False) # Fecha de invalidación
-    tipo_documento = Column(String, nullable=False) # 01, 03, etc
-    codigo_generacion = Column(String, nullable=False) # El UUID del DTE original (sin guiones)
-    sello_recepcion = Column(String, nullable=False) # Sello original del DTE o el de invalidación, el MH pide el sello de recepción obtenido tras la respuesta (sello de la invalidación o del original? el manual a veces dice sello de recepcion. Guardaremos el del DTE)
+    fecha_emision = Column(String, nullable=False)
+    tipo_documento = Column(String, nullable=False)
+    codigo_generacion = Column(String, nullable=False)
+    sello_recepcion = Column(String, nullable=False)
+    
+    raw_json = Column(JSON, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")
+
+class DteVentaContribuyente(Base):
+    __tablename__ = "iva_dtes_ventas_contribuyentes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), index=True, nullable=False)
+    
+    periodo_mes = Column(String(2), nullable=False)
+    periodo_anio = Column(String(4), nullable=False)
+    
+    fecha_emision = Column(String, nullable=False)
+    clase_documento = Column(String, nullable=False, default="4")
+    tipo_documento = Column(String, nullable=False, default="03")
+    numero_resolucion = Column(String, nullable=False)
+    serie_documento = Column(String, nullable=False)
+    numero_documento = Column(String, nullable=False)
+    numero_control_interno = Column(String, nullable=True)
+    
+    nit_nrc_cliente = Column(String, nullable=True)
+    nombre_cliente = Column(String, nullable=False)
+    
+    ventas_exentas = Column(Float, default=0.0)
+    ventas_no_sujetas = Column(Float, default=0.0)
+    ventas_gravadas = Column(Float, default=0.0)
+    debito_fiscal = Column(Float, default=0.0)
+    ventas_terceros = Column(Float, default=0.0)
+    debito_terceros = Column(Float, default=0.0)
+    total_ventas = Column(Float, default=0.0)
+    dui_cliente = Column(String, nullable=True)
+    
+    tipo_operacion = Column(String(1), nullable=True)
+    tipo_ingreso = Column(String(2), nullable=True)
     
     raw_json = Column(JSON, nullable=False)
     version = Column(Integer, default=1, nullable=False)

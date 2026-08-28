@@ -233,6 +233,20 @@ export default function Dashboard() {
             Generar Anexo
           </button>
         </div>
+                {/* Card for Anexo Ventas Contribuyentes */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-sky-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+          <h3 className="text-lg font-semibold text-slate-800 mb-2">Ventas a Contribuyentes</h3>
+          <p className="text-slate-500 text-sm mb-6">
+            Anexo detallado de ventas a clientes registrados.
+          </p>
+          <button 
+            onClick={() => navigate(`/ventas-contribuyentes?mes=${mes}&anio=${anio}`)}
+            className="w-full bg-sky-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-sky-700 transition"
+          >
+            Generar Anexo
+          </button>
+        </div>
         {/* Card for Anulados */}
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
