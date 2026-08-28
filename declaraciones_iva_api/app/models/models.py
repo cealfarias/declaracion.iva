@@ -77,6 +77,7 @@ class DteCompra(Base):
     # Payload crudo
     raw_json = Column(JSON, nullable=False)
     
+    version = Column(Integer, default=1, nullable=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
@@ -112,6 +113,7 @@ class DteVenta(Base):
     total_ventas = Column(Float, default=0.0)
     
     raw_json = Column(JSON, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
@@ -125,7 +127,9 @@ class DeclaracionEstado(Base):
     anio = Column(String(4), nullable=False)
     mes = Column(String(2), nullable=False)
     tipo_libro = Column(String(50), nullable=False, default="compras")
+    version = Column(Integer, default=1, nullable=False)
     declarado = Column(Boolean, default=False)
+    numero_declaracion = Column(String, nullable=True)
     fecha_declaracion = Column(DateTime, default=datetime.utcnow)
     
     empresa = relationship("Empresa")

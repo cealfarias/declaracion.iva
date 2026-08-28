@@ -12,27 +12,124 @@ import json
 
 router = APIRouter()
 
-def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str, tipo_libro: str = "compras") -> bool:
+def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str, tipo_libro: str = "compras", version: int = 1) -> bool:
     estado = db.query(DeclaracionEstado).filter(
         DeclaracionEstado.empresa_id == empresa_id,
         DeclaracionEstado.anio == anio,
         DeclaracionEstado.mes == mes,
-        DeclaracionEstado.tipo_libro == tipo_libro
+        DeclaracionEstado.tipo_libro == tipo_libro,
+        DeclaracionEstado.version == version
     ).first()
     return estado.declarado if estado else False
 
 @router.get("/estado/{empresa_id}")
 def get_estado_declaracion(empresa_id: int, mes: str, anio: str, tipo_libro: str = "compras", db: Session = Depends(get_db)):
-    declarado = is_periodo_declarado(db, empresa_id, anio, mes, tipo_libro)
-    return {"declarado": declarado}
-
-@router.post("/declarar/{empresa_id}")
-def marcar_como_declarado(empresa_id: int, mes: str, anio: str, tipo_libro: str = "compras", db: Session = Depends(get_db)):
-    estado = db.query(DeclaracionEstado).filter(
+    estados = db.query(DeclaracionEstado).filter(
         DeclaracionEstado.empresa_id == empresa_id,
         DeclaracionEstado.anio == anio,
         DeclaracionEstado.mes == mes,
         DeclaracionEstado.tipo_libro == tipo_libro
+    ).order_by(DeclaracionEstado.version.asc()).all()
+    
+    if not estados:
+        return {"versiones": [{"version": 1, "declarado": False, "numero_declaracion": None}]}
+        
+    res = []
+    for e in estados:
+        res.append({"version": e.version, "declarado": e.declarado, "numero_declaracion": e.numero_declaracion})
+    return {"versiones": res}
+
+@router.put("/estado/{empresa_id}/numero")
+def update_numero_declaracion(empresa_id: int, mes: str, anio: str, numero: str, version: int = 1, tipo_libro: str = "compras", db: Session = Depends(get_db)):
+    estado = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro,
+        DeclaracionEstado.version == version
+    ).first()
+    if estado:
+        estado.numero_declaracion = numero
+        db.commit()
+    return {"mensaje": "Número guardado"}
+
+@router.post("/modificatoria/{empresa_id}")
+def crear_modificatoria(empresa_id: int, mes: str, anio: str, numero_original: str, tipo_libro: str = "compras", db: Session = Depends(get_db)):
+    # Buscar ultima version
+    estados = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro
+    ).order_by(DeclaracionEstado.version.desc()).all()
+    
+    ultima_version = estados[0].version if estados else 1
+    if ultima_version >= 3:
+        raise HTTPException(status_code=400, detail="Se alcanzó el límite de 2 modificatorias.")
+        
+    nueva_version = ultima_version + 1
+    
+    # Clonar comprobantes
+    compras = db.query(DteCompra).filter(
+        DteCompra.empresa_id == empresa_id,
+        DteCompra.periodo_anio == anio,
+        DteCompra.periodo_mes == mes,
+        DteCompra.version == ultima_version
+    ).all()
+    
+    for c in compras:
+        nuevo = DteCompra(
+            empresa_id=c.empresa_id,
+            periodo_mes=c.periodo_mes,
+            periodo_anio=c.periodo_anio,
+            fecha_emision=c.fecha_emision,
+            clase_documento=c.clase_documento,
+            tipo_documento=c.tipo_documento,
+            numero_resolucion=c.numero_resolucion,
+            serie_documento=c.serie_documento,
+            numero_documento=c.numero_documento,
+            nit_proveedor=c.nit_proveedor,
+            nombre_proveedor=c.nombre_proveedor,
+            compras_internas_exentas=c.compras_internas_exentas,
+            internaciones_exentas=c.internaciones_exentas,
+            importaciones_exentas=c.importaciones_exentas,
+            compras_internas_gravadas=c.compras_internas_gravadas,
+            internaciones_gravadas_bienes=c.internaciones_gravadas_bienes,
+            importaciones_gravadas_bienes=c.importaciones_gravadas_bienes,
+            importaciones_gravadas_servicios=c.importaciones_gravadas_servicios,
+            credito_fiscal=c.credito_fiscal,
+            total_compras=c.total_compras,
+            tipo_operacion=c.tipo_operacion,
+            clasificacion=c.clasificacion,
+            sector=c.sector,
+            tipo_costo_gasto=c.tipo_costo_gasto,
+            raw_json=c.raw_json,
+            version=nueva_version
+        )
+        db.add(nuevo)
+        
+    # Crear estado abierto
+    estado = DeclaracionEstado(
+        empresa_id=empresa_id,
+        anio=anio,
+        mes=mes,
+        tipo_libro=tipo_libro,
+        version=nueva_version,
+        declarado=False
+    )
+    db.add(estado)
+    db.commit()
+    return {"mensaje": "Modificatoria creada", "nueva_version": nueva_version}
+
+
+@router.post("/declarar/{empresa_id}")
+def marcar_como_declarado(empresa_id: int, mes: str, anio: str, version: int = 1, tipo_libro: str = "compras", db: Session = Depends(get_db)):
+    estado = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro,
+        DeclaracionEstado.version == version
     ).first()
     
     if not estado:
@@ -41,6 +138,7 @@ def marcar_como_declarado(empresa_id: int, mes: str, anio: str, tipo_libro: str 
             anio=anio,
             mes=mes,
             tipo_libro=tipo_libro,
+            version=version,
             declarado=True
         )
         db.add(estado)
@@ -51,14 +149,15 @@ def marcar_como_declarado(empresa_id: int, mes: str, anio: str, tipo_libro: str 
     return {"mensaje": "Período marcado como declarado"}
 
 @router.delete("/limpiar/{empresa_id}")
-def limpiar_periodo(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
-    if is_periodo_declarado(db, empresa_id, anio, mes):
+def limpiar_periodo(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
+    if is_periodo_declarado(db, empresa_id, anio, mes, version=version):
         raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
         
     db.query(DteCompra).filter(
         DteCompra.empresa_id == empresa_id,
         DteCompra.periodo_mes == mes,
-        DteCompra.periodo_anio == anio
+        DteCompra.periodo_anio == anio,
+        DteCompra.version == version
     ).delete()
     
     db.commit()
@@ -70,10 +169,11 @@ async def upload_dtes(
     periodo_mes: str = Form(...),
     periodo_anio: str = Form(...),
     files: List[UploadFile] = File(...),
+    version: int = Form(1),
     db: Session = Depends(get_db)
 ):
     # Verificar si está bloqueado
-    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes):
+    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes, version=version):
         raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
 
     # Validar que la empresa exista
@@ -144,7 +244,8 @@ async def upload_dtes(
             # Comprobar si ya existe
             existe = db.query(DteCompra).filter(
                 DteCompra.empresa_id == empresa_id,
-                DteCompra.numero_documento == num_doc
+                DteCompra.numero_documento == num_doc,
+                DteCompra.version == version
             ).first()
             
             if existe:
@@ -188,7 +289,8 @@ async def upload_dtes(
                 clasificacion="1",
                 sector="2",
                 tipo_costo_gasto="5",
-                raw_json=dte_json
+                raw_json=dte_json,
+                version=version
             )
             
             db.add(nuevo_dte)
@@ -205,11 +307,12 @@ async def upload_dtes(
     }
 
 @router.get("/{empresa_id}")
-def get_compras(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+def get_compras(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     compras = db.query(DteCompra).filter(
         DteCompra.empresa_id == empresa_id,
         DteCompra.periodo_mes == mes,
-        DteCompra.periodo_anio == anio
+        DteCompra.periodo_anio == anio,
+        DteCompra.version == version
     ).all()
     
     return compras
@@ -231,11 +334,12 @@ def update_operacion(dte_id: int, tipo_operacion: str, clasificacion: str, secto
     return {"message": "Actualizado"}
 
 @router.get("/{empresa_id}/export")
-def export_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     compras = db.query(DteCompra).filter(
         DteCompra.empresa_id == empresa_id,
         DteCompra.periodo_mes == mes,
-        DteCompra.periodo_anio == anio
+        DteCompra.periodo_anio == anio,
+        DteCompra.version == version
     ).all()
     
     # Generar CSV en memoria

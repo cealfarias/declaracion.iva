@@ -13,15 +13,133 @@ from app.routers.compras import is_periodo_declarado
 
 router = APIRouter()
 
+@router.get("/estado/{empresa_id}")
+def get_estado_declaracion(empresa_id: int, mes: str, anio: str, tipo_libro: str = "ventas_cf", db: Session = Depends(get_db)):
+    estados = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro
+    ).order_by(DeclaracionEstado.version.asc()).all()
+    
+    if not estados:
+        return {"versiones": [{"version": 1, "declarado": False, "numero_declaracion": None}]}
+        
+    res = []
+    for e in estados:
+        res.append({"version": e.version, "declarado": e.declarado, "numero_declaracion": e.numero_declaracion})
+    return {"versiones": res}
+
+@router.put("/estado/{empresa_id}/numero")
+def update_numero_declaracion(empresa_id: int, mes: str, anio: str, numero: str, version: int = 1, tipo_libro: str = "ventas_cf", db: Session = Depends(get_db)):
+    estado = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro,
+        DeclaracionEstado.version == version
+    ).first()
+    if estado:
+        estado.numero_declaracion = numero
+        db.commit()
+    return {"mensaje": "Número guardado"}
+
+@router.post("/declarar/{empresa_id}")
+def marcar_como_declarado(empresa_id: int, mes: str, anio: str, version: int = 1, tipo_libro: str = "ventas_cf", db: Session = Depends(get_db)):
+    estado = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro,
+        DeclaracionEstado.version == version
+    ).first()
+    if not estado:
+        estado = DeclaracionEstado(
+            empresa_id=empresa_id,
+            anio=anio,
+            mes=mes,
+            tipo_libro=tipo_libro,
+            version=version,
+            declarado=True
+        )
+        db.add(estado)
+    else:
+        estado.declarado = True
+    db.commit()
+    return {"mensaje": "Período marcado como declarado"}
+
+@router.post("/modificatoria/{empresa_id}")
+def crear_modificatoria(empresa_id: int, mes: str, anio: str, numero_original: str, tipo_libro: str = "ventas_cf", db: Session = Depends(get_db)):
+    estados = db.query(DeclaracionEstado).filter(
+        DeclaracionEstado.empresa_id == empresa_id,
+        DeclaracionEstado.anio == anio,
+        DeclaracionEstado.mes == mes,
+        DeclaracionEstado.tipo_libro == tipo_libro
+    ).order_by(DeclaracionEstado.version.desc()).all()
+    
+    ultima_version = estados[0].version if estados else 1
+    if ultima_version >= 3:
+        raise HTTPException(status_code=400, detail="Se alcanzó el límite de 2 modificatorias.")
+        
+    nueva_version = ultima_version + 1
+    
+    ventas = db.query(DteVenta).filter(
+        DteVenta.empresa_id == empresa_id,
+        DteVenta.periodo_anio == anio,
+        DteVenta.periodo_mes == mes,
+        DteVenta.version == ultima_version
+    ).all()
+    
+    for v in ventas:
+        nuevo = DteVenta(
+            empresa_id=v.empresa_id,
+            periodo_mes=v.periodo_mes,
+            periodo_anio=v.periodo_anio,
+            fecha_emision=v.fecha_emision,
+            clase_documento=v.clase_documento,
+            tipo_documento=v.tipo_documento,
+            numero_resolucion=v.numero_resolucion,
+            serie_documento=v.serie_documento,
+            numero_control_del=v.numero_control_del,
+            numero_control_al=v.numero_control_al,
+            codigo_generacion=v.codigo_generacion,
+            sello_recepcion=v.sello_recepcion,
+            nit_cliente=v.nit_cliente,
+            ventas_exentas=v.ventas_exentas,
+            ventas_no_sujetas=v.ventas_no_sujetas,
+            ventas_gravadas=v.ventas_gravadas,
+            exportaciones=v.exportaciones,
+            ventas_zona_franca=v.ventas_zona_franca,
+            ventas_terceros=v.ventas_terceros,
+            total_ventas=v.total_ventas,
+            raw_json=v.raw_json,
+            version=nueva_version
+        )
+        db.add(nuevo)
+        
+    estado = DeclaracionEstado(
+        empresa_id=empresa_id,
+        anio=anio,
+        mes=mes,
+        tipo_libro=tipo_libro,
+        version=nueva_version,
+        declarado=False
+    )
+    db.add(estado)
+    db.commit()
+    return {"mensaje": "Modificatoria creada", "nueva_version": nueva_version}
+
+
 @router.delete("/limpiar/{empresa_id}")
-def limpiar_periodo(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
-    if is_periodo_declarado(db, empresa_id, anio, mes, tipo_libro="ventas_cf"):
+def limpiar_periodo(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
+    if is_periodo_declarado(db, empresa_id, anio, mes, tipo_libro="ventas_cf", version=version):
         raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
         
     db.query(DteVenta).filter(
         DteVenta.empresa_id == empresa_id,
         DteVenta.periodo_mes == mes,
-        DteVenta.periodo_anio == anio
+        DteVenta.periodo_anio == anio,
+        DteVenta.version == version
     ).delete()
     db.commit()
     return {"mensaje": "Período limpiado correctamente"}
@@ -32,9 +150,10 @@ async def upload_dtes_cf(
     periodo_mes: str = Form(...),
     periodo_anio: str = Form(...),
     files: List[UploadFile] = File(...),
+    version: int = Form(1),
     db: Session = Depends(get_db)
 ):
-    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes, tipo_libro="ventas_cf"):
+    if is_periodo_declarado(db, empresa_id, periodo_anio, periodo_mes, tipo_libro="ventas_cf", version=version):
         raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
 
     empresa = db.query(Empresa).filter(Empresa.id == empresa_id).first()
@@ -97,7 +216,8 @@ async def upload_dtes_cf(
             
             existe = db.query(DteVenta).filter(
                 DteVenta.empresa_id == empresa_id,
-                DteVenta.codigo_generacion == codigo_generacion
+                DteVenta.codigo_generacion == codigo_generacion,
+                DteVenta.version == version
             ).first()
             
             if existe:
@@ -134,7 +254,8 @@ async def upload_dtes_cf(
                 ventas_zona_franca=0.0,
                 ventas_terceros=0.0,
                 total_ventas=total_pagar,
-                raw_json=dte_json
+                raw_json=dte_json,
+                version=version
             )
             db.add(nuevo_dte)
             db.commit()
@@ -150,20 +271,22 @@ async def upload_dtes_cf(
     }
 
 @router.get("/list/{empresa_id}")
-def get_ventas(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+def get_ventas(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     ventas = db.query(DteVenta).filter(
         DteVenta.empresa_id == empresa_id,
         DteVenta.periodo_mes == mes,
-        DteVenta.periodo_anio == anio
+        DteVenta.periodo_anio == anio,
+        DteVenta.version == version
     ).all()
     return ventas
 
 @router.get("/export_csv/{empresa_id}")
-def export_ventas_csv(empresa_id: int, mes: str, anio: str, db: Session = Depends(get_db)):
+def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     ventas = db.query(DteVenta).filter(
         DteVenta.empresa_id == empresa_id,
         DteVenta.periodo_mes == mes,
-        DteVenta.periodo_anio == anio
+        DteVenta.periodo_anio == anio,
+        DteVenta.version == version
     ).order_by(DteVenta.fecha_emision).all()
 
     output = StringIO()

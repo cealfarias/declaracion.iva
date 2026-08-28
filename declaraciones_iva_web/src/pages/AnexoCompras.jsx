@@ -18,7 +18,11 @@ export default function AnexoCompras() {
   const [compras, setCompras] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isDeclarado, setIsDeclarado] = useState(false);
+
+  const [versiones, setVersiones] = useState([{version: 1, declarado: false, numero_declaracion: ""}]);
+  const [activeVersion, setActiveVersion] = useState(1);
+  const [numeroInput, setNumeroInput] = useState("");
+
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -28,19 +32,51 @@ export default function AnexoCompras() {
     }
     fetchEstadoDeclaracion();
     fetchCompras();
-  }, [activeEmpresa, mes, anio]);
+  }, [activeEmpresa, mes, anio, activeVersion]);
 
+  
   const fetchEstadoDeclaracion = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
-      setIsDeclarado(response.data.declarado);
-      if (response.data.declarado) {
-        enqueueMessages([{ text: "Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones a la contabilidad.", type: "warning" }]);
+      const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=compras`);
+      const vers = response.data.versiones || [{version: 1, declarado: false, numero_declaracion: ""}];
+      setVersiones(vers);
+      const maxV = Math.max(...vers.map(v => v.version));
+      setActiveVersion(maxV);
+      
+      if (vers.find(v => v.version === maxV)?.declarado) {
+        enqueueMessages([{ text: "Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones.", type: "warning" }]);
       }
     } catch (error) {
       console.error("Error al cargar el estado de la declaración");
     }
   };
+  
+  const handleSaveNumero = async () => {
+    try {
+      await axios.put(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=compras`);
+      enqueueMessages([{ text: "Número de declaración guardado correctamente.", type: "success" }]);
+      fetchEstadoDeclaracion();
+    } catch (error) {
+      enqueueMessages([{ text: "Error al guardar el número.", type: "error" }]);
+    }
+  };
+  
+  const crearModificatoria = async () => {
+    const original = prompt("Ingresa el Número de la Declaración original que vas a modificar:");
+    if (!original) return;
+    
+    try {
+      await axios.post(`${API_URL}/api/v1/compras/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=compras`);
+      enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
+      fetchEstadoDeclaracion();
+      if(api_path === "compras") fetchCompras(); else fetchVentas();
+    } catch (error) {
+      enqueueMessages([{ text: error.response?.data?.detail || "Error al crear modificatoria.", type: "error" }]);
+    }
+  };
+  
+  const currentEstado = versiones.find(v => v.version === activeVersion) || {declarado: false};
+  const isDeclarado = currentEstado.declarado;
 
   const fetchCompras = async () => {
     setLoading(true);
@@ -57,8 +93,8 @@ export default function AnexoCompras() {
   const declararAnexo = async () => {
     if (!window.confirm("¿Estás seguro de marcar este anexo como Declarado? Ya no podrás subir ni modificar compras para este mes.")) return;
     try {
-      await axios.post(`${API_URL}/api/v1/compras/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
-      setIsDeclarado(true);
+      await axios.post(`${API_URL}/api/v1/compras/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
+      fetchEstadoDeclaracion();
       enqueueMessages([{ text: "Anexo marcado como Declarado exitosamente.", type: "success" }]);
     } catch (error) {
       enqueueMessages([{ text: "Error al marcar como declarado.", type: "error" }]);
@@ -85,6 +121,7 @@ export default function AnexoCompras() {
         formData.append("empresa_id", activeEmpresa.id);
         formData.append("periodo_mes", mes);
         formData.append("periodo_anio", anio);
+    formData.append("version", activeVersion);
         formData.append("files", jsonFiles[i]);
 
         try {
@@ -165,7 +202,7 @@ export default function AnexoCompras() {
   const limpiarAnexo = async () => {
     if (!window.confirm("¿Estás seguro de eliminar TODOS los registros de este mes? Esta acción no se puede deshacer y tendrás que volver a subir los archivos.")) return;
     try {
-      await axios.delete(`${API_URL}/api/v1/compras/limpiar/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
+      await axios.delete(`${API_URL}/api/v1/compras/limpiar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
       enqueueMessages([{ text: "Anexo limpiado exitosamente.", type: "success" }]);
       fetchCompras();
     } catch (error) {
@@ -177,6 +214,53 @@ export default function AnexoCompras() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up">
+
+      <div className="mb-6 flex border-b border-slate-200">
+        {versiones.map(v => (
+          <button
+            key={v.version}
+            onClick={() => setActiveVersion(v.version)}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeVersion === v.version 
+                ? "border-indigo-600 text-indigo-600" 
+                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            {v.version === 1 ? "Original" : `Modificatoria ${v.version - 1}`}
+            {v.declarado && " 🔒"}
+          </button>
+        ))}
+      </div>
+      
+      {isDeclarado && (
+        <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg flex items-center justify-between">
+          <div className="flex">
+            <svg className="h-5 w-5 text-amber-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+            </svg>
+            <div className="ml-3">
+              <p className="text-sm text-amber-700 font-medium">Período Bloqueado</p>
+              <div className="mt-2 flex items-center space-x-2">
+                <span className="text-sm text-amber-800">Número de Declaración MH:</span>
+                <input 
+                  type="text" 
+                  value={numeroInput || currentEstado.numero_declaracion || ""} 
+                  onChange={e => setNumeroInput(e.target.value)}
+                  placeholder="Ej. 12345678"
+                  className="px-2 py-1 border border-amber-300 rounded text-sm focus:ring-amber-500 focus:border-amber-500"
+                />
+                <button onClick={handleSaveNumero} className="px-3 py-1 bg-amber-600 text-white rounded text-sm hover:bg-amber-700">Guardar</button>
+              </div>
+            </div>
+          </div>
+          {activeVersion === Math.max(...versiones.map(v=>v.version)) && activeVersion < 3 && (
+            <button onClick={crearModificatoria} className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-sm text-sm hover:bg-indigo-700">
+              Crear Modificatoria
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-between items-start mb-6">
         <div>
           <div className="flex items-center space-x-2 text-sm text-slate-500 mb-2">
