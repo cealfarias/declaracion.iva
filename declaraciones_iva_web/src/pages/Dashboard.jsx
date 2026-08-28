@@ -197,7 +197,10 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Contribuyentes</h3>
           <p className="text-sm text-slate-500 mb-5">Importa tus CCF, NC y ND generados para tu anexo de contribuyentes.</p>
-          <button className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition">
+          <button 
+            onClick={() => navigate(`/ventas-contribuyentes?mes=${mes}&anio=${anio}`)}
+            className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition"
+          >
             Generar Anexo
           </button>
         </div>
@@ -229,20 +232,6 @@ export default function Dashboard() {
           <button 
             onClick={() => navigate(`/compras?mes=${mes}&anio=${anio}`)}
             className="w-full bg-amber-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-amber-700 transition"
-          >
-            Generar Anexo
-          </button>
-        </div>
-                {/* Card for Anexo Ventas Contribuyentes */}
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-sky-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-2">Ventas a Contribuyentes</h3>
-          <p className="text-slate-500 text-sm mb-6">
-            Anexo detallado de ventas a clientes registrados.
-          </p>
-          <button 
-            onClick={() => navigate(`/ventas-contribuyentes?mes=${mes}&anio=${anio}`)}
-            className="w-full bg-sky-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-sky-700 transition"
           >
             Generar Anexo
           </button>

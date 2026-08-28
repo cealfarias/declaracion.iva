@@ -15,7 +15,7 @@ export default function AnexoVentasContribuyentes() {
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
 
-  const [ventas-contribuyentes, setventas-contribuyentes] = useState([]);
+  const [ventasContribuyentes, setventasContribuyentes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -31,13 +31,13 @@ export default function AnexoVentasContribuyentes() {
       return;
     }
     fetchEstadoDeclaracion();
-    fetchventas-contribuyentes();
+    fetchventasContribuyentes();
   }, [activeEmpresa, mes, anio, activeVersion]);
 
   
   const fetchEstadoDeclaracion = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventas-contribuyentes`);
+      const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventasContribuyentes`);
       const vers = response.data.versiones || [{version: 1, declarado: false, numero_declaracion: ""}];
       setVersiones(vers);
       const maxV = Math.max(...vers.map(v => v.version));
@@ -53,7 +53,7 @@ export default function AnexoVentasContribuyentes() {
   
   const handleSaveNumero = async () => {
     try {
-      await axios.put(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=ventas-contribuyentes`);
+      await axios.put(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=ventasContribuyentes`);
       enqueueMessages([{ text: "Número de declaración guardado correctamente.", type: "success" }]);
       fetchEstadoDeclaracion();
     } catch (error) {
@@ -66,10 +66,10 @@ export default function AnexoVentasContribuyentes() {
     if (!original) return;
     
     try {
-      await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=ventas-contribuyentes`);
+      await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=ventasContribuyentes`);
       enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
       fetchEstadoDeclaracion();
-      if(api_path === "ventas-contribuyentes") fetchventas-contribuyentes(); else fetchVentas();
+      if(api_path === "ventasContribuyentes") fetchventasContribuyentes(); else fetchVentas();
     } catch (error) {
       enqueueMessages([{ text: error.response?.data?.detail || "Error al crear modificatoria.", type: "error" }]);
     }
@@ -78,20 +78,20 @@ export default function AnexoVentasContribuyentes() {
   const currentEstado = versiones.find(v => v.version === activeVersion) || {declarado: false};
   const isDeclarado = currentEstado.declarado;
 
-  const fetchventas-contribuyentes = async () => {
+  const fetchventasContribuyentes = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
-      setventas-contribuyentes(response.data);
+      setventasContribuyentes(response.data);
     } catch (error) {
-      enqueueMessages([{ text: "Error al cargar las ventas-contribuyentes.", type: "error" }]);
+      enqueueMessages([{ text: "Error al cargar las ventasContribuyentes.", type: "error" }]);
     } finally {
       setLoading(false);
     }
   };
 
   const declararAnexo = async () => {
-    if (!window.confirm("¿Estás seguro de marcar este anexo como Declarado? Ya no podrás subir ni modificar ventas-contribuyentes para este mes.")) return;
+    if (!window.confirm("¿Estás seguro de marcar este anexo como Declarado? Ya no podrás subir ni modificar ventasContribuyentes para este mes.")) return;
     try {
       await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
       fetchEstadoDeclaracion();
@@ -144,11 +144,11 @@ export default function AnexoVentasContribuyentes() {
       } else {
         enqueueMessages([{ text: `Se procesaron ${totalProcesados} comprobantes exitosamente.`, type: "success" }]);
       }
-      fetchventas-contribuyentes();
+      fetchventasContribuyentes();
     } catch (error) {
       console.error(error);
       enqueueMessages([{ text: `Error inesperado al procesar los archivos.`, type: "error" }]);
-      fetchventas-contribuyentes();
+      fetchventasContribuyentes();
     } finally {
       setLoading(false);
     }
@@ -178,7 +178,7 @@ export default function AnexoVentasContribuyentes() {
 
   const updateConfig = async (id, field, value) => {
     // Buscar compra actual
-    const compra = ventas-contribuyentes.find(c => c.id === id);
+    const compra = ventasContribuyentes.find(c => c.id === id);
     if (!compra) return;
 
     const payload = {
@@ -193,7 +193,7 @@ export default function AnexoVentasContribuyentes() {
 
     try {
       await axios.put(`${API_URL}/api/v1/ventas-contribuyentes/update_operacion/${id}?tipo_operacion=${payload.tipo_operacion}&tipo_ingreso=${payload.tipo_ingreso}`);
-      fetchventas-contribuyentes(); // Refrescar para ver el estado actual
+      fetchventasContribuyentes(); // Refrescar para ver el estado actual
     } catch(err) {
       enqueueMessages([{ text: "Error al actualizar la configuración.", type: "error" }]);
     }
@@ -204,7 +204,7 @@ export default function AnexoVentasContribuyentes() {
     try {
       await axios.delete(`${API_URL}/api/v1/ventas-contribuyentes/limpiar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
       enqueueMessages([{ text: "Anexo limpiado exitosamente.", type: "success" }]);
-      fetchventas-contribuyentes();
+      fetchventasContribuyentes();
     } catch (error) {
       enqueueMessages([{ text: "Error al limpiar el anexo.", type: "error" }]);
     }
@@ -266,7 +266,7 @@ export default function AnexoVentasContribuyentes() {
           <div className="flex items-center space-x-2 text-sm text-slate-500 mb-2">
             <button onClick={() => navigate('/dashboard')} className="hover:text-indigo-600">Dashboard</button>
             <span>/</span>
-            <span className="text-slate-800 font-medium">Anexo de ventas-contribuyentes</span>
+            <span className="text-slate-800 font-medium">Anexo de ventasContribuyentes</span>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
             {activeEmpresa.razon_social}
@@ -334,7 +334,7 @@ export default function AnexoVentasContribuyentes() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Registros</p>
             <h3 className="text-xl font-bold text-slate-900">
-              {ventas-contribuyentes.length}
+              {ventasContribuyentes.length}
             </h3>
           </div>
           <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-600">
@@ -345,7 +345,7 @@ export default function AnexoVentasContribuyentes() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Gravadas</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${ventas-contribuyentes.reduce((sum, item) => sum + (item.ventas-contribuyentes_internas_gravadas || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${ventasContribuyentes.reduce((sum, item) => sum + (item.ventasContribuyentes_internas_gravadas || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
@@ -356,7 +356,7 @@ export default function AnexoVentasContribuyentes() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Crédito Fiscal</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${ventas-contribuyentes.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${ventasContribuyentes.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
@@ -365,9 +365,9 @@ export default function AnexoVentasContribuyentes() {
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total ventas-contribuyentes</p>
+            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total ventasContribuyentes</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${ventas-contribuyentes.reduce((sum, item) => sum + (item.total_ventas-contribuyentes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${ventasContribuyentes.reduce((sum, item) => sum + (item.total_ventasContribuyentes || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
@@ -388,15 +388,15 @@ export default function AnexoVentasContribuyentes() {
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="D: Número de Resolución / Código de Generación">D. Resolución / Cód. Generación</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="E: NIT cliente">E. NIT Prov.</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider" title="F: Nombre cliente">F. Nombre cliente</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="G: ventas-contribuyentes Internas Exentas">G. Exent. Int.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="G: ventasContribuyentes Internas Exentas">G. Exent. Int.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="H: Internaciones Exentas">H. Internac. Exent.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="I: Importaciones Exentas">I. Import. Exent.</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="J: ventas-contribuyentes Internas Gravadas">J. Gravadas Int.</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="J: ventasContribuyentes Internas Gravadas">J. Gravadas Int.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="K: Internaciones Gravadas Bienes">K. Internac. Grav.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="L: Importaciones Gravadas Bienes">L. Import. Grav. Bs.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="M: Importaciones Gravadas Servicios">M. Import. Grav. Sv.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="N: Crédito Fiscal">N. Crédito Fiscal</th>
-                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="O: Total ventas-contribuyentes">O. Total</th>
+                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="O: Total ventasContribuyentes">O. Total</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-l border-slate-200" colSpan="4">Configuración F07</th>
               </tr>
               <tr className="bg-slate-100 border-b border-slate-300">
@@ -408,23 +408,23 @@ export default function AnexoVentasContribuyentes() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
-              {loading && ventas-contribuyentes.length === 0 ? (
+              {loading && ventasContribuyentes.length === 0 ? (
                 <tr>
                   <td colSpan="19" className="px-6 py-10 text-center text-slate-500">
-                    Cargando ventas-contribuyentes...
+                    Cargando ventasContribuyentes...
                   </td>
                 </tr>
-              ) : ventas-contribuyentes.length === 0 ? (
+              ) : ventasContribuyentes.length === 0 ? (
                 <tr>
                   <td colSpan="19" className="px-6 py-10 text-center text-slate-500">
                     <div className="flex flex-col items-center">
                       <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                      <p>No hay ventas-contribuyentes procesadas en {mes}/{anio}.</p>
+                      <p>No hay ventasContribuyentes procesadas en {mes}/{anio}.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                [...ventas-contribuyentes]
+                [...ventasContribuyentes]
                   .sort((a, b) => {
                     // Convertir "DD/MM/YYYY" a Date para ordenar
                     const dateA = a.fecha_emision.split('/').reverse().join('-');
@@ -440,15 +440,15 @@ export default function AnexoVentasContribuyentes() {
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{compra.nit_cliente}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 truncate max-w-[200px]" title={compra.nombre_cliente}>{compra.nombre_cliente}</td>
                     
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.ventas-contribuyentes_internas_exentas.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.ventasContribuyentes_internas_exentas.toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.internaciones_exentas.toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_exentas.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.ventas-contribuyentes_internas_gravadas.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.ventasContribuyentes_internas_gravadas.toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.internaciones_gravadas_bienes.toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_gravadas_bienes.toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_gravadas_servicios.toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.credito_fiscal.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-emerald-700 font-bold">${compra.total_ventas-contribuyentes.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-emerald-700 font-bold">${compra.total_ventasContribuyentes.toFixed(2)}</td>
                     
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
