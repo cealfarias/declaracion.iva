@@ -61,7 +61,7 @@ export default function AnexoVentasContribuyentes() {
     }
   };
   
-  const crearModificatoria = async () => {
+  const handleCrearModificatoria = async () => {
     const original = prompt("Ingresa el Número de la Declaración original que vas a modificar:");
     if (!original) return;
     
@@ -69,7 +69,7 @@ export default function AnexoVentasContribuyentes() {
       await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=ventas_contribuyentes`);
       enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
       fetchEstadoDeclaracion();
-      if(api_path === "ventasContribuyentes") fetchventasContribuyentes(); else fetchVentas();
+      fetchventasContribuyentes();
     } catch (error) {
       enqueueMessages([{ text: error.response?.data?.detail || "Error al crear modificatoria.", type: "error" }]);
     }
@@ -90,7 +90,7 @@ export default function AnexoVentasContribuyentes() {
     }
   };
 
-  const declararAnexo = async () => {
+  const handleDeclarar = async () => {
     if (!window.confirm("¿Estás seguro de marcar este anexo como Declarado? Ya no podrás subir ni modificar ventasContribuyentes para este mes.")) return;
     try {
       await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/declarar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
@@ -172,7 +172,7 @@ export default function AnexoVentasContribuyentes() {
     }
   };
 
-  const exportCSV = () => {
+  const handleExportCSV = () => {
     window.open(`${API_URL}/api/v1/ventas-contribuyentes/export_csv/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`, "_blank");
   };
 
@@ -192,6 +192,17 @@ export default function AnexoVentasContribuyentes() {
       console.error(error);
       enqueueMessages([{ text: "Error guardando configuración", type: "error" }]);
       fetchventasContribuyentes();
+    }
+  };
+
+  const handleLimpiar = async () => {
+    if (!window.confirm("¿Estás seguro de limpiar todas las ventas registradas en este mes?")) return;
+    try {
+      await axios.delete(`${API_URL}/api/v1/ventas-contribuyentes/limpiar/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`);
+      fetchventasContribuyentes();
+      enqueueMessages([{ text: "Mes limpiado exitosamente", type: "success" }]);
+    } catch (error) {
+      enqueueMessages([{ text: "Error al limpiar mes", type: "error" }]);
     }
   };
 
