@@ -30,6 +30,7 @@ export default function AnexoAnulados() {
       navigate("/dashboard");
       return;
     }
+    enqueueMessages([{ text: `🔍 Verificando el registro de Documentos Anulados para el período ${mes}/${anio}. Un momento por favor, estoy consultando los eventos de invalidación registrados...`, type: "info" }]);
     fetchEstadoDeclaracion();
     fetchAnulados();
   }, [activeEmpresa, mes, anio, activeVersion]);

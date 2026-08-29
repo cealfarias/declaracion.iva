@@ -30,6 +30,7 @@ export default function AnexoCompras() {
       navigate('/dashboard');
       return;
     }
+    enqueueMessages([{ text: `📂 Consultando el Libro de Compras del período ${mes}/${anio}. Un momento por favor, estoy recuperando los registros desde la base de datos...`, type: "info" }]);
     fetchEstadoDeclaracion();
     fetchCompras();
   }, [activeEmpresa, mes, anio, activeVersion]);

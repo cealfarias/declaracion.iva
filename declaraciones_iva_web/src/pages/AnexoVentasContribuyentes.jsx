@@ -32,6 +32,7 @@ export default function AnexoVentasContribuyentes() {
       navigate('/dashboard');
       return;
     }
+    enqueueMessages([{ text: `📊 Accediendo al Libro de Ventas a Contribuyentes para el período ${mes}/${anio}. Por favor aguarda, estoy sincronizando la información con el servidor...`, type: "info" }]);
     fetchEstadoDeclaracion();
     fetchventasContribuyentes();
   }, [activeEmpresa, mes, anio, activeVersion]);

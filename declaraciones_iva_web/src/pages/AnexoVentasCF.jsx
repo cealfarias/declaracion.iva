@@ -30,6 +30,7 @@ export default function AnexoVentasCF() {
       navigate("/dashboard");
       return;
     }
+    enqueueMessages([{ text: `🧾 Cargando el Libro de Ventas a Consumidor Final del período ${mes}/${anio}. Dame un instante, estoy procesando la información fiscal del período...`, type: "info" }]);
     fetchEstadoDeclaracion();
     fetchVentas();
   }, [activeEmpresa, mes, anio, activeVersion]);
