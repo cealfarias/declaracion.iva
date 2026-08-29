@@ -215,7 +215,7 @@ async def upload_dtes(
             tipo_dte = identificacion.get("tipoDte", "")
             
             if tipo_dte != "03":
-                errores.append(f"{file.filename}: No es un Crédito Fiscal (03).")
+                # Ignorar silenciosamente para permitir subir carpetas mixtas
                 continue
                 
             emisor = dte_json.get("emisor", {})

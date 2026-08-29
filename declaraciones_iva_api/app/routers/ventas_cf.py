@@ -192,7 +192,7 @@ async def upload_dtes_cf(
             tipo_dte = identificacion.get("tipoDte", "")
             
             if tipo_dte != "01": # 01 es Factura, 11 es Exportacion
-                errores.append(f"{file.filename}: No es una Factura de Consumidor Final (01). Encontrado: {tipo_dte}")
+                # Ignorar silenciosamente para permitir subir carpetas mixtas
                 continue
                 
             resumen = dte_json.get("resumen", {})

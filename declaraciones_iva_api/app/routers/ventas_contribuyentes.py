@@ -203,7 +203,7 @@ async def upload_dtes(
             tipo_dte = identificacion.get('tipoDte', '')
             
             if tipo_dte not in ['03', '05', '06', '11']:
-                errores.append(f'{file.filename}: No es un Documento a Contribuyentes válido. Encontrado: {tipo_dte}')
+                # Ignorar silenciosamente para permitir subir carpetas mixtas
                 continue
                 
             resumen = dte_json.get('resumen', {})
