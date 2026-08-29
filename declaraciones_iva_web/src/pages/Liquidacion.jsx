@@ -14,10 +14,9 @@ export default function Liquidacion() {
   const mes = queryParams.get("mes");
   const anio = queryParams.get("anio");
   
-  const { token, logout } = useAuth();
+  const { token, activeEmpresa, logout } = useAuth();
   const { enqueueMessages } = useAssistant();
   
-  const [activeEmpresa, setActiveEmpresa] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   
@@ -27,13 +26,10 @@ export default function Liquidacion() {
   useEffect(() => {
     if (!token) return;
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    const empresaInfo = localStorage.getItem('activeEmpresa');
-    if (empresaInfo) {
-      setActiveEmpresa(JSON.parse(empresaInfo));
-    } else {
+    if (!activeEmpresa) {
       navigate('/dashboard');
     }
-  }, [token, navigate]);
+  }, [token, activeEmpresa, navigate]);
 
   useEffect(() => {
     if (activeEmpresa && mes && anio) {
