@@ -101,14 +101,19 @@ export default function AnexoCompras() {
     }
   };
 
+  const MESES_NOMBRES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
   const handleFileUpload = async (files) => {
     // Solo permitir enviar archivos con extensión .json (ignorando mayúsculas/minúsculas)
     const jsonFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.json'));
     
     if (jsonFiles.length === 0) {
-      enqueueMessages([{ text: "Por favor selecciona una carpeta que contenga archivos JSON válidos.", type: "error" }]);
+      enqueueMessages([{ text: `⚠️ En esa carpeta no hay archivos JSON para el Anexo de Compras. Por favor verifica que estás seleccionando la carpeta correcta con los comprobantes de tus proveedores.`, type: "error" }]);
       return;
     }
+
+    const nombreMes = MESES_NOMBRES[(parseInt(mes, 10) - 1)] || mes;
+    enqueueMessages([{ text: `⏳ Procesando los JSON del Anexo de Compras del mes de ${nombreMes}... Por favor espera mientras valido cada comprobante.`, type: "info" }]);
 
     setLoading(true);
     let totalProcesados = 0;

@@ -112,6 +112,8 @@ export default function AnexoVentasCF() {
     }
   };
 
+  const MESES_NOMBRES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
   const handleFileUpload = async (files) => {
     if (files.length === 0) return;
     if (isDeclarado) {
@@ -119,16 +121,24 @@ export default function AnexoVentasCF() {
       return;
     }
     
+    const jsonFiles = Array.from(files).filter(file => file.name.toLowerCase().endsWith(".json"));
+
+    if (jsonFiles.length === 0) {
+      enqueueMessages([{ text: `⚠️ En esa carpeta no hay archivos JSON para el Anexo de Ventas a Consumidor Final. Por favor verifica que estás seleccionando la carpeta correcta con las FCF emitidas.`, type: "error" }]);
+      return;
+    }
+
+    const nombreMes = MESES_NOMBRES[(parseInt(mes, 10) - 1)] || mes;
+    enqueueMessages([{ text: `⏳ Procesando los JSON del Anexo de Ventas a Consumidor Final del mes de ${nombreMes}... Por favor espera mientras valido cada factura.`, type: "info" }]);
+
     const formData = new FormData();
     formData.append("empresa_id", activeEmpresa.id);
     formData.append("periodo_mes", mes);
     formData.append("periodo_anio", anio);
     formData.append("version", activeVersion);
     
-    Array.from(files).forEach(file => {
-      if (file.name.toLowerCase().endsWith(".json")) {
-        formData.append("files", file);
-      }
+    jsonFiles.forEach(file => {
+      formData.append("files", file);
     });
 
     setLoading(true);
