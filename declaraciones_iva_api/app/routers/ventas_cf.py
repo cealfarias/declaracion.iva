@@ -352,18 +352,18 @@ def export_ventas_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db
             ultimo_dte, # Documento Al (Código Generación Final)
             "", # Maquina registradora
             fmt(v_exentas),
-            "0", # Internas exentas no sujetas a proporcionalidad
+            "0.00", # Internas exentas no sujetas a proporcionalidad
             fmt(v_no_sujetas),
             fmt(v_gravadas),
-            "0", # Exp CA
-            "0", # Exp Fuera CA
-            "0", # Exp Servicios
-            "0", # Zonas Francas
-            "0", # Terceros no domiciliados
+            "0.00", # Exp CA
+            "0.00", # Exp Fuera CA
+            "0.00", # Exp Servicios
+            "0.00", # Zonas Francas
+            "0.00", # Terceros no domiciliados
             fmt(t_ventas),
             "1", # Tipo Operacion
             "3", # Tipo Ingreso
-            "1"  # Numero de Anexo (según F07 v14 es 1)
+            "2"  # Numero de Anexo (según F07 v14 es 2 para CF)
         ]
         writer.writerow(row)
 
