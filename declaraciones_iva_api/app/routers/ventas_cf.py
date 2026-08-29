@@ -221,7 +221,12 @@ async def upload_dtes_cf(
             ).first()
             
             if existe:
-                errores.append(f"{file.filename}: Ya fue procesado anteriormente.")
+                if existe.periodo_mes == periodo_mes and existe.periodo_anio == periodo_anio:
+                    errores.append(f"{file.filename}: Ya fue procesado anteriormente en este mes.")
+                else:
+                    existe.periodo_mes = periodo_mes
+                    existe.periodo_anio = periodo_anio
+                    procesados += 1
                 continue
 
             nit_cliente = receptor.get("nit", receptor.get("nrc", receptor.get("numDocumento", "")))
