@@ -202,6 +202,11 @@ async def upload_dtes_cf(
             try:
                 fecha_obj = datetime.strptime(fecha_cruda, "%Y-%m-%d")
                 fecha_emision = fecha_obj.strftime("%d/%m/%Y")
+                
+                # VALIDACION ESTRICTA: Las ventas no se pueden diferir de mes
+                if f"{fecha_obj.month:02d}" != periodo_mes or str(fecha_obj.year) != periodo_anio:
+                    errores.append(f'{file.filename}: Fecha de emisin ({fecha_cruda}) no corresponde al periodo seleccionado ({periodo_mes}/{periodo_anio}). Por ley, las ventas no se pueden diferir.')
+                    continue
             except:
                 fecha_emision = fecha_cruda
                 
@@ -221,12 +226,7 @@ async def upload_dtes_cf(
             ).first()
             
             if existe:
-                if existe.periodo_mes == periodo_mes and existe.periodo_anio == periodo_anio:
-                    errores.append(f"{file.filename}: Ya fue procesado anteriormente en este mes.")
-                else:
-                    existe.periodo_mes = periodo_mes
-                    existe.periodo_anio = periodo_anio
-                    procesados += 1
+                errores.append(f"{file.filename}: Ya fue procesado anteriormente en el mes {existe.periodo_mes}/{existe.periodo_anio}.")
                 continue
 
             nit_cliente = receptor.get("nit", receptor.get("nrc", receptor.get("numDocumento", "")))

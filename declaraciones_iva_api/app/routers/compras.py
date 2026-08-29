@@ -249,12 +249,7 @@ async def upload_dtes(
             ).first()
             
             if existe:
-                if existe.periodo_mes == periodo_mes and existe.periodo_anio == periodo_anio:
-                    errores.append(f"{file.filename}: Ya fue procesado anteriormente en este mes.")
-                else:
-                    existe.periodo_mes = periodo_mes
-                    existe.periodo_anio = periodo_anio
-                    procesados += 1
+                errores.append(f"{file.filename}: Ya fue procesado anteriormente en el mes {existe.periodo_mes}/{existe.periodo_anio}.")
                 continue
 
             nit_proveedor = emisor.get("nit", "")
