@@ -140,12 +140,12 @@ export default function AnexoVentasContribuyentes() {
           const response = await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/upload`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          
-          if (response.data.errores && response.data.errores.length > 0) {
-            todosErrores = [...todosErrores, ...response.data.errores];
-          } else {
-            totalProcesados += 1;
-          }
+                    if (response.data.procesados) {
+              totalProcesados += response.data.procesados;
+            }
+            if (response.data.errores && response.data.errores.length > 0) {
+              todosErrores = [...todosErrores, ...response.data.errores];
+            }
         } catch (err) {
            todosErrores.push(`${jsonFiles[i].name}: Falló la conexión (Network Error).`);
         }

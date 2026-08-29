@@ -135,10 +135,11 @@ export default function AnexoCompras() {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
           
+          if (response.data.procesados) {
+            totalProcesados += response.data.procesados;
+          }
           if (response.data.errores && response.data.errores.length > 0) {
             todosErrores = [...todosErrores, ...response.data.errores];
-          } else {
-            totalProcesados += 1;
           }
         } catch (err) {
            todosErrores.push(`${jsonFiles[i].name}: Falló la conexión (Network Error).`);
