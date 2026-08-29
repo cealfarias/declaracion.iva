@@ -13,6 +13,7 @@ import AnexoCompras from './pages/AnexoCompras';
 import AnexoVentasCF from './pages/AnexoVentasCF';
 import AnexoVentasContribuyentes from './pages/AnexoVentasContribuyentes';
 import AnexoAnulados from './pages/AnexoAnulados';
+import Liquidacion from './pages/Liquidacion';
 
 const ProtectedRoute = ({ children, requireTerms = true }) => {
   const { token, user } = useAuth();
@@ -32,6 +33,11 @@ const ProtectedRoute = ({ children, requireTerms = true }) => {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/liquidacion" element={
+        <ProtectedRoute>
+          <Liquidacion />
+        </ProtectedRoute>
+      } />
       <Route path="/" element={<Navigate to="/login" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />

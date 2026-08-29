@@ -244,6 +244,27 @@ export default function Dashboard() {
             Generar Anexo
           </button>
         </div>
+
+        {/* Card for Liquidacion */}
+        <div className="bg-indigo-700 rounded-xl p-6 border border-indigo-800 shadow-md hover:shadow-lg transition-shadow relative overflow-hidden group col-span-1 md:col-span-2 lg:col-span-3 mt-4">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+            <div>
+              <div className="w-12 h-12 bg-white text-indigo-700 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-1">Liquidación de Impuestos</h3>
+              <p className="text-sm text-indigo-200 mb-5 sm:mb-0 max-w-md">Consolida la información de tus anexos de compras y ventas para determinar el pago a cuenta o remanente del mes de forma automática.</p>
+            </div>
+            <button 
+              onClick={() => navigate(`/liquidacion?mes=${mes}&anio=${anio}`)}
+              className="bg-white text-indigo-700 text-sm font-bold py-3 px-8 rounded-lg hover:bg-indigo-50 transition w-full sm:w-auto whitespace-nowrap shadow-sm"
+            >
+              Ver Liquidación (F-07)
+            </button>
+          </div>
+        </div>
+
         {/* Card for Anulados */}
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
