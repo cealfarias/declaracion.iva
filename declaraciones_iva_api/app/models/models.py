@@ -191,3 +191,18 @@ class DeclaracionEstado(Base):
     fecha_declaracion = Column(DateTime, default=datetime.utcnow)
     
     empresa = relationship("Empresa")
+
+class Liquidacion(Base):
+    __tablename__ = "iva_liquidaciones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), nullable=False)
+    anio = Column(String(4), nullable=False)
+    mes = Column(String(2), nullable=False)
+    
+    remanente_anterior = Column(Float, default=0.0)
+    
+    creado_en = Column(DateTime, default=datetime.utcnow)
+    actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    empresa = relationship("Empresa")
