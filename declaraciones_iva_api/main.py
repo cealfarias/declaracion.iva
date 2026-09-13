@@ -40,13 +40,19 @@ app = FastAPI(title="Declaraciones de IVA API", version="1.0.0")
 origins = [
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://declaraciones.iva.demiempresa.online"
+    "http://localhost:5175",
+    "http://localhost:3000",
+    "https://declaraciones.iva.demiempresa.online",
+    "https://planilla.demiempresa.online",
+    "https://demiempresa.online",
+    "https://www.demiempresa.online"
 ]
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.demiempresa\.online",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
