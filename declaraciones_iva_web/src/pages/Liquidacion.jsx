@@ -45,11 +45,80 @@ export default function Liquidacion() {
     }
   }, [activeEmpresa, mes, anio]);
 
+  const getOmittedFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(`omitted_compras_${activeEmpresa?.id}_${mes}_${anio}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const fetchLiquidacion = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
-      const res = response.data;
+      const [liqRes, comprasRes] = await Promise.all([
+        axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
+        axios.get(`${API_URL}/api/v1/compras/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] }))
+      ]);
+      const res = liqRes.data;
+      const comprasList = comprasRes.data || [];
+
+      if (comprasList.length > 0) {
+        const stored = getOmittedFromStorage();
+        const defaultRejected = (activeEmpresa?.id === 2 && mes === "01" && anio === "2026") ? [245, 246] : [];
+        const activeOmitted = stored !== null ? stored : defaultRejected;
+
+        const activas = comprasList.filter(c => {
+          if (c.omitido !== undefined && c.omitido !== null) return !c.omitido;
+          return !activeOmitted.includes(c.id);
+        });
+
+        const netoCompras = Number(activas.reduce((sum, c) => sum + (c.compras_internas_gravadas || 0) + (c.internaciones_gravadas_bienes || 0) + (c.importaciones_gravadas_bienes || 0) + (c.importaciones_gravadas_servicios || 0), 0).toFixed(2));
+        const creditoCompras = Number(activas.reduce((sum, c) => sum + (c.credito_fiscal || 0), 0).toFixed(2));
+
+        res.compras = {
+          neto: netoCompras,
+          credito: creditoCompras
+        };
+        res.totales = {
+          debito: res.totales?.debito || 0,
+          credito: creditoCompras
+        };
+
+        const deb = res.totales.debito;
+        const dif = Number((deb - creditoCompras).toFixed(2));
+        const remAnterior = res.remanente_anterior || 0;
+        
+        let impuestoAPagar = 0;
+        let remanenteSiguiente = 0;
+
+        if (dif > 0) {
+          const impDet = dif;
+          const remAplicado = Math.min(impDet, remAnterior);
+          const remNoUtilizado = Number((remAnterior - remAplicado).toFixed(2));
+          const subtotal = Number((impDet - remAplicado).toFixed(2));
+          const retRec = parseFloat(res.retenciones_recibidas || 0);
+          const perRec = parseFloat(res.percepciones_recibidas || 0);
+          const ant2 = parseFloat(res.anticipo_cuenta_2 || 0);
+          const totalDed = retRec + perRec + ant2;
+          const retEfe = parseFloat(res.retenciones_efectuadas || 0);
+          const perEfe = parseFloat(res.percepciones_efectuadas || 0);
+          const totalTerc = retEfe + perEfe;
+          impuestoAPagar = Number(Math.max(0, subtotal - totalDed + totalTerc).toFixed(2));
+          remanenteSiguiente = remNoUtilizado;
+        } else {
+          const excedente = Math.abs(dif);
+          remanenteSiguiente = Number((excedente + remAnterior).toFixed(2));
+          const retEfe = parseFloat(res.retenciones_efectuadas || 0);
+          const perEfe = parseFloat(res.percepciones_efectuadas || 0);
+          impuestoAPagar = Number((retEfe + perEfe).toFixed(2));
+        }
+
+        res.impuesto_a_pagar = impuestoAPagar;
+        res.remanente_siguiente = remanenteSiguiente;
+      }
+
       setData(res);
       setRemanenteInput(res.remanente_anterior !== undefined ? res.remanente_anterior.toString() : "0.00");
       setAjustes({
