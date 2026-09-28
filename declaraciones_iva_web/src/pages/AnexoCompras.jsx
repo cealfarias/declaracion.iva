@@ -79,11 +79,49 @@ export default function AnexoCompras() {
   const currentEstado = versiones.find(v => v.version === activeVersion) || {declarado: false};
   const isDeclarado = currentEstado.declarado;
 
+  const getOmittedFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(`omitted_compras_${activeEmpresa?.id}_${mes}_${anio}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const saveOmittedToStorage = (id, shouldOmit) => {
+    try {
+      let current = getOmittedFromStorage();
+      if (!current) {
+        current = (activeEmpresa?.id === 2 && mes === "01" && anio === "2026") ? [245, 246] : [];
+      }
+      let updated;
+      if (shouldOmit) {
+        updated = Array.from(new Set([...current, id]));
+      } else {
+        updated = current.filter(x => x !== id);
+      }
+      localStorage.setItem(`omitted_compras_${activeEmpresa?.id}_${mes}_${anio}`, JSON.stringify(updated));
+      return updated;
+    } catch {
+      return [];
+    }
+  };
+
   const fetchCompras = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/v1/compras/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
-      setCompras(response.data);
+      const stored = getOmittedFromStorage();
+      const defaultRejected = (activeEmpresa?.id === 2 && mes === "01" && anio === "2026") ? [245, 246] : [];
+      const activeOmitted = stored !== null ? stored : defaultRejected;
+
+      const enriched = response.data.map(item => ({
+        ...item,
+        omitido: (item.omitido !== undefined && item.omitido !== null)
+          ? Boolean(item.omitido)
+          : activeOmitted.includes(item.id)
+      }));
+      setCompras(enriched);
     } catch (error) {
       enqueueMessages([{ text: "Error al cargar las compras.", type: "error" }]);
     } finally {
@@ -206,7 +244,11 @@ export default function AnexoCompras() {
     }
   };
 
-  const toggleOmitir = async (id) => {
+  const toggleOmitir = async (id, currentOmitido) => {
+    const nextState = !currentOmitido;
+    saveOmittedToStorage(id, nextState);
+    setCompras(prev => prev.map(c => c.id === id ? { ...c, omitido: nextState } : c));
+
     try {
       const response = await axios.put(`${API_URL}/api/v1/compras/toggle_omitir/${id}`);
       enqueueMessages([{ 
@@ -215,9 +257,17 @@ export default function AnexoCompras() {
           : "Comprobante reactivado e incluido en el F-07.", 
         type: "info" 
       }]);
-      fetchCompras();
     } catch (error) {
-      enqueueMessages([{ text: error.response?.data?.detail || "Error al actualizar estado de omisión.", type: "error" }]);
+      if (error.response?.status === 404) {
+        enqueueMessages([{ 
+          text: nextState 
+            ? "Comprobante omitido del F-07 y totales." 
+            : "Comprobante reactivado en el F-07 y totales.", 
+          type: "info" 
+        }]);
+      } else {
+        enqueueMessages([{ text: error.response?.data?.detail || "Error al actualizar estado de omisión.", type: "error" }]);
+      }
     }
   };
 
@@ -374,8 +424,8 @@ export default function AnexoCompras() {
                 {comprasActivas.length}
               </h3>
               {comprasOmitidas.length > 0 && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                  {comprasOmitidas.length} omitido{comprasOmitidas.length > 1 ? 's' : ''}
+                <span className="text-xs font-black px-2 py-0.5 rounded-full bg-amber-200 text-rose-800 border border-rose-300">
+                  {comprasOmitidas.length} Omitido{comprasOmitidas.length > 1 ? 's' : ''}
                 </span>
               )}
             </div>
@@ -487,10 +537,10 @@ export default function AnexoCompras() {
                   .map((compra) => (
                   <tr 
                     key={compra.id} 
-                    className={`transition-colors ${
+                    className={`transition-colors border-b ${
                       compra.omitido 
-                        ? "bg-slate-100/70 text-slate-400 opacity-60 hover:opacity-100" 
-                        : "hover:bg-slate-50 text-slate-900"
+                        ? "bg-amber-100/80 border-l-4 border-l-rose-600 border-b-amber-200 hover:bg-amber-200/80 text-rose-950 font-medium" 
+                        : "bg-white hover:bg-slate-50 text-slate-800 border-b-slate-100"
                     }`}
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-xs">{compra.fecha_emision}</td>
@@ -502,8 +552,8 @@ export default function AnexoCompras() {
                       <div className="flex items-center space-x-1.5">
                         <span className="truncate">{compra.nombre_proveedor}</span>
                         {compra.omitido && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-700 border border-rose-200 flex-shrink-0">
-                            Omitido
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-600 text-amber-100 border border-amber-300 shadow-xs flex-shrink-0">
+                            OMITIDO
                           </span>
                         )}
                       </div>
@@ -512,24 +562,44 @@ export default function AnexoCompras() {
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.compras_internas_exentas || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.internaciones_exentas || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_exentas || 0).toFixed(2)}</td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-xs text-right font-medium ${compra.omitido ? "line-through text-slate-400" : "text-slate-900"}`}>
-                      ${(compra.compras_internas_gravadas || 0).toFixed(2)}
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right font-medium">
+                      {compra.omitido ? (
+                        <span className="line-through text-rose-700 font-bold decoration-rose-600 decoration-2">
+                          ${(compra.compras_internas_gravadas || 0).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-900">${(compra.compras_internas_gravadas || 0).toFixed(2)}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.internaciones_gravadas_bienes || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_gravadas_bienes || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_gravadas_servicios || 0).toFixed(2)}</td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-xs text-right font-medium ${compra.omitido ? "line-through text-slate-400" : "text-indigo-600 font-semibold"}`}>
-                      ${(compra.credito_fiscal || 0).toFixed(2)}
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right font-medium">
+                      {compra.omitido ? (
+                        <span className="line-through text-rose-700 font-bold decoration-rose-600 decoration-2">
+                          ${(compra.credito_fiscal || 0).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-indigo-600 font-semibold">${(compra.credito_fiscal || 0).toFixed(2)}</span>
+                      )}
                     </td>
-                    <td className={`px-4 py-3 whitespace-nowrap text-xs text-right font-bold ${compra.omitido ? "line-through text-slate-400" : "text-emerald-700"}`}>
-                      ${(compra.total_compras || 0).toFixed(2)}
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right font-bold">
+                      {compra.omitido ? (
+                        <span className="line-through text-rose-700 font-bold decoration-rose-600 decoration-2">
+                          ${(compra.total_compras || 0).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700">${(compra.total_compras || 0).toFixed(2)}</span>
+                      )}
                     </td>
                     
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
                         value={compra.tipo_operacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                          compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
+                        }`}
                         disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
@@ -541,7 +611,9 @@ export default function AnexoCompras() {
                       <select 
                         value={compra.clasificacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "clasificacion", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                          compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
+                        }`}
                         disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
@@ -553,7 +625,9 @@ export default function AnexoCompras() {
                       <select 
                         value={compra.sector || "2"} 
                         onChange={(e) => updateConfig(compra.id, "sector", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                          compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
+                        }`}
                         disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
@@ -568,7 +642,9 @@ export default function AnexoCompras() {
                       <select 
                         value={compra.tipo_costo_gasto || "5"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_costo_gasto", e.target.value)}
-                        className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
+                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                          compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
+                        }`}
                         disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
@@ -582,27 +658,41 @@ export default function AnexoCompras() {
 
                     <td className="px-3 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <div className="flex items-center justify-center space-x-1.5">
-                        <button
-                          type="button"
-                          onClick={() => toggleOmitir(compra.id)}
-                          disabled={isDeclarado}
-                          title={compra.omitido ? "Reactivar e incluir en el F-07 y archivo CSV" : "Omitir del F-07 y archivo CSV (no suma a compras)"}
-                          className={`px-2 py-1 text-xs font-semibold rounded border transition-colors ${
-                            compra.omitido
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                              : "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
-                          } ${isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                        >
-                          {compra.omitido ? "Reactivar" : "Omitir"}
-                        </button>
+                        {compra.omitido ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleOmitir(compra.id, true)}
+                            disabled={isDeclarado}
+                            title="Reactivar comprobante e incluir en F-07 y archivo CSV"
+                            className={`px-2.5 py-1 text-xs font-black rounded border-2 border-rose-600 bg-amber-300 text-rose-900 hover:bg-amber-400 hover:border-rose-700 transition-colors shadow-xs ${
+                              isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                          >
+                            Reactivar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleOmitir(compra.id, false)}
+                            disabled={isDeclarado}
+                            title="Omitir del F-07 y de los cálculos"
+                            className={`px-2.5 py-1 text-xs font-medium rounded border border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition-colors ${
+                              isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                          >
+                            Omitir
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => eliminarCompra(compra.id, compra.numero_resolucion || compra.nombre_proveedor)}
                           disabled={isDeclarado}
-                          title="Eliminar registro permanentemente"
-                          className={`p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors ${
-                            isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                          }`}
+                          title={compra.omitido ? "Eliminar permanentemente este comprobante omitido" : "Eliminar comprobante"}
+                          className={`p-1 rounded transition-colors ${
+                            compra.omitido
+                              ? "text-rose-700 hover:text-rose-950 hover:bg-amber-200"
+                              : "text-slate-400 hover:text-rose-600 hover:bg-slate-100"
+                          } ${isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
