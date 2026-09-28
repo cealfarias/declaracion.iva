@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-import calendar
+from sqlalchemy import func
+from pydantic import BaseModel
+from typing import Optional
 
 from app.core.database import get_db
 from app.models.models import Empresa, DteCompra, DteVenta, DteVentaContribuyente, DteAnulado, Liquidacion
@@ -23,7 +24,11 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
         DteAnulado.periodo_anio == anio,
         DteAnulado.version == version
     ).all()
-    set_anulados = {a.codigo_generacion for a in anulados}
+    set_anulados = set()
+    for a in anulados:
+        if a.codigo_generacion:
+            set_anulados.add(a.codigo_generacion)
+            set_anulados.add(a.codigo_generacion.replace("-", ""))
 
     # 2. Ventas Consumidor Final (DteVenta)
     ventas_cf = db.query(DteVenta).filter(
@@ -35,7 +40,9 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     
     bruto_cf = 0.0
     for v in ventas_cf:
-        if v.codigo_generacion not in set_anulados:
+        cg = v.codigo_generacion or ""
+        cg_clean = cg.replace("-", "")
+        if cg not in set_anulados and cg_clean not in set_anulados:
             bruto_cf += v.ventas_gravadas
     
     neto_cf = round(bruto_cf / 1.13, 2)
@@ -52,7 +59,10 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     neto_ccf = 0.0
     debito_ccf = 0.0
     for v in ventas_ccf:
-        if v.numero_documento not in set_anulados:
+        nd = v.numero_documento or ""
+        nr = v.numero_resolucion or ""
+        if (nd not in set_anulados and nd.replace("-", "") not in set_anulados and
+            nr not in set_anulados and nr.replace("-", "") not in set_anulados):
             neto_ccf += v.ventas_gravadas
             debito_ccf += v.debito_fiscal
 
@@ -67,10 +77,11 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     neto_compras = 0.0
     credito_compras = 0.0
     for c in compras:
-        # Simplificacion: sumamos todo el credito fiscal
-        neto_compras += c.compras_internas_gravadas + c.internaciones_gravadas_bienes + c.importaciones_gravadas_bienes + c.importaciones_gravadas_servicios
-        credito_compras += c.credito_fiscal
+        neto_compras += (c.compras_internas_gravadas or 0.0) + (c.internaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_servicios or 0.0)
+        credito_compras += (c.credito_fiscal or 0.0)
 
+    neto_cf = round(neto_cf, 2)
+    debito_cf = round(debito_cf, 2)
     neto_ccf = round(neto_ccf, 2)
     debito_ccf = round(debito_ccf, 2)
     neto_compras = round(neto_compras, 2)
@@ -78,6 +89,14 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
 
     total_debito = round(debito_cf + debito_ccf, 2)
     total_credito = round(credito_compras, 2)
+    diferencia_periodo = round(total_debito - total_credito, 2)
+
+    if diferencia_periodo > 0:
+        impuesto_determinado = diferencia_periodo
+        excedente_credito = 0.0
+    else:
+        impuesto_determinado = 0.0
+        excedente_credito = round(abs(diferencia_periodo), 2)
 
     return {
         'ventas_cf': {'neto': neto_cf, 'debito': debito_cf},
@@ -85,63 +104,219 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
         'compras': {'neto': neto_compras, 'credito': total_credito},
         'totales': {
             'debito': total_debito,
-            'credito': total_credito
+            'credito': total_credito,
+            'diferencia_periodo': diferencia_periodo,
+            'impuesto_determinado': impuesto_determinado,
+            'excedente_credito': excedente_credito
         }
     }
 
-def get_remanente_recursivo(db: Session, empresa_id: int, mes: str, anio: str, max_depth: int = 12):
-    if max_depth == 0:
+def get_remanente_historico(db: Session, empresa_id: int, target_mes: str, target_anio: str) -> float:
+    """Calcula eficientemente el remanente de crédito fiscal que viene del mes anterior."""
+    target_key = (int(target_anio), int(target_mes))
+
+    # 1. Obtener todas las liquidaciones guardadas manualmente
+    liquidaciones = db.query(Liquidacion).filter(Liquidacion.empresa_id == empresa_id).all()
+    manuales = {(l.mes, l.anio): (l.remanente_anterior or 0.0) for l in liquidaciones}
+
+    # Si hay registro específico manual para el período meta con valor > 0
+    if manuales.get((target_mes, target_anio), 0.0) > 0:
+        return manuales[(target_mes, target_anio)]
+
+    # 2. Agrupar compras por período
+    compras_grp = db.query(
+        DteCompra.periodo_mes,
+        DteCompra.periodo_anio,
+        func.sum(DteCompra.credito_fiscal)
+    ).filter(
+        DteCompra.empresa_id == empresa_id
+    ).group_by(
+        DteCompra.periodo_anio, DteCompra.periodo_mes
+    ).all()
+    compras_map = {(r[0], r[1]): float(r[2] or 0.0) for r in compras_grp}
+
+    # 3. Anulados para filtrar ventas
+    anulados = db.query(DteAnulado.codigo_generacion).filter(DteAnulado.empresa_id == empresa_id).all()
+    set_anulados = set()
+    for a in anulados:
+        if a[0]:
+            set_anulados.add(a[0])
+            set_anulados.add(a[0].replace("-", ""))
+
+    # 4. Ventas CF
+    ventas_cf = db.query(
+        DteVenta.periodo_mes,
+        DteVenta.periodo_anio,
+        DteVenta.codigo_generacion,
+        DteVenta.ventas_gravadas
+    ).filter(
+        DteVenta.empresa_id == empresa_id
+    ).all()
+    
+    ventas_cf_map = {}
+    for v in ventas_cf:
+        cg = v.codigo_generacion or ""
+        if cg not in set_anulados and cg.replace("-", "") not in set_anulados:
+            k = (v.periodo_mes, v.periodo_anio)
+            ventas_cf_map[k] = ventas_cf_map.get(k, 0.0) + (v.ventas_gravadas or 0.0)
+            
+    # Convertir bruto CF a débito CF
+    debito_cf_map = {}
+    for k, bruto in ventas_cf_map.items():
+        neto = round(bruto / 1.13, 2)
+        debito_cf_map[k] = round(bruto - neto, 2)
+
+    # 5. Ventas CCF
+    ventas_ccf = db.query(
+        DteVentaContribuyente.periodo_mes,
+        DteVentaContribuyente.periodo_anio,
+        DteVentaContribuyente.numero_documento,
+        DteVentaContribuyente.numero_resolucion,
+        DteVentaContribuyente.debito_fiscal
+    ).filter(
+        DteVentaContribuyente.empresa_id == empresa_id
+    ).all()
+    
+    debito_ccf_map = {}
+    for v in ventas_ccf:
+        nd = v.numero_documento or ""
+        nr = v.numero_resolucion or ""
+        if (nd not in set_anulados and nd.replace("-", "") not in set_anulados and
+            nr not in set_anulados and nr.replace("-", "") not in set_anulados):
+            k = (v.periodo_mes, v.periodo_anio)
+            debito_ccf_map[k] = debito_ccf_map.get(k, 0.0) + (v.debito_fiscal or 0.0)
+
+    # Periodos cronológicos previos al target
+    all_periods = set(compras_map.keys()) | set(debito_cf_map.keys()) | set(debito_ccf_map.keys()) | set(manuales.keys())
+    past_periods = sorted(
+        [p for p in all_periods if (int(p[1]), int(p[0])) < target_key],
+        key=lambda x: (int(x[1]), int(x[0]))
+    )
+
+    if not past_periods:
         return 0.0
-        
-    liq = db.query(Liquidacion).filter(
-        Liquidacion.empresa_id == empresa_id,
-        Liquidacion.mes == mes,
-        Liquidacion.anio == anio
-    ).first()
-    
-    if liq and liq.remanente_anterior > 0: # Si hay uno manual forzado
-        # Calculamos el resultado de ese mes
-        data = calculate_liquidacion_for_period(db, empresa_id, mes, anio)
-        impuesto = data['totales']['debito'] - data['totales']['credito'] - liq.remanente_anterior
-        return abs(impuesto) if impuesto < 0 else 0.0
-        
-    # Si no, calculamos recursivamente el de este mes
-    prev_m, prev_a = get_previous_month_year(mes, anio)
-    rem_ant = get_remanente_recursivo(db, empresa_id, prev_m, prev_a, max_depth - 1)
-    
-    data = calculate_liquidacion_for_period(db, empresa_id, mes, anio)
-    if data['totales']['debito'] == 0 and data['totales']['credito'] == 0 and rem_ant == 0:
-        return 0.0 # Mes vacio
-        
-    impuesto = data['totales']['debito'] - data['totales']['credito'] - rem_ant
-    return abs(impuesto) if impuesto < 0 else 0.0
+
+    remanente_acumulado = 0.0
+    for p in past_periods:
+        if manuales.get(p, 0.0) > 0:
+            remanente_acumulado = manuales[p]
+
+        debito = round(debito_cf_map.get(p, 0.0) + debito_ccf_map.get(p, 0.0), 2)
+        credito = round(compras_map.get(p, 0.0), 2)
+        dif = round(debito - credito, 2)
+
+        if dif > 0:
+            imp_det = dif
+            rem_aplicado = min(imp_det, remanente_acumulado)
+            remanente_acumulado = round(remanente_acumulado - rem_aplicado, 2)
+        else:
+            excedente = round(abs(dif), 2)
+            remanente_acumulado = round(excedente + remanente_acumulado, 2)
+
+    return round(remanente_acumulado, 2)
 
 @router.get('/{empresa_id}')
 def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     data = calculate_liquidacion_for_period(db, empresa_id, mes, anio, version)
     
-    # Obtener el registro de liquidacion actual si existe
     liq = db.query(Liquidacion).filter(
         Liquidacion.empresa_id == empresa_id,
         Liquidacion.mes == mes,
         Liquidacion.anio == anio
     ).first()
     
-    # Si tiene remanente manual, lo usamos. Si no, o si es 0, intentamos calcular el del mes anterior
-    remanente_anterior = liq.remanente_anterior if liq else 0.0
-    
+    # 1. Remanente anterior (Casilla 110)
+    remanente_anterior = (liq.remanente_anterior or 0.0) if liq else 0.0
     if remanente_anterior == 0.0:
-        prev_m, prev_a = get_previous_month_year(mes, anio)
-        remanente_anterior = round(get_remanente_recursivo(db, empresa_id, prev_m, prev_a), 2)
+        remanente_anterior = get_remanente_historico(db, empresa_id, mes, anio)
     
-    data['remanente_anterior'] = remanente_anterior
-    
-    # Resultado
-    resultado = data['totales']['debito'] - data['totales']['credito'] - remanente_anterior
-    data['impuesto_a_pagar'] = round(resultado if resultado > 0 else 0.0, 2)
-    data['remanente_siguiente'] = round(abs(resultado) if resultado < 0 else 0.0, 2)
+    data['remanente_anterior'] = round(remanente_anterior, 2)
+
+    # 2. Ajustes F-07 (Retenciones, Percepciones, Anticipos)
+    retenciones_recibidas = round((liq.retenciones_recibidas or 0.0) if liq else 0.0, 2)
+    percepciones_recibidas = round((liq.percepciones_recibidas or 0.0) if liq else 0.0, 2)
+    retenciones_efectuadas = round((liq.retenciones_efectuadas or 0.0) if liq else 0.0, 2)
+    percepciones_efectuadas = round((liq.percepciones_efectuadas or 0.0) if liq else 0.0, 2)
+    anticipo_cuenta_2 = round((liq.anticipo_cuenta_2 or 0.0) if liq else 0.0, 2)
+
+    data['retenciones_recibidas'] = retenciones_recibidas
+    data['percepciones_recibidas'] = percepciones_recibidas
+    data['retenciones_efectuadas'] = retenciones_efectuadas
+    data['percepciones_efectuadas'] = percepciones_efectuadas
+    data['anticipo_cuenta_2'] = anticipo_cuenta_2
+
+    # 3. Liquidación paso a paso según el Formulario F-07 (Ministerio de Hacienda)
+    total_debito = data['totales']['debito']
+    total_credito = data['totales']['credito']
+    diferencia = data['totales']['diferencia_periodo']
+
+    if diferencia > 0:
+        # Débito > Crédito: Hay Impuesto Determinado (Casilla 160)
+        impuesto_determinado = diferencia
+        excedente_credito = 0.0
+        
+        # Aplicación del Remanente Anterior (Casilla 110) contra el Impuesto Determinado
+        remanente_aplicado = min(impuesto_determinado, remanente_anterior)
+        saldo_impuesto_1 = round(impuesto_determinado - remanente_aplicado, 2)
+        remanente_no_utilizado = round(remanente_anterior - remanente_aplicado, 2)
+    else:
+        # Crédito >= Débito: Hay Excedente de Crédito del período (Casilla 155)
+        impuesto_determinado = 0.0
+        excedente_credito = round(abs(diferencia), 2)
+        remanente_aplicado = 0.0
+        saldo_impuesto_1 = 0.0
+        remanente_no_utilizado = remanente_anterior
+
+    # Deducciones adicionales (Retenciones y Percepciones practicadas a la empresa + Anticipo 2%)
+    total_deducciones = round(retenciones_recibidas + percepciones_recibidas + anticipo_cuenta_2, 2)
+    if saldo_impuesto_1 > 0:
+        deducciones_aplicadas = min(saldo_impuesto_1, total_deducciones)
+        impuesto_propio = round(saldo_impuesto_1 - deducciones_aplicadas, 2)
+        deducciones_sobrantes = round(total_deducciones - deducciones_aplicadas, 2)
+    else:
+        deducciones_aplicadas = 0.0
+        impuesto_propio = 0.0
+        deducciones_sobrantes = total_deducciones
+
+    # Operaciones a enterar de terceros
+    total_terceros = round(retenciones_efectuadas + percepciones_efectuadas, 2)
+    impuesto_a_pagar = round(impuesto_propio + total_terceros, 2)
+
+    # Remanente para el período siguiente
+    remanente_siguiente = round(excedente_credito + remanente_no_utilizado + deducciones_sobrantes, 2)
+
+    # Estructura enriquecida para el frontend
+    data['liquidacion'] = {
+        'total_debito': total_debito,
+        'total_credito': total_credito,
+        'diferencia_periodo': diferencia,
+        'impuesto_determinado': impuesto_determinado,
+        'excedente_credito': excedente_credito,
+        'remanente_anterior': remanente_anterior,
+        'remanente_aplicado': remanente_aplicado,
+        'remanente_no_utilizado': remanente_no_utilizado,
+        'total_deducciones': total_deducciones,
+        'deducciones_aplicadas': deducciones_aplicadas,
+        'deducciones_sobrantes': deducciones_sobrantes,
+        'total_terceros': total_terceros,
+        'impuesto_propio': impuesto_propio,
+        'impuesto_a_pagar': impuesto_a_pagar,
+        'remanente_siguiente': remanente_siguiente
+    }
+
+    # Campos de compatibilidad directa
+    data['impuesto_a_pagar'] = impuesto_a_pagar
+    data['remanente_siguiente'] = remanente_siguiente
     
     return data
+
+class AjustesLiquidacionRequest(BaseModel):
+    remanente_anterior: Optional[float] = 0.0
+    retenciones_recibidas: Optional[float] = 0.0
+    percepciones_recibidas: Optional[float] = 0.0
+    retenciones_efectuadas: Optional[float] = 0.0
+    percepciones_efectuadas: Optional[float] = 0.0
+    anticipo_cuenta_2: Optional[float] = 0.0
 
 @router.post('/{empresa_id}/remanente')
 def update_remanente(empresa_id: int, mes: str, anio: str, remanente: float, db: Session = Depends(get_db)):
@@ -159,3 +334,41 @@ def update_remanente(empresa_id: int, mes: str, anio: str, remanente: float, db:
         
     db.commit()
     return {'mensaje': 'Remanente actualizado correctamente', 'remanente': remanente}
+
+@router.post('/{empresa_id}/ajustes')
+def update_ajustes(empresa_id: int, mes: str, anio: str, req: AjustesLiquidacionRequest, db: Session = Depends(get_db)):
+    liq = db.query(Liquidacion).filter(
+        Liquidacion.empresa_id == empresa_id,
+        Liquidacion.mes == mes,
+        Liquidacion.anio == anio
+    ).first()
+    
+    if not liq:
+        liq = Liquidacion(
+            empresa_id=empresa_id,
+            mes=mes,
+            anio=anio,
+            remanente_anterior=req.remanente_anterior or 0.0,
+            retenciones_recibidas=req.retenciones_recibidas or 0.0,
+            percepciones_recibidas=req.percepciones_recibidas or 0.0,
+            retenciones_efectuadas=req.retenciones_efectuadas or 0.0,
+            percepciones_efectuadas=req.percepciones_efectuadas or 0.0,
+            anticipo_cuenta_2=req.anticipo_cuenta_2 or 0.0
+        )
+        db.add(liq)
+    else:
+        if req.remanente_anterior is not None:
+            liq.remanente_anterior = req.remanente_anterior
+        if req.retenciones_recibidas is not None:
+            liq.retenciones_recibidas = req.retenciones_recibidas
+        if req.percepciones_recibidas is not None:
+            liq.percepciones_recibidas = req.percepciones_recibidas
+        if req.retenciones_efectuadas is not None:
+            liq.retenciones_efectuadas = req.retenciones_efectuadas
+        if req.percepciones_efectuadas is not None:
+            liq.percepciones_efectuadas = req.percepciones_efectuadas
+        if req.anticipo_cuenta_2 is not None:
+            liq.anticipo_cuenta_2 = req.anticipo_cuenta_2
+            
+    db.commit()
+    return {'mensaje': 'Ajustes de liquidación guardados correctamente'}

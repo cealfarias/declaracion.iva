@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -14,7 +13,7 @@ export default function Liquidacion() {
   const mes = queryParams.get("mes");
   const anio = queryParams.get("anio");
   
-  const { token, activeEmpresa, logout } = useAuth();
+  const { token, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
   
   const [data, setData] = useState(null);
@@ -22,6 +21,15 @@ export default function Liquidacion() {
   
   const [editRemanente, setEditRemanente] = useState(false);
   const [remanenteInput, setRemanenteInput] = useState("");
+
+  const [showAjustes, setShowAjustes] = useState(false);
+  const [ajustes, setAjustes] = useState({
+    retenciones_recibidas: "0.00",
+    percepciones_recibidas: "0.00",
+    anticipo_cuenta_2: "0.00",
+    retenciones_efectuadas: "0.00",
+    percepciones_efectuadas: "0.00"
+  });
 
   useEffect(() => {
     if (!token) return;
@@ -41,8 +49,16 @@ export default function Liquidacion() {
     setLoading(true);
     try {
       const response = await axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`);
-      setData(response.data);
-      setRemanenteInput(response.data.remanente_anterior.toString());
+      const res = response.data;
+      setData(res);
+      setRemanenteInput(res.remanente_anterior !== undefined ? res.remanente_anterior.toString() : "0.00");
+      setAjustes({
+        retenciones_recibidas: (res.retenciones_recibidas || 0).toString(),
+        percepciones_recibidas: (res.percepciones_recibidas || 0).toString(),
+        anticipo_cuenta_2: (res.anticipo_cuenta_2 || 0).toString(),
+        retenciones_efectuadas: (res.retenciones_efectuadas || 0).toString(),
+        percepciones_efectuadas: (res.percepciones_efectuadas || 0).toString()
+      });
     } catch (error) {
       enqueueMessages([{ text: "Error al cargar la liquidación.", type: "error" }]);
     } finally {
@@ -54,7 +70,7 @@ export default function Liquidacion() {
     try {
       const val = parseFloat(remanenteInput) || 0;
       await axios.post(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/remanente?mes=${mes}&anio=${anio}&remanente=${val}`);
-      enqueueMessages([{ text: "Remanente actualizado.", type: "success" }]);
+      enqueueMessages([{ text: "Remanente anterior actualizado.", type: "success" }]);
       setEditRemanente(false);
       fetchLiquidacion();
     } catch (error) {
@@ -62,10 +78,64 @@ export default function Liquidacion() {
     }
   };
 
+  const saveAjustes = async () => {
+    try {
+      const payload = {
+        remanente_anterior: parseFloat(remanenteInput) || 0,
+        retenciones_recibidas: parseFloat(ajustes.retenciones_recibidas) || 0,
+        percepciones_recibidas: parseFloat(ajustes.percepciones_recibidas) || 0,
+        anticipo_cuenta_2: parseFloat(ajustes.anticipo_cuenta_2) || 0,
+        retenciones_efectuadas: parseFloat(ajustes.retenciones_efectuadas) || 0,
+        percepciones_efectuadas: parseFloat(ajustes.percepciones_efectuadas) || 0
+      };
+      await axios.post(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/ajustes?mes=${mes}&anio=${anio}`, payload);
+      enqueueMessages([{ text: "Ajustes de liquidación guardados.", type: "success" }]);
+      setShowAjustes(false);
+      fetchLiquidacion();
+    } catch (error) {
+      enqueueMessages([{ text: "Error al guardar los ajustes.", type: "error" }]);
+    }
+  };
+
   if (!activeEmpresa) return null;
 
+  // Cálculos detallados F-07
+  const debito = data?.totales?.debito || 0;
+  const credito = data?.totales?.credito || 0;
+  const difPeriodo = Number((debito - credito).toFixed(2));
+  
+  const impDeterminado = data?.liquidacion?.impuesto_determinado !== undefined 
+    ? data.liquidacion.impuesto_determinado 
+    : (difPeriodo > 0 ? difPeriodo : 0);
+
+  const excedenteCredito = data?.liquidacion?.excedente_credito !== undefined 
+    ? data.liquidacion.excedente_credito 
+    : (difPeriodo < 0 ? Math.abs(difPeriodo) : 0);
+
+  const remAnterior = data?.remanente_anterior || 0;
+  
+  const remAplicado = data?.liquidacion?.remanente_aplicado !== undefined
+    ? data.liquidacion.remanente_aplicado
+    : Math.min(impDeterminado, remAnterior);
+
+  const remNoUtilizado = data?.liquidacion?.remanente_no_utilizado !== undefined
+    ? data.liquidacion.remanente_no_utilizado
+    : Math.max(0, Number((remAnterior - remAplicado).toFixed(2)));
+
+  const retRecibidas = parseFloat(ajustes.retenciones_recibidas) || 0;
+  const perRecibidas = parseFloat(ajustes.percepciones_recibidas) || 0;
+  const antCuenta2 = parseFloat(ajustes.anticipo_cuenta_2) || 0;
+  const totalDeducciones = Number((retRecibidas + perRecibidas + antCuenta2).toFixed(2));
+
+  const retEfectuadas = parseFloat(ajustes.retenciones_efectuadas) || 0;
+  const perEfectuadas = parseFloat(ajustes.percepciones_efectuadas) || 0;
+  const totalTerceros = Number((retEfectuadas + perEfectuadas).toFixed(2));
+
+  const impuestoAPagar = data?.impuesto_a_pagar || 0;
+  const remanenteSiguiente = data?.remanente_siguiente || 0;
+
   return (
-    <div className="bg-slate-50 min-h-screen pb-12">
+    <div className="bg-slate-50 min-h-screen pb-12 font-sans">
       {/* Header */}
       <div className="bg-indigo-600 border-b border-indigo-700 sticky top-0 z-30 shadow-md">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -73,20 +143,28 @@ export default function Liquidacion() {
             <div className="flex items-center space-x-4">
               <button 
                 onClick={() => navigate("/dashboard")}
-                className="text-indigo-100 hover:text-white transition"
+                className="text-indigo-100 hover:text-white transition p-1 rounded-lg hover:bg-indigo-500/50"
+                title="Volver al Dashboard"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
               </button>
               <div>
-                <h1 className="text-xl font-bold text-white">Liquidación de Impuestos F-07</h1>
-                <p className="text-sm text-indigo-200">Período: <span className="font-medium text-white">{mes}/{anio}</span></p>
+                <h1 className="text-xl font-bold text-white flex items-center">
+                  Liquidación de Impuestos F-07
+                  <span className="ml-3 text-xs bg-indigo-500 text-indigo-100 px-2 py-0.5 rounded-full font-normal border border-indigo-400">
+                    Ministerio de Hacienda El Salvador
+                  </span>
+                </h1>
+                <p className="text-sm text-indigo-200">
+                  Empresa: <span className="font-semibold text-white">{activeEmpresa.razon_social}</span> | Período: <span className="font-medium text-white">{mes}/{anio}</span>
+                </p>
               </div>
             </div>
             
             <div className="flex items-center space-x-3">
               <button 
                 onClick={() => window.print()}
-                className="bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center border border-indigo-400"
+                className="bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center border border-indigo-400 cursor-pointer"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                 Imprimir
@@ -100,17 +178,23 @@ export default function Liquidacion() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {loading || !data ? (
-          <div className="text-center py-10 text-slate-500">Calculando liquidación...</div>
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-3">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <span>Calculando liquidación del impuesto...</span>
+          </div>
         ) : (
           <div className="space-y-6">
             
             {/* Débito Fiscal */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-sky-50 px-6 py-4 border-b border-sky-100 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-sky-800 flex items-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <h2 className="text-base font-bold text-sky-900 flex items-center">
+                  <span className="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center mr-3 text-xs font-bold">1</span>
                   Operaciones de Venta (Débito Fiscal)
                 </h2>
+                <span className="text-xs bg-sky-200/70 text-sky-800 font-semibold px-2.5 py-1 rounded">
+                  Casilla 150 F-07
+                </span>
               </div>
               <div className="p-0">
                 <table className="w-full text-sm text-left text-slate-600">
@@ -123,20 +207,20 @@ export default function Liquidacion() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-medium text-slate-700">Ventas a Consumidor Final</td>
+                      <td className="px-6 py-3 font-medium text-slate-700">Ventas a Consumidor Final (Facturas Electrónicas / Físicas)</td>
                       <td className="px-6 py-3 text-right">${data.ventas_cf.neto.toFixed(2)}</td>
                       <td className="px-6 py-3 text-right font-medium text-slate-900">${data.ventas_cf.debito.toFixed(2)}</td>
                     </tr>
                     <tr className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-medium text-slate-700">Ventas a Contribuyentes (CCF)</td>
+                      <td className="px-6 py-3 font-medium text-slate-700">Ventas a Contribuyentes (Comprobantes de Crédito Fiscal CCF)</td>
                       <td className="px-6 py-3 text-right">${data.ventas_ccf.neto.toFixed(2)}</td>
                       <td className="px-6 py-3 text-right font-medium text-slate-900">${data.ventas_ccf.debito.toFixed(2)}</td>
                     </tr>
                   </tbody>
-                  <tfoot className="bg-sky-50 font-bold border-t border-sky-100">
+                  <tfoot className="bg-sky-50/70 font-bold border-t border-sky-100">
                     <tr>
-                      <td className="px-6 py-3 text-sky-900 text-right" colSpan="2">TOTAL DÉBITO FISCAL:</td>
-                      <td className="px-6 py-3 text-right text-sky-900 text-lg">${data.totales.debito.toFixed(2)}</td>
+                      <td className="px-6 py-3 text-sky-900 text-right" colSpan="2">TOTAL DÉBITO FISCAL (Casilla 150):</td>
+                      <td className="px-6 py-3 text-right text-sky-900 text-lg">${debito.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -146,10 +230,13 @@ export default function Liquidacion() {
             {/* Crédito Fiscal */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-amber-50 px-6 py-4 border-b border-amber-100 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-amber-800 flex items-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                <h2 className="text-base font-bold text-amber-900 flex items-center">
+                  <span className="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center mr-3 text-xs font-bold">2</span>
                   Operaciones de Compra (Crédito Fiscal)
                 </h2>
+                <span className="text-xs bg-amber-200/70 text-amber-800 font-semibold px-2.5 py-1 rounded">
+                  Casilla 145 F-07
+                </span>
               </div>
               <div className="p-0">
                 <table className="w-full text-sm text-left text-slate-600">
@@ -167,42 +254,113 @@ export default function Liquidacion() {
                       <td className="px-6 py-3 text-right font-medium text-slate-900">${data.compras.credito.toFixed(2)}</td>
                     </tr>
                   </tbody>
-                  <tfoot className="bg-amber-50 font-bold border-t border-amber-100">
+                  <tfoot className="bg-amber-50/70 font-bold border-t border-amber-100">
                     <tr>
-                      <td className="px-6 py-3 text-amber-900 text-right" colSpan="2">TOTAL CRÉDITO FISCAL:</td>
-                      <td className="px-6 py-3 text-right text-amber-900 text-lg">${data.totales.credito.toFixed(2)}</td>
+                      <td className="px-6 py-3 text-amber-900 text-right" colSpan="2">TOTAL CRÉDITO FISCAL (Casilla 145):</td>
+                      <td className="px-6 py-3 text-right text-amber-900 text-lg">${credito.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             </div>
 
-            {/* Liquidación Final */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-emerald-600 px-6 py-4 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-white flex items-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                  Liquidación de Impuesto
+            {/* Liquidación Formal del Impuesto F-07 */}
+            <div className="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+              <div className="bg-slate-800 px-6 py-4 flex justify-between items-center text-white">
+                <h2 className="text-lg font-bold flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  Determinación y Liquidación del Impuesto (F-07)
                 </h2>
+                <span className="text-xs bg-slate-700 text-slate-300 px-3 py-1 rounded-full font-medium border border-slate-600">
+                  Ley de IVA Arts. 64-66
+                </span>
               </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span>(+) Total Débito Fiscal</span>
-                    <span className="font-medium">${data.totales.debito.toFixed(2)}</span>
+              
+              <div className="p-6 space-y-6">
+
+                {/* Paso A: Comparación de Operaciones del Período */}
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Paso 1: Resultado de Operaciones del Período</span>
+                    <span className="text-slate-400 font-normal">Débito vs. Crédito</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-600">
-                    <span>(-) Total Crédito Fiscal</span>
-                    <span className="font-medium">-${data.totales.credito.toFixed(2)}</span>
+
+                  <div className="flex justify-between items-center text-sm text-slate-700">
+                    <span className="flex items-center">
+                      <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-800 flex items-center justify-center text-xs font-bold mr-2">+</span>
+                      Total Débito Fiscal del Período (Casilla 150)
+                    </span>
+                    <span className="font-semibold text-slate-900">${debito.toFixed(2)}</span>
                   </div>
-                  
-                  <div className="flex justify-between items-center text-slate-600 pt-4 border-t border-slate-200">
+
+                  <div className="flex justify-between items-center text-sm text-slate-700">
+                    <span className="flex items-center">
+                      <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-xs font-bold mr-2">-</span>
+                      Total Crédito Fiscal del Período (Casilla 145)
+                    </span>
+                    <span className="font-semibold text-slate-900">${credito.toFixed(2)}</span>
+                  </div>
+
+                  {/* Subtotal del Período */}
+                  <div className="pt-3 border-t border-slate-200">
+                    {impDeterminado > 0 ? (
+                      <div className="bg-amber-50/80 border border-amber-200 rounded-lg p-3 flex justify-between items-center">
+                        <div>
+                          <div className="font-bold text-amber-900 text-sm flex items-center">
+                            Impuesto Determinado del Período (Casilla 160)
+                            <span className="ml-2 text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-normal">
+                              Débito {'>'} Crédito
+                            </span>
+                          </div>
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            Las ventas superaron a las compras por ${(debito - credito).toFixed(2)}. Este es el impuesto base generado en el mes.
+                          </p>
+                        </div>
+                        <span className="text-lg font-bold text-amber-900 ml-4">${impDeterminado.toFixed(2)}</span>
+                      </div>
+                    ) : excedenteCredito > 0 ? (
+                      <div className="bg-sky-50/80 border border-sky-200 rounded-lg p-3 flex justify-between items-center">
+                        <div>
+                          <div className="font-bold text-sky-900 text-sm flex items-center">
+                            Excedente de Crédito Fiscal del Período (Casilla 155)
+                            <span className="ml-2 text-xs bg-sky-200 text-sky-800 px-2 py-0.5 rounded font-normal">
+                              Crédito {'>'} Débito
+                            </span>
+                          </div>
+                          <p className="text-xs text-sky-700 mt-0.5">
+                            Las compras superaron a las ventas por ${(credito - debito).toFixed(2)}. Saldo a favor originado en el mes.
+                          </p>
+                        </div>
+                        <span className="text-lg font-bold text-sky-900 ml-4">${excedenteCredito.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-100 rounded-lg p-3 flex justify-between items-center text-sm font-medium text-slate-700">
+                        <span>Diferencia de Operaciones del Período</span>
+                        <span>$0.00</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Paso B: Aplicación del Remanente del Mes Anterior */}
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Paso 2: Aplicación del Remanente de Crédito Fiscal Anterior</span>
+                    <span className="text-slate-400 font-normal">Casilla 110 F-07</span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm text-slate-700">
                     <div className="flex items-center">
-                      <span>(-) Remanente mes anterior</span>
-                      <button onClick={() => setEditRemanente(!editRemanente)} className="ml-2 text-indigo-500 hover:text-indigo-700">
+                      <span className="font-medium text-slate-800">Remanente de Crédito Fiscal del Mes Anterior (Casilla 110)</span>
+                      <button 
+                        onClick={() => setEditRemanente(!editRemanente)} 
+                        className="ml-2 text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded transition"
+                        title="Modificar remanente anterior"
+                      >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
                     </div>
+
                     {editRemanente ? (
                       <div className="flex items-center space-x-2">
                         <span className="text-slate-500">$</span>
@@ -211,30 +369,190 @@ export default function Liquidacion() {
                           step="0.01" 
                           value={remanenteInput} 
                           onChange={(e) => setRemanenteInput(e.target.value)}
-                          className="w-24 border border-slate-300 rounded px-2 py-1 text-right text-sm"
+                          className="w-24 border border-indigo-300 rounded px-2 py-1 text-right text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                         />
-                        <button onClick={saveRemanente} className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold hover:bg-emerald-200">OK</button>
+                        <button onClick={saveRemanente} className="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-indigo-700">OK</button>
+                        <button onClick={() => setEditRemanente(false)} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">✕</button>
                       </div>
                     ) : (
-                      <span className="font-medium">-${data.remanente_anterior.toFixed(2)}</span>
+                      <span className="font-semibold text-slate-900">${remAnterior.toFixed(2)}</span>
                     )}
                   </div>
 
-                  <div className="pt-4 border-t-2 border-slate-200 mt-4">
-                    {data.impuesto_a_pagar > 0 ? (
-                      <div className="flex justify-between items-center bg-red-50 p-4 rounded-lg border border-red-100">
-                        <span className="text-red-800 font-bold text-lg">Impuesto a Pagar</span>
-                        <span className="text-red-700 font-black text-2xl">${data.impuesto_a_pagar.toFixed(2)}</span>
+                  {/* Desglose de Compensación */}
+                  {impDeterminado > 0 ? (
+                    <div className="space-y-2 pt-2 border-t border-slate-200 text-sm">
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span className="flex items-center pl-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2"></span>
+                          (-) Remanente aplicado para absorber Impuesto Determinado:
+                        </span>
+                        <span className="font-medium text-emerald-700">-${remAplicado.toFixed(2)}</span>
                       </div>
-                    ) : (
-                      <div className="flex justify-between items-center bg-emerald-50 p-4 rounded-lg border border-emerald-100">
-                        <span className="text-emerald-800 font-bold text-lg">Remanente para Siguiente Mes</span>
-                        <span className="text-emerald-700 font-black text-2xl">${data.remanente_siguiente.toFixed(2)}</span>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span className="flex items-center pl-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2"></span>
+                          Remanente de meses anteriores no utilizado:
+                        </span>
+                        <span className="font-medium text-slate-700">${remNoUtilizado.toFixed(2)}</span>
                       </div>
-                    )}
-                  </div>
-                  
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-slate-200 text-xs text-slate-500 pl-2">
+                      Al no existir impuesto determinado en el mes, el remanente anterior (${remAnterior.toFixed(2)}) se acumula íntegro al saldo a favor.
+                    </div>
+                  )}
                 </div>
+
+                {/* Paso C: Ajustes F-07 (Retenciones / Percepciones / Anticipos) - Opcional */}
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAjustes(!showAjustes)}
+                    className="w-full bg-slate-100 hover:bg-slate-200/80 px-4 py-2.5 text-xs font-bold text-slate-700 flex justify-between items-center transition"
+                  >
+                    <span className="flex items-center">
+                      <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
+                      Ajustes Adicionales F-07 (Retenciones 1%, Percepciones 1%, Anticipo 2%)
+                      {(totalDeducciones > 0 || totalTerceros > 0) && (
+                        <span className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Activo</span>
+                      )}
+                    </span>
+                    <span>{showAjustes ? "Ocultar ▲" : "Configurar / Ver ▼"}</span>
+                  </button>
+
+                  {showAjustes && (
+                    <div className="p-4 bg-white space-y-4 text-sm">
+                      <p className="text-xs text-slate-500">
+                        Si en este período tus clientes te efectuaron retenciones de IVA (1%), tus proveedores te percibieron (1%) o pagaste anticipo a cuenta del 2%, regístralos aquí:
+                      </p>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            (-) IVA Retenido por Clientes (Casilla 161)
+                          </label>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            value={ajustes.retenciones_recibidas}
+                            onChange={(e) => setAjustes({...ajustes, retenciones_recibidas: e.target.value})}
+                            className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            (-) IVA Percibido por Proveedores (Casilla 162)
+                          </label>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            value={ajustes.percepciones_recibidas}
+                            onChange={(e) => setAjustes({...ajustes, percepciones_recibidas: e.target.value})}
+                            className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            (-) Anticipo a Cuenta del 2% (Casilla 163)
+                          </label>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            value={ajustes.anticipo_cuenta_2}
+                            onChange={(e) => setAjustes({...ajustes, anticipo_cuenta_2: e.target.value})}
+                            className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
+                            placeholder="0.00"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            (+) Retenciones/Percepciones a Terceros a Enterar
+                          </label>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            value={ajustes.retenciones_efectuadas}
+                            onChange={(e) => setAjustes({...ajustes, retenciones_efectuadas: e.target.value})}
+                            className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <button 
+                          onClick={saveAjustes}
+                          className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                        >
+                          Guardar Ajustes
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Paso D: Tarjetas de Resultado Final */}
+                <div className="pt-4 border-t-2 border-slate-200">
+                  {impuestoAPagar > 0 ? (
+                    <div className="bg-red-50 p-5 rounded-xl border border-red-200 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-red-900 font-extrabold text-lg flex items-center">
+                            <span className="w-3 h-3 rounded-full bg-red-600 mr-2"></span>
+                            Total Impuesto a Pagar (F-07 Casilla 165)
+                          </span>
+                          <p className="text-xs text-red-700 mt-0.5">
+                            Monto a cancelar en mandamiento de pago del Ministerio de Hacienda.
+                          </p>
+                        </div>
+                        <span className="text-red-700 font-black text-3xl">${impuestoAPagar.toFixed(2)}</span>
+                      </div>
+                      <div className="text-xs text-red-600 border-t border-red-200/60 pt-2 flex justify-between">
+                        <span>Remanente para período siguiente:</span>
+                        <span className="font-bold">$0.00</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-200 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-emerald-900 font-extrabold text-lg flex items-center">
+                            <span className="w-3 h-3 rounded-full bg-emerald-600 mr-2"></span>
+                            Remanente de Crédito Fiscal para el Siguiente Mes
+                          </span>
+                          <p className="text-xs text-emerald-700 mt-0.5">
+                            Saldo a favor que se trasladará a la Casilla 110 del período {String(Number(mes) === 12 ? 1 : Number(mes) + 1).padStart(2, '0')}/{Number(mes) === 12 ? Number(anio) + 1 : anio}.
+                          </p>
+                        </div>
+                        <span className="text-emerald-700 font-black text-3xl">${remanenteSiguiente.toFixed(2)}</span>
+                      </div>
+                      
+                      <div className="text-xs text-emerald-800 border-t border-emerald-200/70 pt-2 flex justify-between items-center">
+                        <span>
+                          {impDeterminado > 0 ? (
+                            <>
+                              Conciliación: Remanente anterior (${remAnterior.toFixed(2)}) menos ${remAplicado.toFixed(2)} absorbido en este mes = <strong className="font-bold">${remanenteSiguiente.toFixed(2)}</strong>.
+                            </>
+                          ) : (
+                            <>
+                              Conciliación: Excedente del mes (${excedenteCredito.toFixed(2)}) + Remanente anterior (${remAnterior.toFixed(2)}) = <strong className="font-bold">${remanenteSiguiente.toFixed(2)}</strong>.
+                            </>
+                          )}
+                        </span>
+                        <span className="font-bold bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded">
+                          Impuesto a Pagar: $0.00
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
               </div>
             </div>
             

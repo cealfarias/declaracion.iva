@@ -201,6 +201,11 @@ class Liquidacion(Base):
     mes = Column(String(2), nullable=False)
     
     remanente_anterior = Column(Float, default=0.0)
+    retenciones_recibidas = Column(Float, default=0.0)
+    percepciones_recibidas = Column(Float, default=0.0)
+    retenciones_efectuadas = Column(Float, default=0.0)
+    percepciones_efectuadas = Column(Float, default=0.0)
+    anticipo_cuenta_2 = Column(Float, default=0.0)
     
     creado_en = Column(DateTime, default=datetime.utcnow)
     actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
