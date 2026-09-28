@@ -200,15 +200,19 @@ async def upload_dtes_cf(
             
             fecha_cruda = identificacion.get("fecEmi", "")
             try:
-                fecha_obj = datetime.strptime(fecha_cruda, "%Y-%m-%d")
+                fec_clean = str(fecha_cruda).split('T')[0].split(' ')[0].strip()
+                fecha_obj = datetime.strptime(fec_clean, "%Y-%m-%d")
                 fecha_emision = fecha_obj.strftime("%d/%m/%Y")
+                mes_dte = f"{fecha_obj.month:02d}"
+                anio_dte = str(fecha_obj.year)
+            except Exception:
+                errores.append(f'{file.filename}: Fecha de emisión inválida o formato no reconocido ({fecha_cruda}).')
+                continue
                 
-                # VALIDACION ESTRICTA: Las ventas no se pueden diferir de mes
-                if f"{fecha_obj.month:02d}" != periodo_mes or str(fecha_obj.year) != periodo_anio:
-                    errores.append(f'{file.filename}: Fecha de emisin ({fecha_cruda}) no corresponde al periodo seleccionado ({periodo_mes}/{periodo_anio}). Por ley, las ventas no se pueden diferir.')
-                    continue
-            except:
-                fecha_emision = fecha_cruda
+            # VALIDACION ESTRICTA: Las ventas no se pueden diferir de mes por ley de IVA
+            if mes_dte != periodo_mes or anio_dte != periodo_anio:
+                errores.append(f'{file.filename}: La fecha de emisión ({fecha_cruda}) corresponde al período {mes_dte}/{anio_dte}, no al período seleccionado ({periodo_mes}/{periodo_anio}). Por ley de IVA de El Salvador, las ventas deben declararse obligatoriamente en el mes en que fueron emitidas.')
+                continue
                 
             codigo_generacion = identificacion.get("codigoGeneracion", "")
             sello = identificacion.get("selloRecibido", "")
@@ -240,8 +244,8 @@ async def upload_dtes_cf(
 
             nuevo_dte = DteVenta(
                 empresa_id=empresa_id,
-                periodo_mes=periodo_mes,
-                periodo_anio=periodo_anio,
+                periodo_mes=mes_dte,
+                periodo_anio=anio_dte,
                 fecha_emision=fecha_emision,
                 clase_documento="4",
                 tipo_documento=tipo_dte,
