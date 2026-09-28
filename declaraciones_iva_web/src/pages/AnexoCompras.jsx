@@ -206,6 +206,32 @@ export default function AnexoCompras() {
     }
   };
 
+  const toggleOmitir = async (id) => {
+    try {
+      const response = await axios.put(`${API_URL}/api/v1/compras/toggle_omitir/${id}`);
+      enqueueMessages([{ 
+        text: response.data.omitido 
+          ? "Comprobante omitido del F-07 y de los totales." 
+          : "Comprobante reactivado e incluido en el F-07.", 
+        type: "info" 
+      }]);
+      fetchCompras();
+    } catch (error) {
+      enqueueMessages([{ text: error.response?.data?.detail || "Error al actualizar estado de omisión.", type: "error" }]);
+    }
+  };
+
+  const eliminarCompra = async (id, docInfo) => {
+    if (!window.confirm(`¿Estás seguro de eliminar permanentemente este comprobante (${docInfo})?\nNota: Si vuelves a subir la carpeta de JSONs, podría volver a importarse a menos que lo marques como Omitir.`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/v1/compras/item/${id}`);
+      enqueueMessages([{ text: "Comprobante eliminado exitosamente.", type: "success" }]);
+      fetchCompras();
+    } catch (error) {
+      enqueueMessages([{ text: error.response?.data?.detail || "Error al eliminar el registro.", type: "error" }]);
+    }
+  };
+
   const limpiarAnexo = async () => {
     if (!window.confirm("¿Estás seguro de eliminar TODOS los registros de este mes? Esta acción no se puede deshacer y tendrás que volver a subir los archivos.")) return;
     try {
@@ -216,6 +242,9 @@ export default function AnexoCompras() {
       enqueueMessages([{ text: "Error al limpiar el anexo.", type: "error" }]);
     }
   };
+
+  const comprasActivas = compras.filter(item => !item.omitido);
+  const comprasOmitidas = compras.filter(item => item.omitido);
 
   if (!activeEmpresa) return null;
 
@@ -340,9 +369,19 @@ export default function AnexoCompras() {
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Registros</p>
-            <h3 className="text-xl font-bold text-slate-900">
-              {compras.length}
-            </h3>
+            <div className="flex items-baseline space-x-2">
+              <h3 className="text-xl font-bold text-slate-900">
+                {comprasActivas.length}
+              </h3>
+              {comprasOmitidas.length > 0 && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                  {comprasOmitidas.length} omitido{comprasOmitidas.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            {comprasOmitidas.length > 0 && (
+              <p className="text-[11px] text-slate-400 mt-0.5">Total en lista: {compras.length}</p>
+            )}
           </div>
           <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -352,8 +391,11 @@ export default function AnexoCompras() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Gravadas</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${compras.reduce((sum, item) => sum + (item.compras_internas_gravadas || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${comprasActivas.reduce((sum, item) => sum + (item.compras_internas_gravadas || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
+            {comprasOmitidas.length > 0 && (
+              <p className="text-[11px] text-slate-400 mt-0.5">Excluye compras omitidas</p>
+            )}
           </div>
           <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -363,8 +405,11 @@ export default function AnexoCompras() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Crédito Fiscal</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${compras.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${comprasActivas.reduce((sum, item) => sum + (item.credito_fiscal || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
+            {comprasOmitidas.length > 0 && (
+              <p className="text-[11px] text-slate-400 mt-0.5">F-07 Casilla Compras</p>
+            )}
           </div>
           <div className="w-12 h-12 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"></path></svg>
@@ -374,7 +419,7 @@ export default function AnexoCompras() {
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Total Compras</p>
             <h3 className="text-xl font-bold text-slate-900">
-              ${compras.reduce((sum, item) => sum + (item.total_compras || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${comprasActivas.reduce((sum, item) => sum + (item.total_compras || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
           </div>
           <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
@@ -405,6 +450,7 @@ export default function AnexoCompras() {
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="N: Crédito Fiscal">N. Crédito Fiscal</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="O: Total Compras">O. Total</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-l border-slate-200" colSpan="4">Configuración F07</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider border-l border-slate-200" rowSpan="2">Acciones</th>
               </tr>
               <tr className="bg-slate-100 border-b border-slate-300">
                 <th colSpan="15" className="border-r border-slate-200"></th>
@@ -417,13 +463,13 @@ export default function AnexoCompras() {
             <tbody className="bg-white divide-y divide-slate-200">
               {loading && compras.length === 0 ? (
                 <tr>
-                  <td colSpan="19" className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan="20" className="px-6 py-10 text-center text-slate-500">
                     Cargando compras...
                   </td>
                 </tr>
               ) : compras.length === 0 ? (
                 <tr>
-                  <td colSpan="19" className="px-6 py-10 text-center text-slate-500">
+                  <td colSpan="20" className="px-6 py-10 text-center text-slate-500">
                     <div className="flex flex-col items-center">
                       <svg className="w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                       <p>No hay compras procesadas en {mes}/{anio}.</p>
@@ -439,30 +485,52 @@ export default function AnexoCompras() {
                     return new Date(dateA) - new Date(dateB);
                   })
                   .map((compra) => (
-                  <tr key={compra.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900">{compra.fecha_emision}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 text-center">{compra.clase_documento}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 text-center">{compra.tipo_documento}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500 truncate max-w-[150px]" title={compra.numero_resolucion}>{compra.numero_resolucion}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{compra.nit_proveedor}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-900 truncate max-w-[200px]" title={compra.nombre_proveedor}>{compra.nombre_proveedor}</td>
+                  <tr 
+                    key={compra.id} 
+                    className={`transition-colors ${
+                      compra.omitido 
+                        ? "bg-slate-100/70 text-slate-400 opacity-60 hover:opacity-100" 
+                        : "hover:bg-slate-50 text-slate-900"
+                    }`}
+                  >
+                    <td className="px-4 py-3 whitespace-nowrap text-xs">{compra.fecha_emision}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-center">{compra.clase_documento}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-center">{compra.tipo_documento}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs font-mono truncate max-w-[150px]" title={compra.numero_resolucion}>{compra.numero_resolucion}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs">{compra.nit_proveedor}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs truncate max-w-[200px]" title={compra.nombre_proveedor}>
+                      <div className="flex items-center space-x-1.5">
+                        <span className="truncate">{compra.nombre_proveedor}</span>
+                        {compra.omitido && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-700 border border-rose-200 flex-shrink-0">
+                            Omitido
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.compras_internas_exentas.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.internaciones_exentas.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_exentas.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.compras_internas_gravadas.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.internaciones_gravadas_bienes.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_gravadas_bienes.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${compra.importaciones_gravadas_servicios.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-900 font-medium">${compra.credito_fiscal.toFixed(2)}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-emerald-700 font-bold">${compra.total_compras.toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.compras_internas_exentas || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.internaciones_exentas || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_exentas || 0).toFixed(2)}</td>
+                    <td className={`px-4 py-3 whitespace-nowrap text-xs text-right font-medium ${compra.omitido ? "line-through text-slate-400" : "text-slate-900"}`}>
+                      ${(compra.compras_internas_gravadas || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.internaciones_gravadas_bienes || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_gravadas_bienes || 0).toFixed(2)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_gravadas_servicios || 0).toFixed(2)}</td>
+                    <td className={`px-4 py-3 whitespace-nowrap text-xs text-right font-medium ${compra.omitido ? "line-through text-slate-400" : "text-indigo-600 font-semibold"}`}>
+                      ${(compra.credito_fiscal || 0).toFixed(2)}
+                    </td>
+                    <td className={`px-4 py-3 whitespace-nowrap text-xs text-right font-bold ${compra.omitido ? "line-through text-slate-400" : "text-emerald-700"}`}>
+                      ${(compra.total_compras || 0).toFixed(2)}
+                    </td>
                     
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
                         value={compra.tipo_operacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
-                        disabled={isDeclarado}
+                        disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Grav</option>
@@ -474,7 +542,7 @@ export default function AnexoCompras() {
                         value={compra.clasificacion || "1"} 
                         onChange={(e) => updateConfig(compra.id, "clasificacion", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
-                        disabled={isDeclarado}
+                        disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Costo</option>
@@ -486,7 +554,7 @@ export default function AnexoCompras() {
                         value={compra.sector || "2"} 
                         onChange={(e) => updateConfig(compra.id, "sector", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
-                        disabled={isDeclarado}
+                        disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Ind</option>
@@ -501,7 +569,7 @@ export default function AnexoCompras() {
                         value={compra.tipo_costo_gasto || "5"} 
                         onChange={(e) => updateConfig(compra.id, "tipo_costo_gasto", e.target.value)}
                         className="text-xs border-slate-300 rounded p-1 w-20 focus:ring-indigo-500"
-                        disabled={isDeclarado}
+                        disabled={isDeclarado || compra.omitido}
                       >
                         <option value="0">-</option>
                         <option value="1">1 Venta</option>
@@ -510,6 +578,37 @@ export default function AnexoCompras() {
                         <option value="4">4 Produc</option>
                         <option value="5">5 Costo/Arts</option>
                       </select>
+                    </td>
+
+                    <td className="px-3 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
+                      <div className="flex items-center justify-center space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleOmitir(compra.id)}
+                          disabled={isDeclarado}
+                          title={compra.omitido ? "Reactivar e incluir en el F-07 y archivo CSV" : "Omitir del F-07 y archivo CSV (no suma a compras)"}
+                          className={`px-2 py-1 text-xs font-semibold rounded border transition-colors ${
+                            compra.omitido
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                              : "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                          } ${isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          {compra.omitido ? "Reactivar" : "Omitir"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => eliminarCompra(compra.id, compra.numero_resolucion || compra.nombre_proveedor)}
+                          disabled={isDeclarado}
+                          title="Eliminar registro permanentemente"
+                          className={`p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors ${
+                            isDeclarado ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                          }`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from pydantic import BaseModel
 from typing import Optional
 
@@ -77,8 +77,9 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     neto_compras = 0.0
     credito_compras = 0.0
     for c in compras:
-        neto_compras += (c.compras_internas_gravadas or 0.0) + (c.internaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_servicios or 0.0)
-        credito_compras += (c.credito_fiscal or 0.0)
+        if not (c.omitido or False):
+            neto_compras += (c.compras_internas_gravadas or 0.0) + (c.internaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_servicios or 0.0)
+            credito_compras += (c.credito_fiscal or 0.0)
 
     neto_cf = round(neto_cf, 2)
     debito_cf = round(debito_cf, 2)
@@ -129,7 +130,8 @@ def get_remanente_historico(db: Session, empresa_id: int, target_mes: str, targe
         DteCompra.periodo_anio,
         func.sum(DteCompra.credito_fiscal)
     ).filter(
-        DteCompra.empresa_id == empresa_id
+        DteCompra.empresa_id == empresa_id,
+        or_(DteCompra.omitido == False, DteCompra.omitido.is_(None))
     ).group_by(
         DteCompra.periodo_anio, DteCompra.periodo_mes
     ).all()

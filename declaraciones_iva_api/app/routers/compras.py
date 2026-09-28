@@ -104,6 +104,7 @@ def crear_modificatoria(empresa_id: int, mes: str, anio: str, numero_original: s
             sector=c.sector,
             tipo_costo_gasto=c.tipo_costo_gasto,
             raw_json=c.raw_json,
+            omitido=c.omitido or False,
             version=nueva_version
         )
         db.add(nuevo)
@@ -249,7 +250,8 @@ async def upload_dtes(
             ).first()
             
             if existe:
-                errores.append(f"{file.filename}: Ya fue procesado anteriormente en el mes {existe.periodo_mes}/{existe.periodo_anio}.")
+                estado_extra = " (omitido)" if existe.omitido else ""
+                errores.append(f"{file.filename}: Ya fue procesado anteriormente en el mes {existe.periodo_mes}/{existe.periodo_anio}{estado_extra}.")
                 continue
 
             nit_proveedor = emisor.get("nit", "")
@@ -290,6 +292,7 @@ async def upload_dtes(
                 sector="2",
                 tipo_costo_gasto="5",
                 raw_json=dte_json,
+                omitido=False,
                 version=version
             )
             
@@ -313,9 +316,36 @@ def get_compras(empresa_id: int, mes: str, anio: str, version: int = 1, db: Sess
         DteCompra.periodo_mes == mes,
         DteCompra.periodo_anio == anio,
         DteCompra.version == version
-    ).all()
+    ).order_by(DteCompra.fecha_emision.asc()).all()
     
     return compras
+
+@router.put("/toggle_omitir/{dte_id}")
+def toggle_omitir(dte_id: int, db: Session = Depends(get_db)):
+    dte = db.query(DteCompra).filter(DteCompra.id == dte_id).first()
+    if not dte:
+        raise HTTPException(status_code=404, detail="DTE no encontrado")
+        
+    if is_periodo_declarado(db, dte.empresa_id, dte.periodo_anio, dte.periodo_mes, version=dte.version):
+        raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
+        
+    dte.omitido = not (dte.omitido or False)
+    db.commit()
+    estado_str = "omitido" if dte.omitido else "incluido"
+    return {"message": f"Documento {estado_str} exitosamente", "omitido": dte.omitido}
+
+@router.delete("/item/{dte_id}")
+def delete_compra_item(dte_id: int, db: Session = Depends(get_db)):
+    dte = db.query(DteCompra).filter(DteCompra.id == dte_id).first()
+    if not dte:
+        raise HTTPException(status_code=404, detail="DTE no encontrado")
+        
+    if is_periodo_declarado(db, dte.empresa_id, dte.periodo_anio, dte.periodo_mes, version=dte.version):
+        raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
+        
+    db.delete(dte)
+    db.commit()
+    return {"message": "Documento eliminado correctamente"}
 
 @router.put("/update_operacion/{dte_id}")
 def update_operacion(dte_id: int, tipo_operacion: str, clasificacion: str, sector: str, tipo_costo: str, db: Session = Depends(get_db)):
@@ -335,11 +365,13 @@ def update_operacion(dte_id: int, tipo_operacion: str, clasificacion: str, secto
 
 @router.get("/{empresa_id}/export")
 def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
+    # Filtrar solo compras que NO estén omitidas
     compras = db.query(DteCompra).filter(
         DteCompra.empresa_id == empresa_id,
         DteCompra.periodo_mes == mes,
         DteCompra.periodo_anio == anio,
-        DteCompra.version == version
+        DteCompra.version == version,
+        (DteCompra.omitido == False) | (DteCompra.omitido == None)
     ).all()
     
     # Generar CSV en memoria

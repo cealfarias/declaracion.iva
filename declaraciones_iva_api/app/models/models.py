@@ -78,6 +78,7 @@ class DteCompra(Base):
     raw_json = Column(JSON, nullable=False)
     
     version = Column(Integer, default=1, nullable=False)
+    omitido = Column(Boolean, default=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
@@ -114,6 +115,7 @@ class DteVenta(Base):
     
     raw_json = Column(JSON, nullable=False)
     version = Column(Integer, default=1, nullable=False)
+    omitido = Column(Boolean, default=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
@@ -173,6 +175,7 @@ class DteVentaContribuyente(Base):
     
     raw_json = Column(JSON, nullable=False)
     version = Column(Integer, default=1, nullable=False)
+    omitido = Column(Boolean, default=False)
     creado_en = Column(DateTime, default=datetime.utcnow)
 
     empresa = relationship("Empresa")
