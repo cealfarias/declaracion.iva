@@ -66,14 +66,77 @@ export default function Liquidacion() {
   const fetchLiquidacion = async () => {
     setLoading(true);
     try {
-      const [liqRes, comprasRes] = await Promise.all([
+      const [liqRes, comprasRes, ventasCfRes, ventasCcfRes, anuladosRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
-        axios.get(`${API_URL}/api/v1/compras/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] }))
+        axios.get(`${API_URL}/api/v1/compras/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/api/v1/ventas-cf/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/api/v1/ventas-contribuyentes/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/api/v1/anulados/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] }))
       ]);
       const res = liqRes.data;
       const comprasList = comprasRes.data || [];
+      const ventasCfList = ventasCfRes.data || [];
+      const ventasCcfList = ventasCcfRes.data || [];
+      const anuladosList = anuladosRes.data || [];
 
-      // 1. Recalcular compras del mes excluyendo comprobantes omitidos
+      // 1. Identificar códigos de generación anulados
+      const setAnulados = new Set();
+      anuladosList.forEach(a => {
+        const cg = (a.codigo_generacion || "").trim();
+        if (cg) {
+          setAnulados.add(cg.toUpperCase());
+          setAnulados.add(cg.replace(/-/g, "").toUpperCase());
+        }
+      });
+
+      // 2. Filtrar ventas CF excluyendo las anuladas y omitidas
+      let anuladosCfCount = 0;
+      let brutoCfValido = 0;
+      ventasCfList.forEach(v => {
+        const cg = (v.codigo_generacion || "").trim();
+        const cgClean = cg.replace(/-/g, "").toUpperCase();
+        const isAnulado = setAnulados.has(cg.toUpperCase()) || setAnulados.has(cgClean);
+        if (isAnulado) {
+          anuladosCfCount++;
+        } else if (!v.omitido) {
+          brutoCfValido += (v.ventas_gravadas || 0);
+        }
+      });
+
+      const netoCfValido = Number((brutoCfValido / 1.13).toFixed(2));
+      const debitoCfValido = Number((brutoCfValido - netoCfValido).toFixed(2));
+
+      // 3. Filtrar ventas CCF excluyendo las anuladas y omitidas
+      let anuladosCcfCount = 0;
+      let netoCcfValido = 0;
+      let debitoCcfValido = 0;
+      ventasCcfList.forEach(v => {
+        const nd = (v.numero_documento || "").trim();
+        const nr = (v.numero_resolucion || "").trim();
+        const isAnulado = setAnulados.has(nd.toUpperCase()) || setAnulados.has(nd.replace(/-/g, "").toUpperCase()) ||
+                          setAnulados.has(nr.toUpperCase()) || setAnulados.has(nr.replace(/-/g, "").toUpperCase());
+        if (isAnulado) {
+          anuladosCcfCount++;
+        } else if (!v.omitido) {
+          netoCcfValido += (v.ventas_gravadas || 0);
+          debitoCcfValido += (v.debito_fiscal || 0);
+        }
+      });
+
+      res.ventas_cf = {
+        neto: netoCfValido,
+        debito: debitoCfValido
+      };
+      res.ventas_ccf = {
+        neto: Number(netoCcfValido.toFixed(2)),
+        debito: Number(debitoCcfValido.toFixed(2))
+      };
+      res.anulados_cf_count = anuladosCfCount;
+      res.anulados_ccf_count = anuladosCcfCount;
+
+      const totalDebito = Number((debitoCfValido + debitoCcfValido).toFixed(2));
+
+      // 4. Recalcular compras del mes excluyendo comprobantes omitidos
       if (comprasList.length > 0) {
         const stored = getOmittedFromStorage();
         const defaultRejected = (activeEmpresa?.id === 2 && mes === "01" && anio === "2026") ? [245, 246] : [];
@@ -92,12 +155,17 @@ export default function Liquidacion() {
           credito: creditoCompras
         };
         res.totales = {
-          debito: res.totales?.debito || 0,
+          debito: totalDebito,
           credito: creditoCompras
+        };
+      } else {
+        res.totales = {
+          debito: totalDebito,
+          credito: res.compras?.credito || 0
         };
       }
 
-      // 2. Corregir remanente anterior (Casilla 110)
+      // 5. Corregir remanente anterior (Casilla 110)
       const manualStored = getRemanenteManualStorage();
       if (manualStored !== null) {
         res.remanente_anterior = manualStored;
@@ -106,7 +174,7 @@ export default function Liquidacion() {
         res.remanente_anterior = 63.17;
       }
 
-      // 3. Recalcular liquidación F-07 con las cifras cuadradas
+      // 6. Recalcular liquidación F-07 con las cifras cuadradas
       const deb = res.totales?.debito || 0;
       const cred = res.totales?.credito || 0;
       const dif = Number((deb - cred).toFixed(2));
@@ -311,12 +379,30 @@ export default function Liquidacion() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-medium text-slate-700">Ventas a Consumidor Final (Facturas Electrónicas / Físicas)</td>
+                      <td className="px-6 py-3 font-medium text-slate-700">
+                        <div className="flex items-center space-x-2">
+                          <span>Ventas a Consumidor Final (Facturas Electrónicas / Físicas)</span>
+                          {data.anulados_cf_count > 0 && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-300">
+                              {data.anulados_cf_count} anulado{data.anulados_cf_count > 1 ? 's' : ''} excluido{data.anulados_cf_count > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-3 text-right">${data.ventas_cf.neto.toFixed(2)}</td>
                       <td className="px-6 py-3 text-right font-medium text-slate-900">${data.ventas_cf.debito.toFixed(2)}</td>
                     </tr>
                     <tr className="hover:bg-slate-50">
-                      <td className="px-6 py-3 font-medium text-slate-700">Ventas a Contribuyentes (Comprobantes de Crédito Fiscal CCF)</td>
+                      <td className="px-6 py-3 font-medium text-slate-700">
+                        <div className="flex items-center space-x-2">
+                          <span>Ventas a Contribuyentes (Comprobantes de Crédito Fiscal CCF)</span>
+                          {data.anulados_ccf_count > 0 && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-700 border border-rose-300">
+                              {data.anulados_ccf_count} anulado{data.anulados_ccf_count > 1 ? 's' : ''} excluido{data.anulados_ccf_count > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-3 text-right">${data.ventas_ccf.neto.toFixed(2)}</td>
                       <td className="px-6 py-3 text-right font-medium text-slate-900">${data.ventas_ccf.debito.toFixed(2)}</td>
                     </tr>
