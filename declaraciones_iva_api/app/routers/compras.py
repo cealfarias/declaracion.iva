@@ -1,6 +1,6 @@
 import csv
 from io import StringIO
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
@@ -370,15 +370,25 @@ def update_operacion(dte_id: int, tipo_operacion: str, clasificacion: str, secto
     return {"message": "Actualizado"}
 
 @router.get("/{empresa_id}/export")
-def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
+def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos: Optional[str] = None, db: Session = Depends(get_db)):
     # Filtrar solo compras que NO estén omitidas
-    compras = db.query(DteCompra).filter(
+    query = db.query(DteCompra).filter(
         DteCompra.empresa_id == empresa_id,
         DteCompra.periodo_mes == mes,
         DteCompra.periodo_anio == anio,
         DteCompra.version == version,
         (DteCompra.omitido == False) | (DteCompra.omitido == None)
-    ).all()
+    )
+    
+    if omitidos:
+        try:
+            ids_to_exclude = [int(x.strip()) for x in omitidos.split(",") if x.strip().isdigit()]
+            if ids_to_exclude:
+                query = query.filter(~DteCompra.id.in_(ids_to_exclude))
+        except Exception:
+            pass
+
+    compras = query.order_by(DteCompra.fecha_emision.asc()).all()
     
     # Generar CSV en memoria
     output = StringIO()

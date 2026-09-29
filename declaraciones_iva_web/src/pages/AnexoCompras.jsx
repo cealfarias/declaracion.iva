@@ -115,12 +115,15 @@ export default function AnexoCompras() {
       const defaultRejected = (activeEmpresa?.id === 2 && mes === "01" && anio === "2026") ? [245, 246] : [];
       const activeOmitted = stored !== null ? stored : defaultRejected;
 
-      const enriched = response.data.map(item => ({
-        ...item,
-        omitido: (item.omitido !== undefined && item.omitido !== null)
-          ? Boolean(item.omitido)
-          : activeOmitted.includes(item.id)
-      }));
+      const enriched = response.data.map(item => {
+        const isOmitido = stored !== null
+          ? stored.includes(item.id)
+          : (Boolean(item.omitido) || defaultRejected.includes(item.id));
+        return {
+          ...item,
+          omitido: isOmitido
+        };
+      });
       setCompras(enriched);
     } catch (error) {
       enqueueMessages([{ text: "Error al cargar las compras.", type: "error" }]);
@@ -218,7 +221,56 @@ export default function AnexoCompras() {
   };
 
   const exportCSV = () => {
-    window.location.href = `${API_URL}/api/v1/compras/${activeEmpresa.id}/export?mes=${mes}&anio=${anio}`;
+    // Filtrar estrictamente solo las compras activas (excluir omitidos)
+    const validCompras = compras.filter(item => !item.omitido);
+
+    if (validCompras.length === 0) {
+      enqueueMessages([{ text: "No hay compras activas para exportar en este período.", type: "warning" }]);
+      return;
+    }
+
+    const formatMoney = val => Number(val || 0).toFixed(2);
+    const getValid = (val, def) => (val !== undefined && val !== null && val !== "") ? val : def;
+
+    const rows = validCompras.map(c => [
+      c.fecha_emision,
+      c.clase_documento || "4",
+      c.tipo_documento || "03",
+      c.numero_resolucion,
+      c.nit_proveedor,
+      c.nombre_proveedor,
+      formatMoney(c.compras_internas_exentas),
+      formatMoney(c.internaciones_exentas),
+      formatMoney(c.importaciones_exentas),
+      formatMoney(c.compras_internas_gravadas),
+      formatMoney(c.internaciones_gravadas_bienes),
+      formatMoney(c.importaciones_gravadas_bienes),
+      formatMoney(c.importaciones_gravadas_servicios),
+      formatMoney(c.credito_fiscal),
+      formatMoney(c.total_compras),
+      "", // DUI Proveedor (vacío si hay NIT)
+      getValid(c.tipo_operacion, "1"),
+      getValid(c.clasificacion, "1"),  
+      getValid(c.sector, "2"),
+      getValid(c.tipo_costo_gasto, "5"),
+      "3" // Número de Anexo (siempre 3 para compras)
+    ].join(";"));
+
+    const csvContent = rows.join("\r\n") + "\r\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Compras_${anio}${mes}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    enqueueMessages([{ 
+      text: `Archivo CSV F-07 descargado con éxito. Se incluyeron ${validCompras.length} comprobantes (${compras.length - validCompras.length} omitidos excluidos).`, 
+      type: "success" 
+    }]);
   };
 
   const updateConfig = async (id, field, value) => {

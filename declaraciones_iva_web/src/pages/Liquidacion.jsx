@@ -169,8 +169,10 @@ export default function Liquidacion() {
         const activeOmitted = stored !== null ? stored : defaultRejected;
 
         const activas = comprasList.filter(c => {
-          if (c.omitido !== undefined && c.omitido !== null) return !c.omitido;
-          return !activeOmitted.includes(c.id);
+          const isOmitido = stored !== null
+            ? stored.includes(c.id)
+            : (Boolean(c.omitido) || defaultRejected.includes(c.id));
+          return !isOmitido;
         });
 
         activas.forEach(c => {
