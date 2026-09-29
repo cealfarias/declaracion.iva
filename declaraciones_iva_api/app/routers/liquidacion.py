@@ -74,22 +74,35 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
         DteCompra.version == version
     ).all()
     
-    neto_compras = 0.0
-    credito_compras = 0.0
+    neto_compras_gravadas = 0.0 # Casilla 80
+    credito_compras_gravadas = 0.0 # Casilla 130
+    devoluciones_compras_neto = 0.0 # Casilla 81
+    devoluciones_compras_credito = 0.0 # Casilla 131
+
     for c in compras:
         if not (c.omitido or False):
-            neto_compras += (c.compras_internas_gravadas or 0.0) + (c.internaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_servicios or 0.0)
-            credito_compras += (c.credito_fiscal or 0.0)
+            if c.tipo_documento == "05":
+                devoluciones_compras_neto += (c.compras_internas_gravadas or 0.0)
+                devoluciones_compras_credito += (c.credito_fiscal or 0.0)
+            else:
+                neto_compras_gravadas += (c.compras_internas_gravadas or 0.0) + (c.internaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_bienes or 0.0) + (c.importaciones_gravadas_servicios or 0.0)
+                credito_compras_gravadas += (c.credito_fiscal or 0.0)
 
     neto_cf = round(neto_cf, 2)
     debito_cf = round(debito_cf, 2)
     neto_ccf = round(neto_ccf, 2)
     debito_ccf = round(debito_ccf, 2)
-    neto_compras = round(neto_compras, 2)
-    credito_compras = round(credito_compras, 2)
+
+    neto_compras_gravadas = round(neto_compras_gravadas, 2)
+    credito_compras_gravadas = round(credito_compras_gravadas, 2)
+    devoluciones_compras_neto = round(devoluciones_compras_neto, 2)
+    devoluciones_compras_credito = round(devoluciones_compras_credito, 2)
+
+    neto_compras_total = round(neto_compras_gravadas - devoluciones_compras_neto, 2)
+    credito_compras_neto = round(credito_compras_gravadas - devoluciones_compras_credito, 2)
 
     total_debito = round(debito_cf + debito_ccf, 2)
-    total_credito = round(credito_compras, 2)
+    total_credito = round(credito_compras_neto, 2)
     diferencia_periodo = round(total_debito - total_credito, 2)
 
     if diferencia_periodo > 0:
@@ -102,7 +115,14 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     return {
         'ventas_cf': {'neto': neto_cf, 'debito': debito_cf},
         'ventas_ccf': {'neto': neto_ccf, 'debito': debito_ccf},
-        'compras': {'neto': neto_compras, 'credito': total_credito},
+        'compras': {
+            'neto': neto_compras_total,
+            'credito': total_credito,
+            'neto_gravadas': neto_compras_gravadas,
+            'credito_gravadas': credito_compras_gravadas,
+            'devoluciones_neto': devoluciones_compras_neto,
+            'devoluciones_credito': devoluciones_compras_credito
+        },
         'totales': {
             'debito': total_debito,
             'credito': total_credito,
@@ -124,18 +144,26 @@ def get_remanente_historico(db: Session, empresa_id: int, target_mes: str, targe
     if manuales.get((target_mes, target_anio), 0.0) > 0:
         return manuales[(target_mes, target_anio)]
 
-    # 2. Agrupar compras por período
+    # 2. Agrupar compras por período distinguiendo compras (03) y devoluciones (05)
     compras_grp = db.query(
         DteCompra.periodo_mes,
         DteCompra.periodo_anio,
+        DteCompra.tipo_documento,
         func.sum(DteCompra.credito_fiscal)
     ).filter(
         DteCompra.empresa_id == empresa_id,
         or_(DteCompra.omitido == False, DteCompra.omitido.is_(None))
     ).group_by(
-        DteCompra.periodo_anio, DteCompra.periodo_mes
+        DteCompra.periodo_anio, DteCompra.periodo_mes, DteCompra.tipo_documento
     ).all()
-    compras_map = {(r[0], r[1]): float(r[2] or 0.0) for r in compras_grp}
+    compras_map = {}
+    for r in compras_grp:
+        k = (r[0], r[1])
+        cred = float(r[3] or 0.0)
+        if r[2] == "05":
+            compras_map[k] = compras_map.get(k, 0.0) - cred
+        else:
+            compras_map[k] = compras_map.get(k, 0.0) + cred
 
     # 3. Anulados para filtrar ventas
     anulados = db.query(DteAnulado.codigo_generacion).filter(DteAnulado.empresa_id == empresa_id).all()

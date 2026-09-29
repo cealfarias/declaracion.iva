@@ -215,8 +215,8 @@ async def upload_dtes(
             identificacion = dte_json.get("identificacion", {})
             tipo_dte = identificacion.get("tipoDte", "")
             
-            if tipo_dte != "03":
-                # Ignorar silenciosamente para permitir subir carpetas mixtas
+            if tipo_dte not in ["03", "05"]:
+                # Ignorar silenciosamente otros tipos para permitir subir carpetas mixtas
                 continue
                 
             emisor = dte_json.get("emisor", {})
@@ -240,7 +240,7 @@ async def upload_dtes(
             codigo_generacion = identificacion.get("codigoGeneracion", "")
             
             # El "Número de Documento" para DTE (clase 4) debe ser el código de generación sin guiones
-            num_doc = codigo_generacion.replace("-", "") if codigo_generacion else ""
+            num_doc = codigo_generacion.replace("-", "").upper() if codigo_generacion else ""
             
             # Comprobar si ya existe
             existe = db.query(DteCompra).filter(
@@ -267,9 +267,15 @@ async def upload_dtes(
                 if t.get("codigo") == "20":
                     iva += float(t.get("valor", 0.0))
                     
+            if iva == 0.0 and resumen.get("totalIva"):
+                iva = float(resumen.get("totalIva", 0.0))
+                
             total_gravada = float(resumen.get("totalGravada", 0.0))
+            if iva == 0.0 and total_gravada > 0:
+                iva = round(total_gravada * 0.13, 2)
+                
             total_exenta = float(resumen.get("totalExenta", 0.0))
-            total_compras = float(resumen.get("totalPagar", 0.0))
+            total_compras = float(resumen.get("totalPagar", total_gravada + iva))
             
             nuevo_dte = DteCompra(
                 empresa_id=empresa_id,
@@ -277,7 +283,7 @@ async def upload_dtes(
                 periodo_anio=periodo_anio,
                 fecha_emision=fecha_emision,
                 clase_documento="4",
-                tipo_documento="03",
+                tipo_documento=tipo_dte,
                 numero_resolucion=num_doc, # Para DTEs se usa el código de generación
                 serie_documento=sello,
                 numero_documento=num_doc,
