@@ -113,6 +113,17 @@ export default function AnexoAnulados() {
     }
   };
 
+  const handleEliminarIndividual = async (id, codigo) => {
+    if (!window.confirm(`¿Estás seguro de eliminar el documento ${codigo} del registro de anulados? Volverá a computarse como venta activa.`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/v1/anulados/documento/${id}`);
+      enqueueMessages([{ text: "Documento eliminado de anulados correctamente.", type: "success" }]);
+      fetchAnulados();
+    } catch (error) {
+      enqueueMessages([{ text: error.response?.data?.detail || "Error al eliminar el documento.", type: "error" }]);
+    }
+  };
+
   const MESES_NOMBRES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
   const handleFileUpload = async (files) => {
@@ -130,7 +141,7 @@ export default function AnexoAnulados() {
     }
 
     const nombreMes = MESES_NOMBRES[(parseInt(mes, 10) - 1)] || mes;
-    enqueueMessages([{ text: `⏳ Procesando los JSON del Anexo de Documentos Anulados del mes de ${nombreMes}... Por favor espera mientras valido cada evento de invalidación.`, type: "info" }]);
+    enqueueMessages([{ text: `⏳ Procesando y validando contra el Ministerio de Hacienda los JSON de Anulados de ${nombreMes}...`, type: "info" }]);
 
     const formData = new FormData();
     formData.append("empresa_id", activeEmpresa.id);
@@ -294,10 +305,10 @@ export default function AnexoAnulados() {
           </svg>
         </div>
         <p className="text-lg font-medium text-slate-700 mb-1">
-          {isDeclarado ? "Período cerrado" : "Arrastra los DTEs (JSON de Invalidación) aquí"}
+          {isDeclarado ? "Período cerrado" : "Arrastra los JSON de Eventos de Invalidación / Anulados aquí"}
         </p>
         <p className="text-sm text-slate-500">
-          {isDeclarado ? "No se pueden subir más documentos a este período" : "Sube carpetas completas o archivos JSON individuales"}
+          {isDeclarado ? "No se pueden subir más documentos a este período" : "Validación automática con Ministerio de Hacienda (MH) para evitar anular facturas vigentes por error."}
         </p>
       </div>
 
@@ -315,7 +326,7 @@ export default function AnexoAnulados() {
           <div className="p-12 text-center text-slate-500">Cargando registros...</div>
         ) : anulados.length === 0 ? (
           <div className="p-12 text-center text-slate-500">
-            <p>Aún no hay facturas en este período.</p>
+            <p>No hay documentos anulados en este período.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -326,6 +337,8 @@ export default function AnexoAnulados() {
                   <th className="px-4 py-3">Tipo Doc</th>
                   <th className="px-4 py-3">Código Generación (Anulado)</th>
                   <th className="px-4 py-3">Sello Recepción (Invalidación)</th>
+                  <th className="px-4 py-3 text-center">Estado MH</th>
+                  {!isDeclarado && <th className="px-4 py-3 text-center">Acción</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -335,6 +348,25 @@ export default function AnexoAnulados() {
                     <td className="px-4 py-3 font-medium text-slate-900">{a.tipo_documento}</td>
                     <td className="px-4 py-3 text-red-500 font-mono text-xs">{a.codigo_generacion}</td>
                     <td className="px-4 py-3 text-slate-500 font-mono text-xs">{a.sello_recepcion}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                        ✓ Invalidado en MH
+                      </span>
+                    </td>
+                    {!isDeclarado && (
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleEliminarIndividual(a.id, a.codigo_generacion)}
+                          title="Eliminar de anulados (reintegrar como venta activa)"
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors inline-flex items-center justify-center"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

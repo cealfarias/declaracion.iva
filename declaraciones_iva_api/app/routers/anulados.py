@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import json
+import urllib.request
+import ssl
 
 from app.core.database import get_db
 from app.models.models import DteAnulado, Empresa, DeclaracionEstado
@@ -141,6 +143,43 @@ def crear_modificatoria(empresa_id: int, mes: str, anio: str, numero_original: s
     db.commit()
     return {"mensaje": "Modificatoria creada", "nueva_version": nueva_version}
 
+def verificar_dte_hacienda(codigo_generacion: str, fecha_emision_yyyy_mm_dd: str, ambiente: str = "01") -> dict:
+    if not codigo_generacion or not fecha_emision_yyyy_mm_dd:
+        return {"ok": False, "error": "Faltan parámetros"}
+    url = f"https://admin.factura.gob.sv/prod/consultas/publica/simple/1?codigoGeneracion={codigo_generacion}&fechaEmi={fecha_emision_yyyy_mm_dd}&ambiente={ambiente}"
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return {
+                "ok": True,
+                "estadoDoc": data.get("estadoDoc"),
+                "descripcionEstado": data.get("descripcionEstado"),
+                "tipoDte": data.get("tipoDte"),
+                "selloVal": data.get("selloVal")
+            }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@router.get("/consultar-mh")
+def consultar_mh(codigo_generacion: str, fecha_emision: str, ambiente: str = "01"):
+    return verificar_dte_hacienda(codigo_generacion, fecha_emision, ambiente)
+
+@router.delete("/documento/{anulado_id}")
+def eliminar_anulado(anulado_id: int, db: Session = Depends(get_db)):
+    doc = db.query(DteAnulado).filter(DteAnulado.id == anulado_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento anulado no encontrado.")
+    if is_periodo_declarado(db, doc.empresa_id, doc.periodo_anio, doc.periodo_mes, tipo_libro="anulados", version=doc.version):
+        raise HTTPException(status_code=403, detail="El período está declarado y no puede ser modificado.")
+    db.delete(doc)
+    db.commit()
+    return {"mensaje": "Documento anulado eliminado exitosamente."}
+
 @router.post("/upload")
 async def upload_anulados(
     empresa_id: int = Form(...),
@@ -177,32 +216,48 @@ async def upload_anulados(
             continue
             
         try:
-            # Los JSON de invalidacion suelen tener la estructura:
-            # { "identificacion": { "codigoGeneracion": "...", "tipoDte": "..." } }
-            # o pueden venir envueltos.
-            
             data = dte_json.get("dteJson", dte_json)
             identificacion = data.get("identificacion", {})
             motivo = data.get("motivo", {})
-            
-            # El codigoGeneracion que se esta invalidando
-            codigo_generacion = identificacion.get("codigoGeneracion", "")
-            
+            doc_asoc = data.get("documento", {}) or data.get("documentoAsociado", {})
+
+            # Determinar si es un Evento de Invalidación oficial
+            es_evento_invalidacion = bool(motivo or identificacion.get("tipoDte") == "98" or (doc_asoc and doc_asoc.get("codigoGeneracion")))
+
+            if es_evento_invalidacion:
+                codigo_generacion = doc_asoc.get("codigoGeneracion") or identificacion.get("codigoGeneracion", "")
+                fecha_cruda = doc_asoc.get("fecEmi") or identificacion.get("fecEmi", "")
+                tipo_dte = doc_asoc.get("tipoDte") or identificacion.get("tipoDte", "01")
+                sello_recepcion = data.get("selloRecibido") or data.get("selloRecepcion") or doc_asoc.get("selloRecibido") or identificacion.get("selloRecibido") or "N/A"
+            else:
+                # Es un DTE regular que se intenta subir como anulado
+                codigo_generacion = identificacion.get("codigoGeneracion", "")
+                fecha_cruda = identificacion.get("fecEmi", "")
+                tipo_dte = identificacion.get("tipoDte", "01")
+                sello_recepcion = data.get("selloRecibido", identificacion.get("selloRecibido", "N/A"))
+
+                if not codigo_generacion or not fecha_cruda:
+                    errores.append(f"{file.filename}: No contiene código de generación o fecha de emisión.")
+                    continue
+
+                # Validación con Hacienda: consultar estado oficial
+                consulta = verificar_dte_hacienda(codigo_generacion, fecha_cruda, identificacion.get("ambiente", "01"))
+                if consulta.get("ok"):
+                    estado_doc = consulta.get("estadoDoc")
+                    if estado_doc == "Transmitido Satisfactoriamente":
+                        errores.append(f"{file.filename}: RECHAZADO. En Hacienda este DTE figura como ACTIVO/VIGENTE ('Transmitido Satisfactoriamente'). No está invalidado.")
+                        continue
+                    elif estado_doc != "Invalidado":
+                        errores.append(f"{file.filename}: RECHAZADO. En Hacienda el documento no figura como 'Invalidado' (Estado: {estado_doc or 'No encontrado'}).")
+                        continue
+                else:
+                    errores.append(f"{file.filename}: No es un Evento de Invalidación oficial y no se pudo verificar con Hacienda.")
+                    continue
+
             if not codigo_generacion:
-                # Intenta buscar en documento asociado
-                doc_asoc = data.get("documentoAsociado", {})
-                codigo_generacion = doc_asoc.get("codigoGeneracion", "")
-            
-            if not codigo_generacion:
-                errores.append(f"{file.filename}: No contiene codigoGeneracion del documento original.")
+                errores.append(f"{file.filename}: No se pudo determinar el código de generación del documento invalidado.")
                 continue
-                
-            # Sello de recepcion de la invalidacion, si existe, o del documento
-            sello_recepcion = data.get("selloRecepcion", identificacion.get("selloRecibido", "N/A"))
-            
-            tipo_dte = identificacion.get("tipoDte", "")
-            
-            fecha_cruda = identificacion.get("fecEmi", "")
+
             try:
                 fecha_obj = datetime.strptime(fecha_cruda, "%Y-%m-%d")
                 fecha_emision = fecha_obj.strftime("%d/%m/%Y")
@@ -210,7 +265,7 @@ async def upload_anulados(
                 fecha_emision = fecha_cruda
                 
             # Verificar si ya existe en esta version
-            num_doc = codigo_generacion.replace("-", "")
+            num_doc = codigo_generacion.replace("-", "").upper()
             existe = db.query(DteAnulado).filter(
                 DteAnulado.empresa_id == empresa_id,
                 DteAnulado.codigo_generacion == num_doc,
@@ -218,7 +273,7 @@ async def upload_anulados(
             ).first()
             
             if existe:
-                errores.append(f"{file.filename}: Ya fue procesado.")
+                errores.append(f"{file.filename}: Ya fue procesado previamente.")
                 continue
                 
             nuevo_dte = DteAnulado(
