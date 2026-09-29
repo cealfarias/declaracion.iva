@@ -230,6 +230,20 @@ export default function Liquidacion() {
       } else if (mes === "02" && anio === "2026" && activeEmpresa.id === 2) {
         // En Febrero 2026, el remanente oficial que viene de Enero 2026 presentado en MH es 63.16
         res.remanente_anterior = 63.16;
+      } else if (mes === "03" && anio === "2026" && activeEmpresa.id === 2) {
+        // En Marzo 2026, el remanente oficial que viene de Febrero 2026 es 62.56
+        res.remanente_anterior = 62.56;
+      } else {
+        // Cascada automática: consultar el remanente siguiente del mes cronológico anterior
+        const curM = parseInt(mes, 10);
+        const curA = parseInt(anio, 10);
+        const prevM = curM === 1 ? 12 : curM - 1;
+        const prevA = curM === 1 ? curA - 1 : curA;
+        const prevMStr = prevM < 10 ? `0${prevM}` : `${prevM}`;
+        const prevStored = localStorage.getItem(`remanente_siguiente_${activeEmpresa?.id}_${prevMStr}_${prevA}`);
+        if (prevStored !== null && !isNaN(parseFloat(prevStored))) {
+          res.remanente_anterior = parseFloat(prevStored);
+        }
       }
 
       // 6. Recalcular liquidación F-07 con las cifras cuadradas
@@ -265,6 +279,13 @@ export default function Liquidacion() {
 
       res.impuesto_a_pagar = impuestoAPagar;
       res.remanente_siguiente = remanenteSiguiente;
+
+      // Guardar remanente siguiente en storage para que el mes próximo lo reciba automáticamente
+      try {
+        localStorage.setItem(`remanente_siguiente_${activeEmpresa?.id}_${mes}_${anio}`, remanenteSiguiente.toString());
+      } catch (err) {
+        console.error("Error al persistir remanente siguiente", err);
+      }
 
       setData(res);
       setRemanenteInput(res.remanente_anterior !== undefined ? res.remanente_anterior.toString() : "0.00");
