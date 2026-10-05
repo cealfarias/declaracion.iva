@@ -215,7 +215,7 @@ async def upload_dtes(
             identificacion = dte_json.get("identificacion", {})
             tipo_dte = identificacion.get("tipoDte", "")
             
-            if tipo_dte not in ["03", "05"]:
+            if tipo_dte not in ["03", "05", "14"]:
                 # Ignorar silenciosamente otros tipos para permitir subir carpetas mixtas
                 continue
                 
@@ -231,11 +231,15 @@ async def upload_dtes(
                 fecha_emision = fecha_cruda
                 
             # Evitar duplicados (mismo sello/resolucion en mismo periodo para la empresa)
-            sello = identificacion.get("selloRecibido", "")
-            if not sello:
-                sello = dte_json.get("selloRecibido", "")
-            if not sello:
-                sello = dte_json.get("selloRecepcion", "")
+            sello = (
+                identificacion.get("selloRecibido")
+                or dte_json.get("selloRecibido")
+                or dte_json.get("selloRecepcion")
+                or dte_json.get("SelloRecepcion")
+                or identificacion.get("selloRecepcion")
+                or identificacion.get("SelloRecepcion")
+                or ""
+            )
                 
             codigo_generacion = identificacion.get("codigoGeneracion", "")
             
@@ -254,28 +258,46 @@ async def upload_dtes(
                 errores.append(f"{file.filename}: Ya fue procesado anteriormente en el mes {existe.periodo_mes}/{existe.periodo_anio}{estado_extra}.")
                 continue
 
-            nit_proveedor = emisor.get("nit", "")
-            nombre_proveedor = emisor.get("nombre", "")
-            
-            # Montos
-            tributos = resumen.get("tributos", [])
-            if not isinstance(tributos, list):
-                tributos = []
+            if tipo_dte == "14":
+                # En DTE 14 (Factura de Sujeto Excluido), el emisor es la empresa adquirente
+                # y el receptor es el proveedor Sujeto Excluido que vendió el bien o prestó el servicio.
+                receptor = dte_json.get("receptor", {})
+                nombre_proveedor = receptor.get("nombre", "")
+                nit_proveedor = str(receptor.get("numDocumento", "")).replace("-", "").strip()
                 
-            iva = 0.0
-            for t in tributos:
-                if t.get("codigo") == "20":
-                    iva += float(t.get("valor", 0.0))
+                # Montos en Sujeto Excluido:
+                # No genera Crédito Fiscal de IVA (0.00).
+                # Se reporta como Compra Interna Exenta / No Sujeta en el Libro de Compras.
+                monto_compra = float(resumen.get("totalCompra") or resumen.get("subTotal") or 0.0)
+                total_gravada = 0.0
+                total_exenta = monto_compra
+                iva = 0.0
+                total_compras = monto_compra
+                tipo_op_default = "2" # 2: No Gravada o Exenta
+            else:
+                nit_proveedor = str(emisor.get("nit", "")).replace("-", "").strip()
+                nombre_proveedor = emisor.get("nombre", "")
+                
+                # Montos
+                tributos = resumen.get("tributos", [])
+                if not isinstance(tributos, list):
+                    tributos = []
                     
-            if iva == 0.0 and resumen.get("totalIva"):
-                iva = float(resumen.get("totalIva", 0.0))
-                
-            total_gravada = float(resumen.get("totalGravada", 0.0))
-            if iva == 0.0 and total_gravada > 0:
-                iva = round(total_gravada * 0.13, 2)
-                
-            total_exenta = float(resumen.get("totalExenta", 0.0))
-            total_compras = float(resumen.get("totalPagar", total_gravada + iva))
+                iva = 0.0
+                for t in tributos:
+                    if t.get("codigo") == "20":
+                        iva += float(t.get("valor", 0.0))
+                        
+                if iva == 0.0 and resumen.get("totalIva"):
+                    iva = float(resumen.get("totalIva", 0.0))
+                    
+                total_gravada = float(resumen.get("totalGravada", 0.0))
+                if iva == 0.0 and total_gravada > 0:
+                    iva = round(total_gravada * 0.13, 2)
+                    
+                total_exenta = float(resumen.get("totalExenta", 0.0))
+                total_compras = float(resumen.get("totalPagar", total_gravada + iva))
+                tipo_op_default = "1"
             
             nuevo_dte = DteCompra(
                 empresa_id=empresa_id,
@@ -287,13 +309,13 @@ async def upload_dtes(
                 numero_resolucion=num_doc, # Para DTEs se usa el código de generación
                 serie_documento=sello,
                 numero_documento=num_doc,
-                nit_proveedor=nit_proveedor.replace("-", ""),
+                nit_proveedor=nit_proveedor,
                 nombre_proveedor=nombre_proveedor,
                 compras_internas_exentas=total_exenta,
                 compras_internas_gravadas=total_gravada,
                 credito_fiscal=iva,
                 total_compras=total_compras,
-                tipo_operacion="1",
+                tipo_operacion=tipo_op_default,
                 clasificacion="1",
                 sector="2",
                 tipo_costo_gasto="5",
@@ -312,6 +334,7 @@ async def upload_dtes(
     
     return {
         "message": f"Archivos procesados: {procesados} correctos, {len(errores)} errores.",
+        "procesados": procesados,
         "errores": errores
     }
 
@@ -401,12 +424,27 @@ def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos:
         return default_val if not val else val
         
     for c in compras:
+        doc_clean = (c.nit_proveedor or "").replace("-", "").strip()
+        # En El Salvador: DUI tiene 9 dígitos o 10 con guión (ej: 016812897)
+        # NIT tradicional tiene 14 dígitos.
+        is_dui = False
+        if c.tipo_documento == "14":
+            rec = (c.raw_json or {}).get("receptor", {}) if isinstance(c.raw_json, dict) else {}
+            tipo_doc_rec = rec.get("tipoDocumento", "")
+            if tipo_doc_rec == "36" or len(doc_clean) <= 10:
+                is_dui = True
+        elif len(doc_clean) <= 9 and doc_clean:
+            is_dui = True
+
+        nit_export = "" if is_dui else doc_clean
+        dui_export = doc_clean if is_dui else ""
+
         row = [
             c.fecha_emision,
             c.clase_documento,
             c.tipo_documento,
             c.numero_resolucion,
-            c.nit_proveedor,
+            nit_export,
             c.nombre_proveedor,
             format_money(c.compras_internas_exentas),
             format_money(c.internaciones_exentas),
@@ -417,8 +455,8 @@ def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos:
             format_money(c.importaciones_gravadas_servicios),
             f"{c.credito_fiscal:.2f}",
             f"{c.total_compras:.2f}",
-            "", # DUI Proveedor (vacío si hay NIT)
-            get_valid(c.tipo_operacion, "1"),
+            dui_export, # DUI Proveedor (vacío si hay NIT)
+            get_valid(c.tipo_operacion, "2" if c.tipo_documento == "14" else "1"),
             get_valid(c.clasificacion, "1"),  
             get_valid(c.sector, "2"),
             get_valid(c.tipo_costo_gasto, "5"),
@@ -434,3 +472,72 @@ def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos:
     }
     
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers=headers)
+
+@router.get("/{empresa_id}/export_anexo5")
+def export_csv_anexo5(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos: Optional[str] = None, db: Session = Depends(get_db)):
+    """Exporta el Anexo 5 (Compras a Sujetos Excluidos - Casilla 66 de F-07) según normativa oficial del Ministerio de Hacienda."""
+    query = db.query(DteCompra).filter(
+        DteCompra.empresa_id == empresa_id,
+        DteCompra.periodo_mes == mes,
+        DteCompra.periodo_anio == anio,
+        DteCompra.version == version,
+        DteCompra.tipo_documento == "14",
+        (DteCompra.omitido == False) | (DteCompra.omitido == None)
+    )
+    
+    if omitidos:
+        try:
+            ids_to_exclude = [int(x.strip()) for x in omitidos.split(",") if x.strip().isdigit()]
+            if ids_to_exclude:
+                query = query.filter(~DteCompra.id.in_(ids_to_exclude))
+        except Exception:
+            pass
+
+    compras = query.order_by(DteCompra.fecha_emision.asc()).all()
+    
+    output = StringIO()
+    writer = csv.writer(output, delimiter=';', lineterminator='\n')
+    
+    def format_money(val):
+        return f"{val or 0.0:.2f}"
+
+    def get_valid(val, default_val):
+        return default_val if not val else val
+        
+    for c in compras:
+        doc_clean = (c.nit_proveedor or "").replace("-", "").strip()
+        rec = (c.raw_json or {}).get("receptor", {}) if isinstance(c.raw_json, dict) else {}
+        tipo_doc_rec = rec.get("tipoDocumento", "")
+        
+        # Tipo documento identificación: 1=NIT, 2=DUI, 3=Otro
+        if tipo_doc_rec == "36" or len(doc_clean) <= 10:
+            tipo_id = "2"
+        elif tipo_doc_rec == "13" or len(doc_clean) == 14:
+            tipo_id = "1"
+        else:
+            tipo_id = "3"
+
+        row = [
+            tipo_id,                             # Col A: Tipo de Documento (1=NIT, 2=DUI, 3=Otro)
+            doc_clean,                           # Col B: Número de Identificación
+            c.nombre_proveedor,                  # Col C: Nombre o Razón Social
+            c.fecha_emision,                     # Col D: Fecha de Emisión (DD/MM/AAAA)
+            c.serie_documento,                   # Col E: Serie del Documento (Sello de recepción)
+            c.numero_documento,                  # Col F: Número de Documento (Código de generación sin guiones)
+            format_money(c.total_compras),       # Col G: Monto de la Operación
+            "0.00",                              # Col H: Monto Retención IVA 13%
+            get_valid(c.tipo_operacion, "2"),    # Col I: Tipo de Operación (2=No Gravada)
+            get_valid(c.clasificacion, "1"),     # Col J: Clasificación (1=Costo, 2=Gasto)
+            get_valid(c.sector, "2"),            # Col K: Sector
+            get_valid(c.tipo_costo_gasto, "5"),  # Col L: Tipo de Costo/Gasto
+            "5"                                  # Col M: Número de Anexo (5=Sujetos Excluidos)
+        ]
+        writer.writerow(row)
+        
+    output.seek(0)
+    filename = f"SujetosExcluidos_{anio}{mes}.csv"
+    headers = {
+        "Content-Disposition": f"attachment; filename={filename}"
+    }
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers=headers)
+

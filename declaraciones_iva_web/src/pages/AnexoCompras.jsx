@@ -232,29 +232,37 @@ export default function AnexoCompras() {
     const formatMoney = val => Number(val || 0).toFixed(2);
     const getValid = (val, def) => (val !== undefined && val !== null && val !== "") ? val : def;
 
-    const rows = validCompras.map(c => [
-      c.fecha_emision,
-      c.clase_documento || "4",
-      c.tipo_documento || "03",
-      c.numero_resolucion,
-      c.nit_proveedor,
-      c.nombre_proveedor,
-      formatMoney(c.compras_internas_exentas),
-      formatMoney(c.internaciones_exentas),
-      formatMoney(c.importaciones_exentas),
-      formatMoney(c.compras_internas_gravadas),
-      formatMoney(c.internaciones_gravadas_bienes),
-      formatMoney(c.importaciones_gravadas_bienes),
-      formatMoney(c.importaciones_gravadas_servicios),
-      formatMoney(c.credito_fiscal),
-      formatMoney(c.total_compras),
-      "", // DUI Proveedor (vacío si hay NIT)
-      getValid(c.tipo_operacion, "1"),
-      getValid(c.clasificacion, "1"),  
-      getValid(c.sector, "2"),
-      getValid(c.tipo_costo_gasto, "5"),
-      "3" // Número de Anexo (siempre 3 para compras)
-    ].join(";"));
+    const rows = validCompras.map(c => {
+      const docClean = (c.nit_proveedor || "").replace(/[^0-9kK]/g, "");
+      // En El Salvador: DUI tiene 9 dígitos o se identifica en DTE 14
+      const isDui = (c.tipo_documento === "14" && docClean.length <= 10) || docClean.length === 9;
+      const nitExport = isDui ? "" : docClean;
+      const duiExport = isDui ? docClean : "";
+
+      return [
+        c.fecha_emision,
+        c.clase_documento || "4",
+        c.tipo_documento || "03",
+        c.numero_resolucion,
+        nitExport,
+        c.nombre_proveedor,
+        formatMoney(c.compras_internas_exentas),
+        formatMoney(c.internaciones_exentas),
+        formatMoney(c.importaciones_exentas),
+        formatMoney(c.compras_internas_gravadas),
+        formatMoney(c.internaciones_gravadas_bienes),
+        formatMoney(c.importaciones_gravadas_bienes),
+        formatMoney(c.importaciones_gravadas_servicios),
+        formatMoney(c.credito_fiscal),
+        formatMoney(c.total_compras),
+        duiExport, // DUI Proveedor (vacío si hay NIT)
+        getValid(c.tipo_operacion, c.tipo_documento === "14" ? "2" : "1"),
+        getValid(c.clasificacion, "1"),  
+        getValid(c.sector, "2"),
+        getValid(c.tipo_costo_gasto, "5"),
+        "3" // Número de Anexo (siempre 3 para compras)
+      ].join(";");
+    });
 
     const csvContent = rows.join("\r\n") + "\r\n";
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -268,7 +276,66 @@ export default function AnexoCompras() {
     URL.revokeObjectURL(url);
 
     enqueueMessages([{ 
-      text: `Archivo CSV F-07 descargado con éxito. Se incluyeron ${validCompras.length} comprobantes (${compras.length - validCompras.length} omitidos excluidos).`, 
+      text: `Archivo CSV F-07 (Anexo 3) descargado con éxito. Se incluyeron ${validCompras.length} comprobantes (${compras.length - validCompras.length} omitidos excluidos).`, 
+      type: "success" 
+    }]);
+  };
+
+  const exportCSVAnexo5 = () => {
+    // Filtrar estrictamente compras a Sujetos Excluidos (DTE 14) activas
+    const validSujetos = compras.filter(item => !item.omitido && item.tipo_documento === "14");
+
+    if (validSujetos.length === 0) {
+      enqueueMessages([{ text: "No hay compras de Sujetos Excluidos (DTE 14) activas para exportar.", type: "warning" }]);
+      return;
+    }
+
+    const formatMoney = val => Number(val || 0).toFixed(2);
+    const getValid = (val, def) => (val !== undefined && val !== null && val !== "") ? val : def;
+
+    const rows = validSujetos.map(c => {
+      const docClean = (c.nit_proveedor || "").replace(/[^0-9kK]/g, "");
+      const rec = c.raw_json?.receptor || {};
+      const tipoDocRec = rec.tipoDocumento || "";
+      let tipoId = "2"; // DUI por defecto
+      if (tipoDocRec === "36" || docClean.length <= 10) {
+        tipoId = "2";
+      } else if (tipoDocRec === "13" || docClean.length === 14) {
+        tipoId = "1";
+      } else {
+        tipoId = "3";
+      }
+
+      return [
+        tipoId,                             // Col A: Tipo Documento Identificación (1=NIT, 2=DUI, 3=Otro)
+        docClean,                           // Col B: Número de Identificación
+        c.nombre_proveedor,                 // Col C: Nombre o Razón Social
+        c.fecha_emision,                    // Col D: Fecha de Emisión (DD/MM/AAAA)
+        c.serie_documento || "",            // Col E: Serie del Documento (Sello de recepción)
+        c.numero_documento || c.numero_resolucion || "", // Col F: Número Documento (Código de generación sin guiones)
+        formatMoney(c.total_compras),       // Col G: Monto de la Operación
+        "0.00",                             // Col H: Monto Retención IVA 13%
+        getValid(c.tipo_operacion, "2"),    // Col I: Tipo de Operación (2=No Gravada)
+        getValid(c.clasificacion, "1"),     // Col J: Clasificación (1=Costo, 2=Gasto)
+        getValid(c.sector, "2"),            // Col K: Sector
+        getValid(c.tipo_costo_gasto, "5"),  // Col L: Tipo de Costo/Gasto
+        "5"                                 // Col M: Número de Anexo (5=Sujetos Excluidos)
+      ].join(";");
+    });
+
+    const csvContent = rows.join("\r\n") + "\r\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `SujetosExcluidos_${anio}${mes}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    enqueueMessages([{ 
+      text: `Archivo CSV Anexo 5 (Sujetos Excluidos - Casilla 66 F-07) descargado con éxito. Se incluyeron ${validSujetos.length} compras a sujetos excluidos.`, 
       type: "success" 
     }]);
   };
@@ -411,7 +478,7 @@ export default function AnexoCompras() {
           </h1>
           <p className="text-slate-500 mt-1">Período: {mes}/{anio}</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
           {!isDeclarado && (
             <>
               <button 
@@ -428,11 +495,21 @@ export default function AnexoCompras() {
               </button>
             </>
           )}
+          {comprasActivas.some(c => c.tipo_documento === "14") && (
+            <button 
+              onClick={exportCSVAnexo5}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors flex items-center space-x-1.5"
+              title="Descargar Anexo 5 oficial del Ministerio de Hacienda (Compras a Sujetos Excluidos - Casilla 66)"
+            >
+              <span>📄</span>
+              <span>Descargar CSV Anexo 5 (Sujetos Excluidos)</span>
+            </button>
+          )}
           <button 
             onClick={exportCSV}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
           >
-            Descargar CSV F07
+            Descargar CSV F07 (Anexo 3)
           </button>
         </div>
       </div>
@@ -463,11 +540,11 @@ export default function AnexoCompras() {
           </svg>
         </div>
         <h3 className="text-lg font-medium text-slate-800 mb-1">Arrastra tus archivos JSON o una carpeta completa aquí</h3>
-        <p className="text-sm text-slate-500">o haz clic para buscar la carpeta en tu equipo (Comprobantes de Crédito Fiscal emitidos por proveedores)</p>
+        <p className="text-sm text-slate-500">o haz clic para buscar la carpeta en tu equipo (Crédito Fiscal DTE-03, Notas de Crédito DTE-05, Sujetos Excluidos DTE-14)</p>
       </div>
 
       {/* Resumen Superior */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Registros</p>
@@ -501,6 +578,22 @@ export default function AnexoCompras() {
           </div>
           <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-500 font-medium uppercase tracking-wide">Exentas / No Sujetas</p>
+            <h3 className="text-xl font-bold text-slate-900">
+              ${comprasActivas.reduce((sum, item) => sum + (item.compras_internas_exentas || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h3>
+            {comprasActivas.some(c => c.tipo_documento === "14") && (
+              <p className="text-[11px] text-purple-600 font-semibold mt-0.5">
+                {comprasActivas.filter(c => c.tipo_documento === "14").length} Sujeto{comprasActivas.filter(c => c.tipo_documento === "14").length > 1 ? 's' : ''} Excluido{comprasActivas.filter(c => c.tipo_documento === "14").length > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+          <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center text-purple-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
           </div>
         </div>
         <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
@@ -597,7 +690,19 @@ export default function AnexoCompras() {
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-xs">{compra.fecha_emision}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-center">{compra.clase_documento}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-center">{compra.tipo_documento}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-xs text-center">
+                      {compra.tipo_documento === "14" ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200" title="DTE 14: Factura de Sujeto Excluido">
+                          14 (FSE)
+                        </span>
+                      ) : compra.tipo_documento === "05" ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200" title="DTE 05: Nota de Crédito">
+                          05 (NC)
+                        </span>
+                      ) : (
+                        <span className="font-mono">{compra.tipo_documento}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs font-mono truncate max-w-[150px]" title={compra.numero_resolucion}>{compra.numero_resolucion}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs">{compra.nit_proveedor}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs truncate max-w-[200px]" title={compra.nombre_proveedor}>
@@ -647,7 +752,7 @@ export default function AnexoCompras() {
                     
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
                       <select 
-                        value={compra.tipo_operacion || "1"} 
+                        value={compra.tipo_operacion || (compra.tipo_documento === "14" ? "2" : "1")} 
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
                         className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
                           compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"

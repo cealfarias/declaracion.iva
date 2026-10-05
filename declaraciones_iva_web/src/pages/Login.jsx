@@ -62,11 +62,7 @@ export default function Login() {
         navigate('/dashboard');
       }
     } catch (err) {
-      if (err.response?.status === 401 && err.response.data.detail.includes("registrado")) {
-        navigate('/registro');
-      } else {
-        setError(err.response?.data?.detail || 'Error al iniciar sesión. Verifica tus credenciales.');
-      }
+      setError(err.response?.data?.detail || 'Error al iniciar sesión. Verifica tus credenciales.');
     } finally {
       setLoading(false);
     }
