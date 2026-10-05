@@ -205,6 +205,24 @@ async def upload_dtes(
             if tipo_dte not in ['03', '05', '06', '11']:
                 # Ignorar silenciosamente para permitir subir carpetas mixtas
                 continue
+
+            # Filtro por empresa: En ventas a contribuyentes, nuestra empresa es el EMISOR
+            def clean_id(val) -> str:
+                return str(val or "").replace("-", "").strip().lower()
+
+            emp_nit = clean_id(empresa.nit)
+            emp_nrc = clean_id(empresa.nrc)
+            emisor_data = dte_json.get("emisor", {}) or {}
+            emi_nit = clean_id(emisor_data.get("nit"))
+            emi_nrc = clean_id(emisor_data.get("nrc"))
+            pertenece = False
+            if emp_nit and emi_nit and (emp_nit == emi_nit or emp_nit in emi_nit or emi_nit in emp_nit):
+                pertenece = True
+            elif emp_nrc and emi_nrc and (emp_nrc == emi_nrc or emp_nrc.lstrip("0") == emi_nrc.lstrip("0")):
+                pertenece = True
+
+            if not pertenece:
+                continue
                 
             resumen = dte_json.get('resumen', {})
             receptor = dte_json.get('receptor', {}) or {}

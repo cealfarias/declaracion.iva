@@ -184,6 +184,16 @@ async def upload_dtes(
 
     procesados = 0
     errores = []
+    descartados_otra_empresa = 0
+    descartados_otro_periodo = 0
+
+    def clean_id(val) -> str:
+        if not val:
+            return ""
+        return str(val).replace("-", "").strip().lower()
+
+    emp_nit = clean_id(empresa.nit)
+    emp_nrc = clean_id(empresa.nrc)
 
     for file in files:
         if not file.filename.lower().endswith('.json'):
@@ -220,15 +230,51 @@ async def upload_dtes(
                 continue
                 
             emisor = dte_json.get("emisor", {})
+            receptor = dte_json.get("receptor", {})
             resumen = dte_json.get("resumen", {})
             
-            # Fecha (Formato esperado AAAA-MM-DD, cambiar a DD/MM/AAAA)
+            # 1. FILTRO ESTRICTO POR EMPRESA (NIT / NRC)
+            pertenece = False
+            if tipo_dte in ["03", "05"]:
+                # En compras (CCF y NC), nuestra empresa debe ser el RECEPTOR (comprador)
+                rec_nit = clean_id(receptor.get("nit") or receptor.get("numDocumento"))
+                rec_nrc = clean_id(receptor.get("nrc"))
+                
+                if emp_nit and rec_nit and (emp_nit == rec_nit or emp_nit in rec_nit or rec_nit in emp_nit):
+                    pertenece = True
+                elif emp_nrc and rec_nrc and (emp_nrc == rec_nrc or emp_nrc.lstrip("0") == rec_nrc.lstrip("0")):
+                    pertenece = True
+            elif tipo_dte == "14":
+                # En Factura de Sujeto Excluido, nuestra empresa es el EMISOR (adquirente)
+                emi_nit = clean_id(emisor.get("nit"))
+                emi_nrc = clean_id(emisor.get("nrc"))
+                
+                if emp_nit and emi_nit and (emp_nit == emi_nit or emp_nit in emi_nit or emi_nit in emp_nit):
+                    pertenece = True
+                elif emp_nrc and emi_nrc and (emp_nrc == emi_nrc or emp_nrc.lstrip("0") == emi_nrc.lstrip("0")):
+                    pertenece = True
+
+            if not pertenece:
+                # Comprobante pertenece a otra empresa o persona
+                descartados_otra_empresa += 1
+                continue
+
+            # 2. FILTRO ESTRICTO POR PERÍODO (MES Y AÑO)
             fecha_cruda = identificacion.get("fecEmi", "")
             try:
-                fecha_obj = datetime.strptime(fecha_cruda, "%Y-%m-%d")
+                fec_clean = str(fecha_cruda).split('T')[0].split(' ')[0].strip()
+                fecha_obj = datetime.strptime(fec_clean, "%Y-%m-%d")
                 fecha_emision = fecha_obj.strftime("%d/%m/%Y")
-            except:
-                fecha_emision = fecha_cruda
+                mes_dte = f"{fecha_obj.month:02d}"
+                anio_dte = str(fecha_obj.year)
+            except Exception:
+                errores.append(f"{file.filename}: Fecha de emisión inválida o formato no reconocido ({fecha_cruda}).")
+                continue
+
+            if mes_dte != periodo_mes or anio_dte != periodo_anio:
+                # El comprobante corresponde a otro período
+                descartados_otro_periodo += 1
+                continue
                 
             # Evitar duplicados (mismo sello/resolucion en mismo periodo para la empresa)
             sello = (
@@ -335,6 +381,8 @@ async def upload_dtes(
     return {
         "message": f"Archivos procesados: {procesados} correctos, {len(errores)} errores.",
         "procesados": procesados,
+        "descartados_otra_empresa": descartados_otra_empresa,
+        "descartados_otro_periodo": descartados_otro_periodo,
         "errores": errores
     }
 

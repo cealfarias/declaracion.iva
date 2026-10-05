@@ -159,6 +159,8 @@ export default function AnexoCompras() {
 
     setLoading(true);
     let totalProcesados = 0;
+    let totalOtraEmpresa = 0;
+    let totalOtroPeriodo = 0;
     let todosErrores = [];
 
     try {
@@ -168,7 +170,7 @@ export default function AnexoCompras() {
         formData.append("empresa_id", activeEmpresa.id);
         formData.append("periodo_mes", mes);
         formData.append("periodo_anio", anio);
-    formData.append("version", activeVersion);
+        formData.append("version", activeVersion);
         formData.append("files", jsonFiles[i]);
 
         try {
@@ -179,6 +181,12 @@ export default function AnexoCompras() {
           if (response.data.procesados) {
             totalProcesados += response.data.procesados;
           }
+          if (response.data.descartados_otra_empresa) {
+            totalOtraEmpresa += response.data.descartados_otra_empresa;
+          }
+          if (response.data.descartados_otro_periodo) {
+            totalOtroPeriodo += response.data.descartados_otro_periodo;
+          }
           if (response.data.errores && response.data.errores.length > 0) {
             todosErrores = [...todosErrores, ...response.data.errores];
           }
@@ -187,10 +195,20 @@ export default function AnexoCompras() {
         }
       }
       
+      let mensajeFinal = `Procesamiento completado: ${totalProcesados} comprobantes válidos para ${activeEmpresa.razon_social}.`;
+      if (totalOtraEmpresa > 0 || totalOtroPeriodo > 0) {
+        const descartadosDetalle = [];
+        if (totalOtraEmpresa > 0) descartadosDetalle.push(`${totalOtraEmpresa} de otras empresas`);
+        if (totalOtroPeriodo > 0) descartadosDetalle.push(`${totalOtroPeriodo} de otros períodos`);
+        mensajeFinal += ` Se filtraron e ignoraron ${descartadosDetalle.join(" y ")}.`;
+      }
+
       if (todosErrores.length > 0) {
-        enqueueMessages([{ text: `Subida completada. Éxitos: ${totalProcesados}. Errores en ${todosErrores.length} archivos: ${todosErrores.slice(0,2).join(", ")}...`, type: "warning" }]);
+        enqueueMessages([{ text: `${mensajeFinal} Errores: ${todosErrores.slice(0,2).join(", ")}...`, type: "warning" }]);
+      } else if (totalProcesados === 0 && (totalOtraEmpresa > 0 || totalOtroPeriodo > 0)) {
+        enqueueMessages([{ text: mensajeFinal, type: "warning" }]);
       } else {
-        enqueueMessages([{ text: `Se procesaron ${totalProcesados} comprobantes exitosamente.`, type: "success" }]);
+        enqueueMessages([{ text: mensajeFinal, type: "success" }]);
       }
       fetchCompras();
     } catch (error) {
