@@ -448,6 +448,7 @@ def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos:
         DteCompra.periodo_mes == mes,
         DteCompra.periodo_anio == anio,
         DteCompra.version == version,
+        DteCompra.tipo_documento != "14",
         (DteCompra.omitido == False) | (DteCompra.omitido == None)
     )
     

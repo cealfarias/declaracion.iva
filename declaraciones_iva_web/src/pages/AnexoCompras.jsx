@@ -239,11 +239,19 @@ export default function AnexoCompras() {
   };
 
   const exportCSV = () => {
-    // Filtrar estrictamente solo las compras activas (excluir omitidos)
-    const validCompras = compras.filter(item => !item.omitido);
+    // Filtrar estrictamente compras de contribuyentes (DTE 03, 05) activas para el Anexo 3.
+    // NOTA: Los Sujetos Excluidos (DTE 14) NO van en el Anexo 3; van exclusivamente en el Anexo 5 (Casilla 66).
+    const validCompras = compras.filter(item => !item.omitido && item.tipo_documento !== "14");
 
     if (validCompras.length === 0) {
-      enqueueMessages([{ text: "No hay compras activas para exportar en este período.", type: "warning" }]);
+      if (compras.some(item => !item.omitido && item.tipo_documento === "14")) {
+        enqueueMessages([{ 
+          text: "En este período sólo tienes Facturas de Sujeto Excluido (DTE 14). Debes descargarlas usando el botón morado 'Descargar CSV Anexo 5 (Sujetos Excluidos)' para cargarlas en la Casilla 66 de Hacienda.", 
+          type: "warning" 
+        }]);
+      } else {
+        enqueueMessages([{ text: "No hay compras activas para exportar en el Anexo 3 de este período.", type: "warning" }]);
+      }
       return;
     }
 
