@@ -1,5 +1,7 @@
 import csv
-from io import StringIO
+import io
+import re
+from io import StringIO, BytesIO
 from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -196,11 +198,215 @@ async def upload_dtes(
     emp_nrc = clean_id(empresa.nrc)
 
     for file in files:
-        if not file.filename.lower().endswith('.json'):
-            errores.append(f"{file.filename}: No es un archivo JSON.")
+        fname = file.filename.lower()
+        if not (fname.endswith('.json') or fname.endswith('.csv') or fname.endswith('.xlsx') or fname.endswith('.xls')):
+            errores.append(f"{file.filename}: Formato no soportado. Debe ser archivo JSON de DTE, o Excel/CSV oficial del Libro de Compras de Hacienda.")
             continue
             
         content = await file.read()
+
+        # CASO 1: Archivo Excel (.xlsx / .xls) o CSV de Reporte oficial de Hacienda
+        if fname.endswith(('.xlsx', '.xls', '.csv')):
+            rows = []
+            if fname.endswith(('.xlsx', '.xls')):
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
+                    sheet = wb.active
+                    for row in sheet.iter_rows(values_only=True):
+                        rows.append([str(c) if c is not None else "" for c in row])
+                except Exception as e:
+                    errores.append(f"{file.filename}: Error leyendo Excel ({str(e)}).")
+                    continue
+            else:
+                for encoding in ['utf-8-sig', 'latin-1', 'windows-1252', 'utf-16']:
+                    try:
+                        decoded_str = content.decode(encoding)
+                        reader = csv.reader(StringIO(decoded_str))
+                        rows = list(reader)
+                        break
+                    except Exception:
+                        continue
+
+            if not rows:
+                errores.append(f"{file.filename}: Archivo vacío o codificación no soportada.")
+                continue
+
+            # Buscar encabezados y metadatos de empresa / periodo
+            header_idx = -1
+            nit_reporte = None
+            periodo_reporte = None
+            for idx, r in enumerate(rows[:25]):
+                line_str = " ".join(r).lower()
+                if "nit:" in line_str:
+                    for cell_idx, c in enumerate(r):
+                        if "nit:" in str(c).lower() and cell_idx + 1 < len(r):
+                            val = str(r[cell_idx + 1]).strip()
+                            if not val and cell_idx + 2 < len(r):
+                                val = str(r[cell_idx + 2]).strip()
+                            nit_reporte = val
+                if "periodo" in line_str:
+                    for cell_idx, c in enumerate(r):
+                        if "periodo" in str(c).lower() and cell_idx + 1 < len(r):
+                            val = str(r[cell_idx + 1]).strip()
+                            if not val and cell_idx + 2 < len(r):
+                                val = str(r[cell_idx + 2]).strip()
+                            periodo_reporte = val
+                if "fecha de emision" in line_str or "fecha de emisión" in line_str:
+                    header_idx = idx
+
+            # Validar si el archivo pertenece a la empresa si trae NIT en el encabezado
+            if nit_reporte:
+                clean_rep_nit = clean_id(nit_reporte)
+                if emp_nit and clean_rep_nit and clean_rep_nit not in emp_nit and emp_nit not in clean_rep_nit:
+                    descartados_otra_empresa += 1
+                    errores.append(f"{file.filename}: El NIT del reporte ({nit_reporte}) no coincide con la empresa seleccionada ({empresa.nit}).")
+                    continue
+
+            # Validar si el período coincide si viene en el encabezado (ej: 09/2026)
+            if periodo_reporte and "/" in periodo_reporte:
+                p_parts = periodo_reporte.strip().split("/")
+                if len(p_parts) == 2:
+                    p_mes = p_parts[0].zfill(2)
+                    p_anio = p_parts[1].strip()
+                    if p_mes != periodo_mes or p_anio != periodo_anio:
+                        descartados_otro_periodo += 1
+                        errores.append(f"{file.filename}: El período del reporte ({periodo_reporte}) no coincide con el seleccionado ({periodo_mes}/{periodo_anio}).")
+                        continue
+
+            start_row = (header_idx + 2) if header_idx != -1 else 0
+            filas_procesadas = 0
+
+            for r in rows[start_row:]:
+                clean_cells = [c.strip() for c in r if c and str(c).strip()]
+                if not clean_cells:
+                    continue
+
+                # Identificar si es una fila de datos (primer valor no vacío suele ser el número de ítem)
+                # Formato del MH:
+                # [0]="", [1]=No., [2]=Fecha de Emision, [3]=No. de Doc., [4]=NRC, [5]=NIT o DUI Sujeto Excluido,
+                # [6]=Nombre Proveedor, [7]=No Sujetas, [8]=Exentas, [9]=Import/Intern Exentas,
+                # [10]=Gravadas Internas, [11]=Import/Intern Gravadas, [12]=Credito Fiscal,
+                # [13]=Anticipo IVA, [14]=IVA Retenido, [15]=Total Compras, [16]=Compras a Sujetos Excluidos
+                try:
+                    # Ajustar desplazamiento si la primera columna está vacía
+                    shift = 1 if (len(r) > 1 and r[0].strip() == "" and r[1].strip().isdigit()) else 0
+                    if len(r) <= shift + 10:
+                        continue
+
+                    val_item = str(r[shift]).strip()
+                    if not val_item.isdigit():
+                        continue
+
+                    fecha_str = str(r[shift + 1]).strip() # YYYY-MM-DD o DD/MM/YYYY
+                    if not fecha_str or "-" not in fecha_str and "/" not in fecha_str:
+                        continue
+
+                    # Parsear fecha
+                    try:
+                        if "-" in fecha_str:
+                            f_obj = datetime.strptime(fecha_str.split("T")[0].split(" ")[0], "%Y-%m-%d")
+                        else:
+                            f_obj = datetime.strptime(fecha_str.split("T")[0].split(" ")[0], "%d/%m/%Y")
+                        fecha_emision = f_obj.strftime("%d/%m/%Y")
+                        mes_row = f"{f_obj.month:02d}"
+                        anio_row = str(f_obj.year)
+                    except Exception:
+                        continue
+
+                    if mes_row != periodo_mes or anio_row != periodo_anio:
+                        descartados_otro_periodo += 1
+                        continue
+
+                    no_doc_raw = str(r[shift + 2]).strip()
+                    num_doc = no_doc_raw.replace("-", "").upper() if no_doc_raw else ""
+
+                    nrc_prov = str(r[shift + 3]).strip()
+                    nit_dui_excluido = str(r[shift + 4]).strip() if len(r) > shift + 4 else ""
+                    nombre_prov = str(r[shift + 5]).strip() if len(r) > shift + 5 else ""
+
+                    def to_float(val_c):
+                        try:
+                            s = str(val_c).replace("$", "").replace(",", "").strip()
+                            return float(s) if s else 0.0
+                        except Exception:
+                            return 0.0
+
+                    no_sujetas = to_float(r[shift + 6]) if len(r) > shift + 6 else 0.0
+                    exentas = to_float(r[shift + 7]) if len(r) > shift + 7 else 0.0
+                    import_exentas = to_float(r[shift + 8]) if len(r) > shift + 8 else 0.0
+                    gravadas_int = to_float(r[shift + 9]) if len(r) > shift + 9 else 0.0
+                    import_gravadas = to_float(r[shift + 10]) if len(r) > shift + 10 else 0.0
+                    credito_fiscal = to_float(r[shift + 11]) if len(r) > shift + 11 else 0.0
+                    anticipo_iva = to_float(r[shift + 12]) if len(r) > shift + 12 else 0.0
+                    iva_retenido = to_float(r[shift + 13]) if len(r) > shift + 13 else 0.0
+                    total_compras = to_float(r[shift + 14]) if len(r) > shift + 14 else (gravadas_int + credito_fiscal + exentas)
+                    sujetos_excluidos = to_float(r[shift + 15]) if len(r) > shift + 15 else 0.0
+
+                    # Si es Sujeto Excluido reportado en el Excel
+                    es_sujeto_excluido = False
+                    if sujetos_excluidos > 0 or (nit_dui_excluido and not nrc_prov):
+                        es_sujeto_excluido = True
+                        tipo_dte = "14"
+                        nit_proveedor = nit_dui_excluido.replace("-", "").strip()
+                        tipo_op_default = "2"
+                        total_exenta = sujetos_excluidos if sujetos_excluidos > 0 else (exentas or total_compras)
+                        total_gravada = 0.0
+                        iva = 0.0
+                    else:
+                        tipo_dte = "03" # Comprobante de Crédito Fiscal
+                        nit_proveedor = nrc_prov.replace("-", "").strip() or clean_id(nit_reporte)
+                        tipo_op_default = "1"
+                        total_exenta = exentas + no_sujetas + import_exentas
+                        total_gravada = gravadas_int + import_gravadas
+                        iva = credito_fiscal
+
+                    # Evitar duplicados
+                    existe = db.query(DteCompra).filter(
+                        DteCompra.empresa_id == empresa_id,
+                        DteCompra.numero_documento == num_doc,
+                        DteCompra.version == version
+                    ).first()
+
+                    if existe:
+                        continue
+
+                    nuevo_dte = DteCompra(
+                        empresa_id=empresa_id,
+                        periodo_mes=periodo_mes,
+                        periodo_anio=periodo_anio,
+                        fecha_emision=fecha_emision,
+                        clase_documento="4",
+                        tipo_documento=tipo_dte,
+                        numero_resolucion=num_doc,
+                        serie_documento="",
+                        numero_documento=num_doc,
+                        nit_proveedor=nit_proveedor,
+                        nombre_proveedor=nombre_prov,
+                        compras_internas_exentas=total_exenta,
+                        compras_internas_gravadas=total_gravada,
+                        credito_fiscal=iva,
+                        total_compras=total_compras,
+                        tipo_operacion=tipo_op_default,
+                        clasificacion="1",
+                        sector="2",
+                        tipo_costo_gasto="5",
+                        raw_json={"origen": "reporte_hacienda_excel", "fila": r},
+                        omitido=False,
+                        version=version
+                    )
+                    db.add(nuevo_dte)
+                    procesados += 1
+                    filas_procesadas += 1
+
+                except Exception as row_err:
+                    continue
+
+            if filas_procesadas == 0 and not errores:
+                errores.append(f"{file.filename}: No se encontraron filas de compras válidas para el período {periodo_mes}/{periodo_anio}.")
+            continue
+
+        # CASO 2: Archivo JSON individual de DTE
         # Intentar múltiples codificaciones
         decoded_content = None
         dte_json = None

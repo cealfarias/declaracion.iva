@@ -146,16 +146,22 @@ export default function AnexoCompras() {
   const MESES_NOMBRES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
   const handleFileUpload = async (files) => {
-    // Solo permitir enviar archivos con extensión .json (ignorando mayúsculas/minúsculas)
-    const jsonFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.json'));
+    // Permitir archivos .json, .xlsx, .xls y .csv (ignorando mayúsculas/minúsculas)
+    const validExtensions = ['.json', '.xlsx', '.xls', '.csv'];
+    const validFiles = Array.from(files).filter(f => {
+      const name = f.name.toLowerCase();
+      return validExtensions.some(ext => name.endsWith(ext));
+    });
     
-    if (jsonFiles.length === 0) {
-      enqueueMessages([{ text: `⚠️ En esa carpeta no hay archivos JSON para el Anexo de Compras. Por favor verifica que estás seleccionando la carpeta correcta con los comprobantes de tus proveedores.`, type: "error" }]);
+    if (validFiles.length === 0) {
+      enqueueMessages([{ text: `⚠️ No se encontraron archivos válidos. Por favor sube archivos JSON de DTEs, o el archivo Excel/CSV del Libro de Compras oficial descargado de Hacienda.`, type: "error" }]);
       return;
     }
 
     const nombreMes = MESES_NOMBRES[(parseInt(mes, 10) - 1)] || mes;
-    enqueueMessages([{ text: `⏳ Procesando los JSON del Anexo de Compras del mes de ${nombreMes}... Por favor espera mientras valido cada comprobante.`, type: "info" }]);
+    const hasExcel = validFiles.some(f => f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls') || f.name.toLowerCase().endsWith('.csv'));
+    const tipoArchivosTexto = hasExcel ? "archivos de Excel / JSON" : "archivos JSON";
+    enqueueMessages([{ text: `⏳ Procesando los ${tipoArchivosTexto} del Anexo de Compras del mes de ${nombreMes}... Por favor espera mientras importo los comprobantes.`, type: "info" }]);
 
     setLoading(true);
     let totalProcesados = 0;
@@ -165,13 +171,13 @@ export default function AnexoCompras() {
 
     try {
       // Para evitar bloqueos del WAF o Proxy (CORS ERR_FAILED) por múltiples archivos, subimos 1 por 1.
-      for (let i = 0; i < jsonFiles.length; i++) {
+      for (let i = 0; i < validFiles.length; i++) {
         const formData = new FormData();
         formData.append("empresa_id", activeEmpresa.id);
         formData.append("periodo_mes", mes);
         formData.append("periodo_anio", anio);
         formData.append("version", activeVersion);
-        formData.append("files", jsonFiles[i]);
+        formData.append("files", validFiles[i]);
 
         try {
           const response = await axios.post(`${API_URL}/api/v1/compras/upload`, formData, {
@@ -191,7 +197,7 @@ export default function AnexoCompras() {
             todosErrores = [...todosErrores, ...response.data.errores];
           }
         } catch (err) {
-           todosErrores.push(`${jsonFiles[i].name}: Falló la conexión (Network Error).`);
+           todosErrores.push(`${validFiles[i].name}: Falló la conexión (Network Error).`);
         }
       }
       
@@ -553,9 +559,7 @@ export default function AnexoCompras() {
         <input 
           type="file" 
           multiple 
-          webkitdirectory="true"
-          directory="true"
-          accept=".json" 
+          accept=".json,.xlsx,.xls,.csv" 
           className="hidden" 
           ref={fileInputRef}
           onChange={(e) => handleFileUpload(e.target.files)}
@@ -565,8 +569,10 @@ export default function AnexoCompras() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-slate-800 mb-1">Arrastra tus archivos JSON o una carpeta completa aquí</h3>
-        <p className="text-sm text-slate-500">o haz clic para buscar la carpeta en tu equipo (Crédito Fiscal DTE-03, Notas de Crédito DTE-05, Sujetos Excluidos DTE-14)</p>
+        <h3 className="text-lg font-medium text-slate-800 mb-1">Arrastra tus archivos aquí o haz clic para seleccionarlos</h3>
+        <p className="text-sm text-slate-500">
+          Soporta <strong>archivos JSON</strong> de DTEs (03, 05, 14) o el <strong>archivo Excel / CSV</strong> del Libro de Compras oficial descargado del Ministerio de Hacienda.
+        </p>
       </div>
 
       {/* Resumen Superior */}
