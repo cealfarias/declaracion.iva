@@ -9,9 +9,11 @@ SQLALCHEMY_DATABASE_URL = os.getenv(
     "sqlite:///./sql_app.db"
 )
 
-# Render a veces usa 'postgres://' en vez de 'postgresql://', SQLAlchemy requiere el segundo
+# Render a veces usa 'postgres://' o 'postgresql://', forzamos el dialecto psycopg2
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
-    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+elif SQLALCHEMY_DATABASE_URL.startswith("postgresql://") and not SQLALCHEMY_DATABASE_URL.startswith("postgresql+"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # Render requiere sslmode=require para conexiones externas a su DB
 if "render.com" in SQLALCHEMY_DATABASE_URL and "sslmode=require" not in SQLALCHEMY_DATABASE_URL:

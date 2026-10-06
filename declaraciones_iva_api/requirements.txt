@@ -2,6 +2,8 @@ fastapi
 uvicorn
 sqlalchemy
 psycopg2
+psycopg2-binary
+psycopg[binary]
 pydantic
 python-dotenv
 python-multipart
@@ -11,7 +13,6 @@ bcrypt
 pandas
 google-auth
 requests
-psycopg2-binary
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
