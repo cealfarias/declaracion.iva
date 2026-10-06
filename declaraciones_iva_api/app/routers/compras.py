@@ -688,8 +688,6 @@ def export_csv(empresa_id: int, mes: str, anio: str, version: int = 1, omitidos:
             tipo_doc_rec = rec.get("tipoDocumento", "")
             if tipo_doc_rec == "36" or len(doc_clean) <= 10:
                 is_dui = True
-        elif len(doc_clean) <= 9 and doc_clean:
-            is_dui = True
 
         nit_export = "" if is_dui else doc_clean
         dui_export = doc_clean if is_dui else ""

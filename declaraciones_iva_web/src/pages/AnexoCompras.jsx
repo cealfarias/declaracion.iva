@@ -266,8 +266,8 @@ export default function AnexoCompras() {
 
     const rows = validCompras.map(c => {
       const docClean = (c.nit_proveedor || "").replace(/[^0-9kK]/g, "");
-      // En El Salvador: DUI tiene 9 dígitos o se identifica en DTE 14
-      const isDui = (c.tipo_documento === "14" && docClean.length <= 10) || docClean.length === 9;
+      // En El Salvador: DUI sólo aplica si es DTE 14 (Sujeto Excluido)
+      const isDui = c.tipo_documento === "14";
       const nitExport = isDui ? "" : docClean;
       const duiExport = isDui ? docClean : "";
 
