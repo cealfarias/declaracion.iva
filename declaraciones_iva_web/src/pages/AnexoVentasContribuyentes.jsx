@@ -112,15 +112,22 @@ export default function AnexoVentasContribuyentes() {
 
   const handleFileUpload = async (files) => {
     // Solo permitir enviar archivos con extensión .json (ignorando mayúsculas/minúsculas)
-    const jsonFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.json'));
+    // Permitir archivos .json, .xlsx, .xls y .csv (ignorando mayúsculas/minúsculas)
+    const validExtensions = ['.json', '.xlsx', '.xls', '.csv'];
+    const validFiles = Array.from(files).filter(f => {
+      const name = f.name.toLowerCase();
+      return validExtensions.some(ext => name.endsWith(ext));
+    });
     
-    if (jsonFiles.length === 0) {
-      enqueueMessages([{ text: `⚠️ En esa carpeta no hay archivos JSON para el Anexo de Ventas a Contribuyentes. Por favor verifica que estás seleccionando la carpeta correcta con los CCF, NC y ND emitidos.`, type: "error" }]);
+    if (validFiles.length === 0) {
+      enqueueMessages([{ text: `⚠️ No se encontraron archivos válidos. Por favor sube archivos JSON de DTEs, o el archivo Excel/CSV del Libro de Ventas a Contribuyentes de Hacienda.`, type: "error" }]);
       return;
     }
 
     const nombreMes = MESES_NOMBRES[(parseInt(mes, 10) - 1)] || mes;
-    enqueueMessages([{ text: `⏳ Procesando los JSON del Anexo de Ventas a Contribuyentes del mes de ${nombreMes}... Por favor espera mientras valido cada comprobante.`, type: "info" }]);
+    const hasExcel = validFiles.some(f => f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls') || f.name.toLowerCase().endsWith('.csv'));
+    const tipoTexto = hasExcel ? "archivos de Excel / JSON" : "archivos JSON";
+    enqueueMessages([{ text: `⏳ Procesando los ${tipoTexto} del Anexo de Ventas a Contribuyentes del mes de ${nombreMes}... Por favor espera mientras importo los comprobantes.`, type: "info" }]);
 
     setLoading(true);
     let totalProcesados = 0;
@@ -128,13 +135,13 @@ export default function AnexoVentasContribuyentes() {
 
     try {
       // Para evitar bloqueos del WAF o Proxy (CORS ERR_FAILED) por múltiples archivos, subimos 1 por 1.
-      for (let i = 0; i < jsonFiles.length; i++) {
+      for (let i = 0; i < validFiles.length; i++) {
         const formData = new FormData();
         formData.append("empresa_id", activeEmpresa.id);
         formData.append("periodo_mes", mes);
         formData.append("periodo_anio", anio);
-    formData.append("version", activeVersion);
-        formData.append("files", jsonFiles[i]);
+        formData.append("version", activeVersion);
+        formData.append("files", validFiles[i]);
 
         try {
           const response = await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/upload`, formData, {
@@ -329,7 +336,7 @@ export default function AnexoVentasContribuyentes() {
 
         <div 
           className={`mb-8 border-2 border-dashed rounded-xl p-10 text-center transition-colors ${!isDeclarado ? "cursor-pointer" : "opacity-50 cursor-not-allowed"} ${
-            isDragging ? "border-amber-500 bg-amber-50" : "border-slate-300 bg-white hover:border-amber-400 hover:bg-slate-50"
+            isDragging ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-white hover:border-blue-400 hover:bg-slate-50"
           }`}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
@@ -340,23 +347,21 @@ export default function AnexoVentasContribuyentes() {
             id="fileUploadCCF"
             type="file" 
             multiple 
-            webkitdirectory="true"
-            directory="true"
-            accept=".json" 
+            accept=".json,.xlsx,.xls,.csv" 
             className="hidden" 
-            onChange={(e) => handleFileUpload(e.target.files)}
+            onChange={(e) => handleFileUpload(e.target.files)} 
           />
-          <div className="mx-auto w-16 h-16 mb-4 text-slate-400">
+          <div className="mx-auto w-16 h-16 mb-4 text-blue-500">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
           </div>
           <p className="text-lg font-medium text-slate-700 mb-1">
-            {isDeclarado ? "Período cerrado" : "Arrastra la carpeta con los DTEs (CCF, NC, ND) aquí"}
+            {isDeclarado ? "Período cerrado" : "Arrastra tus archivos aquí o haz clic para seleccionarlos"}
           </p>
           {!isDeclarado && (
             <p className="text-sm text-slate-500">
-              O haz clic para seleccionar la carpeta desde tu computadora
+              Soporta <strong>archivos JSON</strong> de DTEs (CCF, NC, ND) o el <strong>archivo Excel / CSV</strong> del Libro de Ventas a Contribuyentes oficial de Hacienda
             </p>
           )}
         </div>

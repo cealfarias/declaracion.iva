@@ -1,5 +1,7 @@
 import csv
-from io import StringIO
+import io
+import re
+from io import StringIO, BytesIO
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -175,11 +177,199 @@ async def upload_dtes(
     errores = []
 
     for file in files:
-        if not file.filename.lower().endswith('.json'):
-            errores.append(f'{file.filename}: No es un archivo JSON.')
+        fname = file.filename.lower()
+        if not (fname.endswith('.json') or fname.endswith('.csv') or fname.endswith('.xlsx') or fname.endswith('.xls')):
+            errores.append(f'{file.filename}: Formato no soportado. Debe ser archivo JSON de DTE, o Excel/CSV oficial del Libro de Ventas de Hacienda.')
             continue
             
         content = await file.read()
+
+        def clean_id(val) -> str:
+            return str(val or "").replace("-", "").strip().lower()
+
+        emp_nit = clean_id(empresa.nit)
+        emp_nrc = clean_id(empresa.nrc)
+
+        # CASO 1: Archivo Excel (.xlsx / .xls) o CSV de Reporte oficial de Hacienda
+        if fname.endswith(('.xlsx', '.xls', '.csv')):
+            rows = []
+            if fname.endswith(('.xlsx', '.xls')):
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
+                    sheet = wb.active
+                    for row in sheet.iter_rows(values_only=True):
+                        rows.append([str(c) if c is not None else "" for c in row])
+                except Exception as e:
+                    errores.append(f"{file.filename}: Error leyendo Excel ({str(e)}).")
+                    continue
+            else:
+                for encoding in ['utf-8-sig', 'latin-1', 'windows-1252', 'utf-16']:
+                    try:
+                        decoded_str = content.decode(encoding)
+                        reader = csv.reader(StringIO(decoded_str))
+                        rows = list(reader)
+                        break
+                    except Exception:
+                        continue
+
+            if not rows:
+                errores.append(f"{file.filename}: Archivo vacío o codificación no soportada.")
+                continue
+
+            header_idx = -1
+            nit_reporte = None
+            periodo_reporte = None
+            for idx, r in enumerate(rows[:25]):
+                line_str = " ".join(r).lower()
+                if "nit:" in line_str:
+                    for cell_idx, c in enumerate(r):
+                        if "nit:" in str(c).lower() and cell_idx + 1 < len(r):
+                            val = str(r[cell_idx + 1]).strip()
+                            if not val and cell_idx + 2 < len(r):
+                                val = str(r[cell_idx + 2]).strip()
+                            nit_reporte = val
+                if "periodo" in line_str:
+                    for cell_idx, c in enumerate(r):
+                        if "periodo" in str(c).lower() and cell_idx + 1 < len(r):
+                            val = str(r[cell_idx + 1]).strip()
+                            if not val and cell_idx + 2 < len(r):
+                                val = str(r[cell_idx + 2]).strip()
+                            periodo_reporte = val
+                if "fecha de emision" in line_str or "fecha de emisión" in line_str:
+                    header_idx = idx
+
+            # Validar pertenencia a la empresa
+            if nit_reporte:
+                clean_rep_nit = clean_id(nit_reporte)
+                if emp_nit and clean_rep_nit and clean_rep_nit not in emp_nit and emp_nit not in clean_rep_nit:
+                    errores.append(f"{file.filename}: El NIT del reporte ({nit_reporte}) no coincide con la empresa seleccionada ({empresa.nit}).")
+                    continue
+
+            # Validar período
+            if periodo_reporte and "/" in periodo_reporte:
+                p_parts = periodo_reporte.strip().split("/")
+                if len(p_parts) == 2:
+                    p_mes = p_parts[0].zfill(2)
+                    p_anio = p_parts[1].strip()
+                    if p_mes != periodo_mes or p_anio != periodo_anio:
+                        errores.append(f"{file.filename}: El período del reporte ({periodo_reporte}) no coincide con el seleccionado ({periodo_mes}/{periodo_anio}).")
+                        continue
+
+            start_row = (header_idx + 2) if header_idx != -1 else 0
+            filas_procesadas = 0
+
+            for r in rows[start_row:]:
+                clean_cells = [c.strip() for c in r if c and str(c).strip()]
+                if not clean_cells:
+                    continue
+
+                try:
+                    # Estructura del reporte oficial de ventas de Hacienda:
+                    # [0]="", [1]=No., [2]=Fecha de Emisión, [3]=No. de Doc., [4]=Nombre del Cliente, [5]=NRC,
+                    # [6]=Exentas, [7]=Ventas no Sujetas, [8]=Gravadas, [9]=Débito Fiscal,
+                    # [10]=Valor Ventas Terceros, [11]=Débito Fiscal Terceros, [12]=FOVIAL, [13]=COTRANS,
+                    # [14]=Total, [15]=IVA Percibido, [16]=IVA Retenido
+                    shift = 1 if (len(r) > 1 and r[0].strip() == "" and r[1].strip().isdigit()) else 0
+                    if len(r) <= shift + 8:
+                        continue
+
+                    val_item = str(r[shift]).strip()
+                    if not val_item.isdigit():
+                        continue
+
+                    fecha_str = str(r[shift + 1]).strip()
+                    if not fecha_str or ("-" not in fecha_str and "/" not in fecha_str):
+                        continue
+
+                    try:
+                        if "-" in fecha_str:
+                            f_obj = datetime.strptime(fecha_str.split("T")[0].split(" ")[0], "%Y-%m-%d")
+                        else:
+                            f_obj = datetime.strptime(fecha_str.split("T")[0].split(" ")[0], "%d/%m/%Y")
+                        fecha_emision = f_obj.strftime("%d/%m/%Y")
+                        mes_row = f"{f_obj.month:02d}"
+                        anio_row = str(f_obj.year)
+                    except Exception:
+                        continue
+
+                    if mes_row != periodo_mes or anio_row != periodo_anio:
+                        continue
+
+                    no_doc_raw = str(r[shift + 2]).strip()
+                    num_doc_clean = no_doc_raw.replace("-", "").upper() if no_doc_raw else ""
+
+                    nombre_cliente = str(r[shift + 3]).strip() if len(r) > shift + 3 else "SIN NOMBRE"
+                    nrc_cliente = str(r[shift + 4]).strip() if len(r) > shift + 4 else ""
+                    nit_nrc_clean = nrc_cliente.replace("-", "").strip()
+
+                    def to_float(val_c):
+                        try:
+                            s = str(val_c).replace("$", "").replace(",", "").strip()
+                            return float(s) if s else 0.0
+                        except Exception:
+                            return 0.0
+
+                    exentas = to_float(r[shift + 5]) if len(r) > shift + 5 else 0.0
+                    no_sujetas = to_float(r[shift + 6]) if len(r) > shift + 6 else 0.0
+                    gravadas = to_float(r[shift + 7]) if len(r) > shift + 7 else 0.0
+                    debito_fiscal = to_float(r[shift + 8]) if len(r) > shift + 8 else 0.0
+                    if debito_fiscal == 0.0 and gravadas > 0:
+                        debito_fiscal = round(gravadas * 0.13, 2)
+
+                    ventas_terceros = to_float(r[shift + 9]) if len(r) > shift + 9 else 0.0
+                    debito_terceros = to_float(r[shift + 10]) if len(r) > shift + 10 else 0.0
+                    total_ventas = to_float(r[shift + 13]) if len(r) > shift + 13 else (gravadas + debito_fiscal + exentas + no_sujetas)
+
+                    # Evitar duplicados
+                    existe = db.query(DteVentaContribuyente).filter(
+                        DteVentaContribuyente.empresa_id == empresa_id,
+                        DteVentaContribuyente.numero_documento == num_doc_clean,
+                        DteVentaContribuyente.version == version
+                    ).first()
+
+                    if existe:
+                        continue
+
+                    nuevo_dte = DteVentaContribuyente(
+                        empresa_id=empresa_id,
+                        periodo_mes=mes_row,
+                        periodo_anio=anio_row,
+                        fecha_emision=fecha_emision,
+                        clase_documento='4',
+                        tipo_documento='03', # Comprobante de Crédito Fiscal
+                        numero_resolucion=num_doc_clean,
+                        serie_documento='',
+                        numero_documento=num_doc_clean,
+                        numero_control_interno='',
+                        nit_nrc_cliente=nit_nrc_clean,
+                        nombre_cliente=nombre_cliente,
+                        ventas_exentas=exentas,
+                        ventas_no_sujetas=no_sujetas,
+                        ventas_gravadas=gravadas,
+                        debito_fiscal=debito_fiscal,
+                        ventas_terceros=ventas_terceros,
+                        debito_terceros=debito_terceros,
+                        total_ventas=total_ventas,
+                        dui_cliente='',
+                        tipo_operacion='1',
+                        tipo_ingreso='2',
+                        raw_json={"origen": "reporte_hacienda_excel", "fila": r},
+                        version=version
+                    )
+                    db.add(nuevo_dte)
+                    procesados += 1
+                    filas_procesadas += 1
+
+                except Exception as row_err:
+                    continue
+
+            db.commit()
+            if filas_procesadas == 0 and not errores:
+                errores.append(f"{file.filename}: No se encontraron filas de ventas válidas para el período {periodo_mes}/{periodo_anio}.")
+            continue
+
+        # CASO 2: Archivo JSON individual de DTE
         decoded_content = None
         dte_json = None
         
