@@ -277,6 +277,14 @@ async def upload_dtes(
             start_row = (header_idx + 2) if header_idx != -1 else 0
             filas_procesadas = 0
 
+            def is_item_num(val):
+                s = str(val or "").strip()
+                try:
+                    f = float(s)
+                    return f > 0 and (f == int(f))
+                except Exception:
+                    return False
+
             for r in rows[start_row:]:
                 clean_cells = [c.strip() for c in r if c and str(c).strip()]
                 if not clean_cells:
@@ -290,12 +298,15 @@ async def upload_dtes(
                 # [13]=Anticipo IVA, [14]=IVA Retenido, [15]=Total Compras, [16]=Compras a Sujetos Excluidos
                 try:
                     # Ajustar desplazamiento si la primera columna está vacía
-                    shift = 1 if (len(r) > 1 and r[0].strip() == "" and r[1].strip().isdigit()) else 0
-                    if len(r) <= shift + 10:
+                    shift = 0
+                    if len(r) > 1 and r[0].strip() == "" and is_item_num(r[1]):
+                        shift = 1
+                    elif is_item_num(r[0]):
+                        shift = 0
+                    else:
                         continue
 
-                    val_item = str(r[shift]).strip()
-                    if not val_item.isdigit():
+                    if len(r) <= shift + 10:
                         continue
 
                     fecha_str = str(r[shift + 1]).strip() # YYYY-MM-DD o DD/MM/YYYY
