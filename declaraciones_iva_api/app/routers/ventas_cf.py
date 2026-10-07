@@ -1,5 +1,5 @@
 import csv
-from io import StringIO
+from io import StringIO, BytesIO
 from typing import List
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import json
 
 from app.core.database import get_db
-from app.models.models import DteVenta, Empresa, DeclaracionEstado
+from app.models.models import DteVenta, Empresa, DeclaracionEstado, DteAnulado
 from app.routers.compras import is_periodo_declarado
 
 router = APIRouter()
@@ -164,11 +164,230 @@ async def upload_dtes_cf(
     errores = []
 
     for file in files:
-        if not file.filename.lower().endswith(".json"):
-            errores.append(f"{file.filename}: No es un archivo JSON.")
+        fname = file.filename.lower()
+        if not (fname.endswith('.json') or fname.endswith('.csv') or fname.endswith('.xlsx') or fname.endswith('.xls')):
+            errores.append(f'{file.filename}: Formato no soportado. Debe ser archivo JSON de DTE, o Excel/CSV oficial del Libro de Ventas a Consumidor de Hacienda.')
             continue
             
         content = await file.read()
+
+        def clean_id(val) -> str:
+            return str(val or "").replace("-", "").strip().lower()
+
+        emp_nit = clean_id(empresa.nit)
+        emp_nrc = clean_id(empresa.nrc)
+
+        # CASO 1: Archivo Excel (.xlsx / .xls) o CSV de Reporte oficial de Hacienda
+        if fname.endswith(('.xlsx', '.xls', '.csv')):
+            rows = []
+            if fname.endswith(('.xlsx', '.xls')):
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(BytesIO(content), data_only=True)
+                    sheet = wb.active
+                    for row in sheet.iter_rows(values_only=True):
+                        rows.append([str(c) if c is not None else "" for c in row])
+                except Exception as e:
+                    errores.append(f"{file.filename}: Error leyendo Excel ({str(e)}).")
+                    continue
+            else:
+                for encoding in ['utf-8-sig', 'latin-1', 'windows-1252', 'utf-16']:
+                    try:
+                        decoded_str = content.decode(encoding)
+                        reader = csv.reader(StringIO(decoded_str))
+                        rows = list(reader)
+                        break
+                    except Exception:
+                        continue
+
+            if not rows:
+                errores.append(f"{file.filename}: Archivo vacío o codificación no soportada.")
+                continue
+
+            header_idx = -1
+            nit_reporte = None
+            periodo_reporte = None
+            for idx, r in enumerate(rows[:25]):
+                line_str = " ".join(r).lower()
+                if "nit:" in line_str:
+                    for cell_idx, c in enumerate(r):
+                        if "nit:" in str(c).lower() and cell_idx + 1 < len(r):
+                            val = str(r[cell_idx + 1]).strip()
+                            if not val and cell_idx + 2 < len(r):
+                                val = str(r[cell_idx + 2]).strip()
+                            nit_reporte = val
+                if "periodo" in line_str:
+                    for cell_idx, c in enumerate(r):
+                        if "periodo" in str(c).lower() and cell_idx + 1 < len(r):
+                            val = str(r[cell_idx + 1]).strip()
+                            if not val and cell_idx + 2 < len(r):
+                                val = str(r[cell_idx + 2]).strip()
+                            periodo_reporte = val
+                if "código de generación" in line_str or "codigo de generacion" in line_str or "número de correlativo" in line_str or "numero de correlativo" in line_str:
+                    header_idx = idx
+
+            # Validar pertenencia a la empresa
+            if nit_reporte:
+                clean_rep_nit = clean_id(nit_reporte).lstrip("0")
+                clean_emp_nit = emp_nit.lstrip("0")
+                if clean_emp_nit and clean_rep_nit and clean_emp_nit != clean_rep_nit and clean_rep_nit not in clean_emp_nit and clean_emp_nit not in clean_rep_nit:
+                    errores.append(f"{file.filename}: El NIT del reporte ({nit_reporte}) no coincide con la empresa seleccionada ({empresa.nit}).")
+                    continue
+
+            # Validar período
+            if periodo_reporte and "/" in periodo_reporte:
+                p_parts = periodo_reporte.strip().split("/")
+                if len(p_parts) == 2:
+                    p_mes = p_parts[0].zfill(2)
+                    p_anio = p_parts[1].strip()
+                    if p_mes != periodo_mes or p_anio != periodo_anio:
+                        errores.append(f"{file.filename}: El período del reporte ({periodo_reporte}) no coincide con el seleccionado ({periodo_mes}/{periodo_anio}).")
+                        continue
+
+            start_row = (header_idx + 2) if header_idx != -1 else 0
+            filas_procesadas = 0
+
+            def is_item_num(val):
+                s = str(val or "").strip()
+                try:
+                    f = float(s)
+                    return f > 0 and (f == int(f))
+                except Exception:
+                    return False
+
+            def to_float(val_c):
+                try:
+                    s = str(val_c).replace("$", "").replace(",", "").strip()
+                    return float(s) if s else 0.0
+                except Exception:
+                    return 0.0
+
+            for r in rows[start_row:]:
+                clean_cells = [c.strip() for c in r if c and str(c).strip()]
+                if not clean_cells:
+                    continue
+
+                try:
+                    # Estructura del reporte oficial de Consumidor Final de Hacienda:
+                    # [0]="", [1]=No., [2]=Fecha, [3]=Cód Gen Inicial, [4]=Cód Gen Final,
+                    # [5]=Correlativo Del, [6]=Correlativo Al, [7]=Venta No Sujeta, [8]=Exportaciones,
+                    # [9]=Exentas, [10]=Gravadas, [11]=Débito Fiscal, [12]=Terceros Valor,
+                    # [13]=Terceros Débito, [14]=Total Ventas, [15]=Retención
+                    shift = 0
+                    if len(r) > 1 and r[0].strip() == "" and is_item_num(r[1]):
+                        shift = 1
+                    elif is_item_num(r[0]):
+                        shift = 0
+                    else:
+                        continue
+
+                    if len(r) <= shift + 9:
+                        continue
+
+                    fecha_str = str(r[shift + 1]).strip()
+                    if not fecha_str or ("-" not in fecha_str and "/" not in fecha_str):
+                        continue
+
+                    try:
+                        if "-" in fecha_str:
+                            f_obj = datetime.strptime(fecha_str.split("T")[0].split(" ")[0], "%Y-%m-%d")
+                        else:
+                            f_obj = datetime.strptime(fecha_str.split("T")[0].split(" ")[0], "%d/%m/%Y")
+                        fecha_emision = f_obj.strftime("%d/%m/%Y")
+                        mes_row = f"{f_obj.month:02d}"
+                        anio_row = str(f_obj.year)
+                    except Exception:
+                        continue
+
+                    if mes_row != periodo_mes or anio_row != periodo_anio:
+                        continue
+
+                    cg_ini_raw = str(r[shift + 2]).strip()
+                    cg_fin_raw = str(r[shift + 3]).strip() if len(r) > shift + 3 else cg_ini_raw
+                    ctrl_del = str(r[shift + 4]).strip() if len(r) > shift + 4 else "N/A"
+                    ctrl_al = str(r[shift + 5]).strip() if len(r) > shift + 5 else ctrl_del
+
+                    is_anulado = "INV" in cg_ini_raw.upper() or "-INV" in ctrl_del.upper()
+                    clean_cg = cg_ini_raw.replace("-INV", "").replace("INV", "").replace("-", "").strip().upper()
+
+                    if is_anulado:
+                        # Si es un comprobante invalidado (-INV), registrarlo en anulados para excluirlo del cálculo fiscal
+                        anulado_existente = db.query(DteAnulado).filter(
+                            DteAnulado.empresa_id == empresa_id,
+                            DteAnulado.codigo_generacion == clean_cg,
+                            DteAnulado.version == version
+                        ).first()
+                        if not anulado_existente:
+                            nuevo_anulado = DteAnulado(
+                                empresa_id=empresa_id,
+                                periodo_mes=mes_row,
+                                periodo_anio=anio_row,
+                                fecha_emision=fecha_emision,
+                                tipo_documento="01",
+                                codigo_generacion=clean_cg,
+                                sello_recepcion=ctrl_del,
+                                raw_json={"origen": "reporte_hacienda_excel_inv", "fila": r},
+                                version=version
+                            )
+                            db.add(nuevo_anulado)
+                            db.commit()
+                        continue
+
+                    no_sujetas = to_float(r[shift + 6]) if len(r) > shift + 6 else 0.0
+                    exportaciones = to_float(r[shift + 7]) if len(r) > shift + 7 else 0.0
+                    exentas = to_float(r[shift + 8]) if len(r) > shift + 8 else 0.0
+                    gravadas = to_float(r[shift + 9]) if len(r) > shift + 9 else 0.0
+                    debito_fiscal = to_float(r[shift + 10]) if len(r) > shift + 10 else 0.0
+                    ventas_terceros = to_float(r[shift + 11]) if len(r) > shift + 11 else 0.0
+                    total_ventas = to_float(r[shift + 13]) if len(r) > shift + 13 else (gravadas + exentas + no_sujetas + exportaciones)
+
+                    # Evitar duplicados
+                    existe = db.query(DteVenta).filter(
+                        DteVenta.empresa_id == empresa_id,
+                        DteVenta.codigo_generacion == clean_cg,
+                        DteVenta.version == version
+                    ).first()
+
+                    if existe:
+                        continue
+
+                    nuevo_dte = DteVenta(
+                        empresa_id=empresa_id,
+                        periodo_mes=mes_row,
+                        periodo_anio=anio_row,
+                        fecha_emision=fecha_emision,
+                        clase_documento="4",
+                        tipo_documento="01",
+                        numero_resolucion="N/A",
+                        serie_documento="N/A",
+                        numero_control_del=ctrl_del,
+                        numero_control_al=ctrl_al,
+                        codigo_generacion=clean_cg,
+                        sello_recepcion=ctrl_del,
+                        nit_cliente="Consumidor Final",
+                        ventas_exentas=exentas,
+                        ventas_no_sujetas=no_sujetas,
+                        ventas_gravadas=gravadas,
+                        exportaciones=exportaciones,
+                        ventas_zona_franca=0.0,
+                        ventas_terceros=ventas_terceros,
+                        total_ventas=total_ventas,
+                        raw_json={"origen": "reporte_hacienda_excel", "fila": r, "debito_fiscal": debito_fiscal},
+                        version=version
+                    )
+                    db.add(nuevo_dte)
+                    procesados += 1
+                    filas_procesadas += 1
+
+                except Exception as row_err:
+                    continue
+
+            db.commit()
+            if filas_procesadas == 0 and not errores:
+                errores.append(f"{file.filename}: No se encontraron filas de ventas a consumidor final para el período {periodo_mes}/{periodo_anio}.")
+            continue
+
+        # CASO 2: Archivo JSON individual de DTE
         decoded_content = None
         dte_json = None
         
@@ -297,7 +516,6 @@ async def upload_dtes_cf(
         "errores": errores
     }
 
-from app.models.models import DteAnulado
 @router.get("/list/{empresa_id}")
 def get_ventas(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     ventas = db.query(DteVenta).filter(

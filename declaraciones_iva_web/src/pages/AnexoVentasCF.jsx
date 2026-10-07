@@ -122,40 +122,58 @@ export default function AnexoVentasCF() {
       return;
     }
     
-    const jsonFiles = Array.from(files).filter(file => file.name.toLowerCase().endsWith(".json"));
-
-    if (jsonFiles.length === 0) {
-      enqueueMessages([{ text: `⚠️ En esa carpeta no hay archivos JSON para el Anexo de Ventas a Consumidor Final. Por favor verifica que estás seleccionando la carpeta correcta con las FCF emitidas.`, type: "error" }]);
+    const validExtensions = ['.json', '.xlsx', '.xls', '.csv'];
+    const validFiles = Array.from(files).filter(f => {
+      const name = f.name.toLowerCase();
+      return validExtensions.some(ext => name.endsWith(ext));
+    });
+    
+    if (validFiles.length === 0) {
+      enqueueMessages([{ text: `⚠️ No se encontraron archivos válidos. Por favor sube archivos JSON de Facturas (01), o el archivo Excel/CSV del Libro de Ventas a Consumidor Final de Hacienda.`, type: "error" }]);
       return;
     }
 
     const nombreMes = MESES_NOMBRES[(parseInt(mes, 10) - 1)] || mes;
-    enqueueMessages([{ text: `⏳ Procesando los JSON del Anexo de Ventas a Consumidor Final del mes de ${nombreMes}... Por favor espera mientras valido cada factura.`, type: "info" }]);
-
-    const formData = new FormData();
-    formData.append("empresa_id", activeEmpresa.id);
-    formData.append("periodo_mes", mes);
-    formData.append("periodo_anio", anio);
-    formData.append("version", activeVersion);
-    
-    jsonFiles.forEach(file => {
-      formData.append("files", file);
-    });
+    const hasExcel = validFiles.some(f => f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls') || f.name.toLowerCase().endsWith('.csv'));
+    const tipoTexto = hasExcel ? "archivos de Excel / JSON" : "archivos JSON";
+    enqueueMessages([{ text: `⏳ Procesando los ${tipoTexto} del Anexo de Ventas a Consumidor Final del mes de ${nombreMes}... Por favor espera mientras importo los comprobantes.`, type: "info" }]);
 
     setLoading(true);
+    let totalProcesados = 0;
+    let todosErrores = [];
+
     try {
-      const response = await axios.post(`${API_URL}/api/v1/ventas-cf/upload`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
-      
-      const { procesados, errores } = response.data;
-      if (procesados > 0) {
-        enqueueMessages([{ text: `Se procesaron exitosamente ${procesados} Facturas (01).`, type: "success" }]);
+      // Para evitar bloqueos por tamaño o límite WAF, subimos 1 por 1
+      for (let i = 0; i < validFiles.length; i++) {
+        const formData = new FormData();
+        formData.append("empresa_id", activeEmpresa.id);
+        formData.append("periodo_mes", mes);
+        formData.append("periodo_anio", anio);
+        formData.append("version", activeVersion);
+        formData.append("files", validFiles[i]);
+
+        try {
+          const response = await axios.post(`${API_URL}/api/v1/ventas-cf/upload`, formData, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+          const { procesados, errores } = response.data;
+          totalProcesados += (procesados || 0);
+          if (errores && errores.length > 0) {
+            todosErrores = [...todosErrores, ...errores];
+          }
+        } catch (fileErr) {
+          const errDetail = fileErr.response?.data?.detail || fileErr.message || "Error procesando archivo";
+          todosErrores.push(`${validFiles[i].name}: ${errDetail}`);
+        }
+      }
+
+      if (totalProcesados > 0) {
+        enqueueMessages([{ text: `✅ Se procesaron exitosamente ${totalProcesados} comprobantes/facturas (01).`, type: "success" }]);
         fetchVentas();
       }
-      if (errores && errores.length > 0) {
-        const errorText = errores.slice(0, 5).join("\n") + (errores.length > 5 ? `\n...y ${errores.length - 5} más.` : "");
-        enqueueMessages([{ text: `Errores en ${errores.length} archivos:\n${errorText}`, type: "error" }]);
+      if (todosErrores.length > 0) {
+        const errorText = todosErrores.slice(0, 5).join("\n") + (todosErrores.length > 5 ? `\n...y ${todosErrores.length - 5} más.` : "");
+        enqueueMessages([{ text: `Avisos en ${todosErrores.length} archivos:\n${errorText}`, type: "error" }]);
       }
     } catch (error) {
       enqueueMessages([{ text: error.response?.data?.detail || "Error al subir los archivos.", type: "error" }]);
@@ -281,24 +299,24 @@ export default function AnexoVentasCF() {
         <input 
           type="file" 
           multiple 
-          webkitdirectory="true"
-          directory="true"
-          accept=".json" 
+          accept=".json,.xlsx,.xls,.csv" 
           className="hidden" 
           ref={fileInputRef}
           onChange={(e) => handleFileUpload(e.target.files)}
         />
-        <div className="mx-auto w-16 h-16 mb-4 text-slate-400">
+        <div className="mx-auto w-16 h-16 mb-4 text-amber-500">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
         </div>
         <p className="text-lg font-medium text-slate-700 mb-1">
-          {isDeclarado ? "Período cerrado" : "Arrastra los DTEs (Facturas 01) aquí"}
+          {isDeclarado ? "Período cerrado" : "Arrastra tus archivos aquí o haz clic para seleccionarlos"}
         </p>
-        <p className="text-sm text-slate-500">
-          {isDeclarado ? "No se pueden subir más documentos a este período" : "Sube carpetas completas o archivos JSON individuales"}
-        </p>
+        {!isDeclarado && (
+          <p className="text-sm text-slate-500">
+            Soporta <strong>archivos JSON</strong> de Facturas (01) o el <strong>archivo Excel / CSV</strong> del Libro de Ventas a Consumidor oficial de Hacienda
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
