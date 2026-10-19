@@ -1,4 +1,8 @@
-# Entornos virtuales y Python
+node_modules/
+dist/
+build/
+*.db
+*.sqlite3
 __pycache__/
 *.pyc
 *.pyo
@@ -6,6 +10,7 @@ __pycache__/
 .env
 venv/
 env/
+.DS_Store
 
 # Directorios de clientes y datos confidenciales (DTEs, declaraciones, certificados)
 000*
@@ -27,6 +32,4 @@ IVA*
 *.jpeg
 *.lnk
 test_run*
-
-# Archivos de configuración con posibles datos sensibles
 clientes_config.json
