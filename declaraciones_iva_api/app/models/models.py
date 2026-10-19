@@ -214,3 +214,32 @@ class Liquidacion(Base):
     actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     empresa = relationship("Empresa")
+
+
+class DteRetencion(Base):
+    __tablename__ = "iva_dtes_retenciones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), index=True, nullable=False)
+    
+    periodo_mes = Column(String(2), nullable=False)
+    periodo_anio = Column(String(4), nullable=False)
+    
+    # 9 Columnas Oficiales (Pagina 35 Manual F-07 V14 - Casilla 162)
+    nit_agente = Column(String(14), nullable=True) # Col A: NIT Agente (14 digitos sin guiones)
+    fecha_emision = Column(String(10), nullable=False) # Col B: DD/MM/AAAA
+    tipo_documento = Column(String(2), nullable=False, default="07") # Col C: 07
+    serie_documento = Column(String(100), nullable=True) # Col D: Sello MH
+    numero_documento = Column(String(100), nullable=False) # Col E: Codigo de generacion sin guiones
+    monto_sujeto = Column(Float, default=0.0) # Col F: Base imponible
+    monto_retencion = Column(Float, default=0.0) # Col G: 1% retenido
+    dui_agente = Column(String(9), nullable=True) # Col H: DUI si Col A esta vacia
+    numero_anexo = Column(String(1), default="7") # Col I: Anexo 7 para Casilla 162
+    
+    nombre_agente = Column(String, nullable=True)
+    raw_json = Column(JSON, nullable=False)
+    version = Column(Integer, default=1, nullable=False)
+    omitido = Column(Boolean, default=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+    empresa = relationship("Empresa")

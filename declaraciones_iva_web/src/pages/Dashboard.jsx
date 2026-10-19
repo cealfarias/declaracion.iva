@@ -280,6 +280,22 @@ export default function Dashboard() {
             Gestionar Anulados
           </button>
         </div>
+
+        {/* Card for Retenciones 1% al Declarante */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+          <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-4">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" /></svg>
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-1">Retenciones 1% (Casilla 162)</h3>
+          <p className="text-sm text-slate-500 mb-5">Importa tus DTE 07 para generar el anexo y deducir retenciones efectuadas al declarante.</p>
+          <button 
+            onClick={() => navigate(`/retenciones?mes=${mes}&anio=${anio}`)}
+            className="w-full bg-purple-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-purple-700 transition"
+          >
+            Generar Anexo
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import AnexoCompras from './pages/AnexoCompras';
 import AnexoVentasCF from './pages/AnexoVentasCF';
 import AnexoVentasContribuyentes from './pages/AnexoVentasContribuyentes';
 import AnexoAnulados from './pages/AnexoAnulados';
+import AnexoRetenciones from './pages/AnexoRetenciones';
 import Liquidacion from './pages/Liquidacion';
 
 const ProtectedRoute = ({ children, requireTerms = true }) => {
@@ -71,6 +72,12 @@ function AppRoutes() {
       <Route path="/anulados" element={
         <ProtectedRoute>
           <AnexoAnulados />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/retenciones" element={
+        <ProtectedRoute>
+          <AnexoRetenciones />
         </ProtectedRoute>
       } />
     </Routes>
