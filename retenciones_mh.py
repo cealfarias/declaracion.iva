@@ -177,18 +177,30 @@ def procesar_dte_07(data, nombre_origen, año_sel, mes_num, permitir_anteriores=
     else:
         return None, "Agente sin NIT ni DUI registrado en emisor"
         
-    # Valores monetarios
-    monto_sujeto = float(resumen.get('totalSujetoRetencion', 0.0) or 0.0)
-    monto_retencion = float(resumen.get('totalIVAretenido', 0.0) or 0.0)
+    # Valores monetarios: soporte DTE v1 (totalIVAretenido), DTE v2 (totalIvaRetenido), y cuerpoDocumento
+    monto_sujeto = float(
+        resumen.get('totalSujetoRetencion') or
+        sum(float(item.get('montoSujetoGrav', 0.0) or 0.0) for item in data.get('cuerpoDocumento', [])) or
+        0.0
+    )
+    monto_retencion = float(
+        resumen.get('totalIvaRetenido') or
+        resumen.get('totalIVAretenido') or
+        sum(float(item.get('ivaRetenido', 0.0) or 0.0) for item in data.get('cuerpoDocumento', [])) or
+        0.0
+    )
     
     if monto_sujeto <= 0 and monto_retencion <= 0:
         return None, "Montos de retención en cero o inválidos"
         
+    # Si viene monto sujeto pero el monto de retención no vino desglosado o dio 0, calculamos el 1% oficial
+    if monto_retencion <= 0 and monto_sujeto > 0:
+        monto_retencion = round(monto_sujeto * 0.01, 2)
+        
     # Verificación de tasa del 1%
-    if monto_sujeto > 0:
-        pct = round((monto_retencion / monto_sujeto) * 100, 2)
-        if not (0.5 <= pct <= 1.5):
-            return None, f"La tasa de retención no corresponde al 1% (calculado: {pct}%)"
+    pct = round((monto_retencion / monto_sujeto) * 100, 2) if monto_sujeto > 0 else 0.0
+    if not (0.5 <= pct <= 1.5):
+        return None, f"La tasa de retención no corresponde al 1% (calculado: {pct}%)"
             
     fecha_formateada = fecha_dte.strftime('%d/%m/%Y')
     

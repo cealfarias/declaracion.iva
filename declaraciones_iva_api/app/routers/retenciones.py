@@ -203,8 +203,19 @@ async def upload_retenciones(
                 nit_agente = ""
                 dui_agente = ""
                 
-            monto_sujeto = float(resumen.get('totalSujetoRetencion', 0.0) or 0.0)
-            monto_retencion = float(resumen.get('totalIVAretenido', 0.0) or 0.0)
+            monto_sujeto = float(
+                resumen.get('totalSujetoRetencion') or
+                sum(float(item.get('montoSujetoGrav', 0.0) or 0.0) for item in data.get('cuerpoDocumento', [])) or
+                0.0
+            )
+            monto_retencion = float(
+                resumen.get('totalIvaRetenido') or
+                resumen.get('totalIVAretenido') or
+                sum(float(item.get('ivaRetenido', 0.0) or 0.0) for item in data.get('cuerpoDocumento', [])) or
+                0.0
+            )
+            if monto_retencion <= 0 and monto_sujeto > 0:
+                monto_retencion = round(monto_sujeto * 0.01, 2)
             
             registro = DteRetencion(
                 empresa_id=empresa_id,
