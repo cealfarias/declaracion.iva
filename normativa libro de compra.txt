@@ -1,0 +1,122 @@
+2. Información a ingresar
+Los datos a incorporar en cada columna, serán detallados de la siguiente manera y es importante que las
+compras y créditos fiscales detallados sean deducibles de acuerdo a su actividad económica:
+A. Fecha de emisión del Documento: 10 caracteres con la estructura DD/MM/AAAA. Deberá indicar el
+día, mes y año que está informando, debe coincidir con el mes y año seleccionado en la pantalla de
+carga de archivo. (Ejemplo: 01/03/2021). Sin embargo, de acuerdo a lo establecido en el artículo 63
+de la Ley del Impuesto a la Transferencia de Bienes Muebles y a la Prestación de Servicios, se pueden
+ingresar documentos de 3 periodos anteriores al que está declarando. Corresponde a la fecha de
+emisión del documento emitido por el Proveedor.
+B. Clase de Documento: 1 carácter. Deberá colocar el número que corresponde, según el documento emitido por el proveedor:
+1 Impreso por Imprenta o Tiquetes (aplica para el tipo de documento 03, 05, 06, 11)
+2 Formulario Único (aplica para el tipo de documento 03, 05, 06, 11)
+3 Otros (aplica para el tipo de documento 12 y 13)
+4 Documento Tributario Electrónico DTE (aplica para el tipo de documento 03, 05, 06, 11)
+C. Tipo de Documento: 2 caracteres. Deberá colocar el número que corresponde, según el documento
+emitido por el proveedor:
+03 Comprobante de Crédito Fiscal
+05 Nota de Crédito
+06 Nota de Débito
+11 Factura de Exportación: éste deberán utilizarlo los usuarios de Zona Franca o DPA únicamente por
+la compra de bienes o servicios en el territorio nacional, de acuerdo a lo establecido en el Artículo 25
+de la Ley de Zonas Francas Industriales y de Comercialización.
+12 Declaración de Mercancías
+13 Mandamiento de Ingreso
+D. Número de Documento: Máximo 100 Caracteres, Corresponde al número del documento emitido
+por el Proveedor. Para los documentos Tributarios Electrónicos debe ingresar el código de generación
+del DTE sin guiones. Cuando se ingresen documentos que antecedan al periodo noviembre 2022
+debe ingresar el número de control del DTE sin guiones.
+E. NIT o NRC del proveedor: se refiere al Número de Identificación Tributaria o Número de Registro de
+Contribuyente del Proveedor, 14 dígitos en caso que corresponda al NIT. En caso que coloque el NRC,
+no debe anteponer ceros al mismo si dicho número no los incluye. Ambos números deben ser
+colocados sin guiones y/o pleca. Para Proveedores Personas Naturales, si el periodo a declarar es
+enero 2022 en adelante, en caso que complete el campo P (DUI), este campo de NIT o NRC del
+Proveedor debe de quedar completamente vacío. Si el periodo a declarar corresponde a periodos
+anteriores a enero 2022, entonces este campo sí es obligatorio y deberá dejar vacío el campo del
+DUI. Si es un proveedor del exterior, para los tipos de documento 12 y 13 puede colocar el NIT de la
+Dirección General de Tesorería 06140108140066 e independientemente del periodo a declarar, el
+campo de DUI debe quedar completamente vacío.
+F. Nombre del proveedor: corresponde al Nombre, Razón Social o Denominación del proveedor. Para
+los tipos de documento 12 y 13 puede colocar el Nombre de la Dirección General de Tesorería.
+G. Compras Internas Exentas y/o No Sujetas: Numérico de 10 caracteres. Incluir punto decimal
+(máximo dos decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores
+con más de 2 decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe
+colocar el valor de la operación detallada en el documento legal emitido por el proveedor. Sino hay
+operación de este tipo, debe colocar 0.00.
+H. Internaciones Exentas y/ No Sujetas: Numérico de 10 caracteres. Incluir punto decimal (máximo dos
+decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores con más de 2
+decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe colocar el valor
+de la operación detallada en la Declaración de Mercancías. Sino hay operación de este tipo, debe
+colocar 0.00.
+I. Importaciones Exentas y/o No Sujetas: Numérico de 10 caracteres. Incluir punto decimal (máximo
+dos decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores con más de
+2 decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe colocar el
+valor de la operación detallada en la Declaración de Mercancías. Sino hay operación de este tipo,
+debe colocar 0.00.
+J. Compras Internas Gravadas: Numérico de 10 caracteres. Incluir punto decimal (máximo dos
+decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores con más de 2
+decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe colocar el valor
+de la operación detallada en el documento legal emitido por su proveedor. Sino hay operación de
+este tipo, debe colocar 0.00.
+K. Internaciones Gravadas de Bienes: Numérico de 10 caracteres. Incluir punto decimal (máximo dos
+decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores con más de 2
+decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe colocar el valor
+de la operación detallada en la Declaración de Mercancías. Sino hay operación de este tipo, debe
+colocar 0.00.
+L. Importaciones Gravadas de Bienes: Numérico de 10 caracteres. Incluir punto decimal (máximo dos
+decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores con más de 2
+decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe colocar el valor
+de la operación detallada en la Declaración de Mercancías. Sino hay operación de este tipo, debe
+colocar 0.00.
+M. Importaciones Gravadas de Servicios: Numérico de 10 caracteres. Incluir punto decimal (máximo dos
+decimales) y sin separador de miles. (Ejemplo: 1500.00). En caso de ingresar valores con más de 2
+decimales, el Sistema tomará únicamente 2. No debe ingresar valores negativos. Debe colocar el valor
+de la operación detallada en el Mandamiento de Ingreso. Sino hay operación de este tipo, debe
+colocar 0.00.
+N. Crédito Fiscal: Numérico de 10 caracteres. Incluir punto decimal (máximo dos decimales) y sin
+separador de miles. (Ejemplo: 780.00). En caso de ingresar valores con más de 2 decimales, el Sistema
+tomará únicamente 2. No debe ingresar valores negativos. Corresponde al 13% del total de las
+operaciones gravadas detalladas en las columnas comprendidas de la J a la M.
+O. Total de compras: Numérico de 10 caracteres. Incluir punto decimal (máximo dos decimales) y sin
+separador de miles. (Ejemplo: 10500.00). En caso de ingresar valores con más de 2 decimales, el
+Sistema tomará únicamente 2. No debe ingresar valores negativos. Es el total de las operaciones
+detalladas en las columnas comprendidas de la G a la M (sumando las Notas de Débito y restando las
+Notas de Crédito).
+P. DUI del proveedor: corresponde al Número del Documento Único de Identidad del Proveedor. Debe
+contener 9 caracteres, sin guiones y/o pleca. Se aclara que el DUI debe completarse únicamente para
+los Proveedores Personas Naturales para los periodos tributarios a partir de enero 2022, este es un
+campo opcional y si lo completa, el campo E (NIT o NRC), debe de quedar completamente vacío y si
+opta por no completar el DUI, entonces es obligatorio que complete el NIT o NRC. En caso que el
+periodo a declarar sea menor al referido, el campo de DUI debe quedar completamente vacío y
+únicamente debe llenar el campo de NIT o NRC del Proveedor.
+Q. Tipo de Operación: numérico de un carácter, corresponde al tipo de operación que se realiza según
+el siguiente detalle:
+ 1 Gravada
+2 No Gravada
+ 3 Excluido o no Constituye Renta
+ 4 Mixta (Se refiere al Tipo de Operación vinculada a los costos y gastos que
+inciden en la actividad generadora de rentas gravadas, así como aquellos que
+afectan las rentas no gravadas, y las que no constituyen renta de conformidad
+a la Ley de Impuesto sobre la Renta. Aplica también para los contribuyentes
+que gozan de Regímenes Especiales o beneficio fiscal)
+R. Clasificación: numérico de un carácter y debe colocar a qué clasificación pertenece el documento
+emitido por el proveedor según el siguiente detalle:
+ 1 Costo
+ 2 Gasto
+S. Sector: numérico de un carácter y corresponde al tipo de sector al que pertenece según el siguiente
+detalle:
+ 1 Industria
+ 2 Comercio
+ 3 Agropecuaria
+ 4 Servicios, Profesiones, Artes y Oficios
+
+T. Tipo de Costo / Gasto: numérico de un carácter y debe detallar si el documento emitido por el
+proveedor se trata de costo o gasto según la siguiente codificación:
+ 1 Gastos de Venta sin Donación
+ 2 Gastos de Administración sin Donación
+ 3 Gastos Financieros sin Donación
+ 4 Costo Artículos Producidos/Comprados Importaciones/Internaciones
+ 5 Costo Artículos Producidos/Comprados Interno
+ 6 Costos Indirectos de Fabricación
+ 7 Mano de obra
+U. Número de anexo: 1 carácter. Para este anexo debe colocar el número 3.

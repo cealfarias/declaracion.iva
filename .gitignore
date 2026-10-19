@@ -1,0 +1,32 @@
+# Entornos virtuales y Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+env/
+
+# Directorios de clientes y datos confidenciales (DTEs, declaraciones, certificados)
+000*
+iva*
+Iva*
+IVA*
+*.crt
+*.key
+*.p12
+*.pem
+*.rar
+*.zip
+*.pdf
+*.PDF
+*.png
+*.PNG
+*.jpg
+*.JPG
+*.jpeg
+*.lnk
+test_run*
+
+# Archivos de configuración con posibles datos sensibles
+clientes_config.json
