@@ -129,9 +129,15 @@ def parsear_reporte(file_item):
                 continue
         if decoded is None:
             return None, "Codificación de texto no soportada"
-        reader = csv.reader(io.StringIO(decoded))
+        chunk = decoded[:4096]
+        delim = ';' if chunk.count(';') > chunk.count(',') else ','
+        reader = csv.reader(io.StringIO(decoded), delimiter=delim)
         rows = list(reader)
         
+    # Si es CSV Anexo 3 directo (21 columnas con fecha al inicio)
+    if rows and len(rows[0]) >= 18 and ("/" in rows[0][0] or "-" in rows[0][0]):
+        return rows, None
+
     header_idx = -1
     for idx, r in enumerate(rows[:25]):
         line_str = " ".join(r).lower()
@@ -170,18 +176,26 @@ if archivos_a_procesar:
                 
             for r in rows:
                 try:
-                    shift = 0
-                    if len(r) > 1 and r[0].strip() == "" and is_item_num(r[1]):
-                        shift = 1
-                    elif is_item_num(r[0]):
-                        shift = 0
+                    # Detectar si es fila de Anexo 3 (columna 0 es fecha)
+                    is_anexo3_row = (len(r) >= 18 and ("/" in r[0] or "-" in r[0]) and len(r[0].strip()) == 10)
+                    if is_anexo3_row:
+                        shift = -1 # Especial para Anexo 3
                     else:
-                        continue
+                        shift = 0
+                        if len(r) > 1 and r[0].strip() == "" and is_item_num(r[1]):
+                            shift = 1
+                        elif is_item_num(r[0]):
+                            shift = 0
+                        else:
+                            continue
                         
                     if len(r) <= shift + 10:
                         continue
                         
-                    fecha_str_raw = str(r[shift + 1]).strip()
+                    if is_anexo3_row:
+                        fecha_str_raw = str(r[0]).strip()
+                    else:
+                        fecha_str_raw = str(r[shift + 1]).strip()
                     if not fecha_str_raw:
                         continue
                         
@@ -214,58 +228,69 @@ if archivos_a_procesar:
                         omitidos.append({'archivo': fname, 'motivo': f'Excede los 3 meses legales ({fecha_emision}, {meses_diff} meses antes)'})
                         continue
                         
-                    no_doc_raw = str(r[shift + 2]).strip()
-                    num_doc = no_doc_raw.replace("-", "").upper() if no_doc_raw else ""
-                    if not num_doc:
-                        continue
-                        
-                    # Evitar duplicados si una compra se repite entre reportes
-                    if num_doc in docs_vistos:
-                        continue
-                    docs_vistos.add(num_doc)
-                    
-                    nrc_prov = str(r[shift + 3]).strip()
-                    nit_dui_excluido = str(r[shift + 4]).strip() if len(r) > shift + 4 else ""
-                    nombre_prov = str(r[shift + 5]).replace(';', ' ').replace('"', '').strip() if len(r) > shift + 5 else ""
-                    
-                    def to_float(val_c):
-                        try:
-                            s = str(val_c).replace("$", "").replace(",", "").strip()
-                            return float(s) if s else 0.0
-                        except Exception:
-                            return 0.0
-                            
-                    no_sujetas = to_float(r[shift + 6]) if len(r) > shift + 6 else 0.0
-                    exentas = to_float(r[shift + 7]) if len(r) > shift + 7 else 0.0
-                    import_exentas = to_float(r[shift + 8]) if len(r) > shift + 8 else 0.0
-                    gravadas_int = to_float(r[shift + 9]) if len(r) > shift + 9 else 0.0
-                    import_gravadas = to_float(r[shift + 10]) if len(r) > shift + 10 else 0.0
-                    credito_fiscal = to_float(r[shift + 11]) if len(r) > shift + 11 else 0.0
-                    total_compras = to_float(r[shift + 14]) if len(r) > shift + 14 else (gravadas_int + credito_fiscal + exentas)
-                    sujetos_excluidos = to_float(r[shift + 15]) if len(r) > shift + 15 else 0.0
-                    
-                    es_sujeto_excluido = (sujetos_excluidos > 0 or (nit_dui_excluido and not nrc_prov))
-                    
-                    if es_sujeto_excluido:
-                        tipo_dte = "14"
-                        nit_proveedor = nit_dui_excluido.replace("-", "").strip()
-                        tipo_op_default = "2"
-                        total_exenta = sujetos_excluidos if sujetos_excluidos > 0 else (exentas or total_compras)
-                        total_gravada = 0.0
-                        iva = 0.0
-                        dui_final = nit_proveedor if len(nit_proveedor) == 9 else ""
-                        if dui_final:
-                            nit_proveedor = ""
+                    if is_anexo3_row:
+                        no_doc_raw = str(r[3]).strip()
+                        num_doc = no_doc_raw.replace("-", "").upper() if no_doc_raw else ""
+                        if not num_doc:
+                            continue
+                        if num_doc in docs_vistos:
+                            continue
+                        docs_vistos.add(num_doc)
+                        nit_prov_anexo3 = str(r[4]).strip()
+                        nombre_prov = str(r[5]).replace(';', ' ').replace('"', '').strip()
+                        gravadas_int = to_float(r[9]) if len(r) > 9 else 0.0
+                        iva = to_float(r[13]) if len(r) > 13 else 0.0
+                        total_compras = to_float(r[14]) if len(r) > 14 else (gravadas_int + iva)
+                        total_exenta = to_float(r[6]) + to_float(r[7]) + to_float(r[8]) if len(r) > 8 else 0.0
+                        es_sujeto_excluido = (r[2].strip() == "14")
+                        tipo_dte = r[2].strip() if len(r) > 2 else "03"
+                        nit_proveedor = nit_prov_anexo3
+                        tipo_op_default = r[16].strip() if len(r) > 16 else "1"
+                        dui_final = r[15].strip() if len(r) > 15 else ""
                     else:
-                        tipo_dte = "03"
-                        # Prioridad NIT
-                        nit_proveedor = nit_dui_excluido.replace("-", "").strip() if (nit_dui_excluido and len(nit_dui_excluido) >= 14) else nrc_prov.replace("-", "").strip()
-                        tipo_op_default = "1"
-                        total_exenta = exentas + no_sujetas + import_exentas
-                        total_gravada = gravadas_int + import_gravadas
-                        iva = credito_fiscal
-                        dui_final = ""
+                        no_doc_raw = str(r[shift + 2]).strip()
+                        num_doc = no_doc_raw.replace("-", "").upper() if no_doc_raw else ""
+                        if not num_doc:
+                            continue
+                            
+                        # Evitar duplicados si una compra se repite entre reportes
+                        if num_doc in docs_vistos:
+                            continue
+                        docs_vistos.add(num_doc)
                         
+                        nrc_prov = str(r[shift + 3]).strip()
+                        nit_dui_excluido = str(r[shift + 4]).strip() if len(r) > shift + 4 else ""
+                        nombre_prov = str(r[shift + 5]).replace(';', ' ').replace('"', '').strip() if len(r) > shift + 5 else ""
+                        
+                        no_sujetas = to_float(r[shift + 6]) if len(r) > shift + 6 else 0.0
+                        exentas = to_float(r[shift + 7]) if len(r) > shift + 7 else 0.0
+                        import_exentas = to_float(r[shift + 8]) if len(r) > shift + 8 else 0.0
+                        gravadas_int = to_float(r[shift + 9]) if len(r) > shift + 9 else 0.0
+                        import_gravadas = to_float(r[shift + 10]) if len(r) > shift + 10 else 0.0
+                        credito_fiscal = to_float(r[shift + 11]) if len(r) > shift + 11 else 0.0
+                        total_compras = to_float(r[shift + 14]) if len(r) > shift + 14 else (gravadas_int + credito_fiscal + exentas)
+                        sujetos_excluidos = to_float(r[shift + 15]) if len(r) > shift + 15 else 0.0
+                        
+                        es_sujeto_excluido = (sujetos_excluidos > 0 or (nit_dui_excluido and not nrc_prov))
+                        
+                        if es_sujeto_excluido:
+                            tipo_dte = "14"
+                            nit_proveedor = nit_dui_excluido.replace("-", "").strip()
+                            tipo_op_default = "2"
+                            total_exenta = sujetos_excluidos if sujetos_excluidos > 0 else (exentas or total_compras)
+                            total_gravada = 0.0
+                            iva = 0.0
+                            dui_final = nit_proveedor if len(nit_proveedor) == 9 else ""
+                            if dui_final:
+                                nit_proveedor = ""
+                        else:
+                            tipo_dte = "03"
+                            nit_proveedor = nit_dui_excluido.replace("-", "").strip() if (nit_dui_excluido and len(nit_dui_excluido) >= 14) else nrc_prov.replace("-", "").strip()
+                            tipo_op_default = "1"
+                            total_exenta = exentas + no_sujetas + import_exentas
+                            total_gravada = gravadas_int + import_gravadas
+                            iva = credito_fiscal
+                            dui_final = ""
                     antiguedad_label = "Mes Actual (M)" if meses_diff == 0 else f"{meses_diff} Mes(es) Antes"
                     
                     reg = {

@@ -219,10 +219,13 @@ async def upload_dtes(
                     errores.append(f"{file.filename}: Error leyendo Excel ({str(e)}).")
                     continue
             else:
-                for encoding in ['utf-8-sig', 'latin-1', 'windows-1252', 'utf-16']:
+                for encoding in ['utf-8-sig', 'utf-8', 'latin-1', 'windows-1252', 'iso-8859-1']:
                     try:
                         decoded_str = content.decode(encoding)
-                        reader = csv.reader(StringIO(decoded_str))
+                        # Detectar delimitador (; o ,)
+                        chunk = decoded_str[:4096]
+                        delim = ';' if chunk.count(';') > chunk.count(',') else ','
+                        reader = csv.reader(StringIO(decoded_str), delimiter=delim)
                         rows = list(reader)
                         break
                     except Exception:
@@ -275,6 +278,116 @@ async def upload_dtes(
                         descartados_otro_periodo += 1
                         errores.append(f"{file.filename}: El período del reporte ({periodo_reporte}) excede el plazo legal de 3 meses anteriores al seleccionado ({periodo_mes}/{periodo_anio}).")
                         continue
+
+            # DETECCIÓN DE FORMATO: ¿Es un CSV oficial Anexo 3 (21 columnas)?
+            es_anexo3_csv = False
+            if rows and len(rows[0]) >= 18:
+                col0 = rows[0][0].strip()
+                if ("/" in col0 and len(col0.split("/")) == 3) or ("-" in col0 and len(col0.split("-")) == 3):
+                    es_anexo3_csv = True
+
+            if es_anexo3_csv:
+                filas_procesadas = 0
+                filas_ya_existentes = 0
+                for r in rows:
+                    if len(r) < 15:
+                        continue
+                    fecha_str = r[0].strip()
+                    try:
+                        if "/" in fecha_str:
+                            p = fecha_str.split("/")
+                            if len(p[2]) == 4:
+                                f_obj = datetime(int(p[2]), int(p[1]), int(p[0]))
+                            else:
+                                f_obj = datetime.strptime(fecha_str, "%d/%m/%Y")
+                        elif "-" in fecha_str:
+                            p = fecha_str.split("-")
+                            if len(p[0]) == 4:
+                                f_obj = datetime(int(p[0]), int(p[1]), int(p[2]))
+                            else:
+                                f_obj = datetime.strptime(fecha_str, "%d-%m-%Y")
+                        else:
+                            continue
+                        fecha_emision = f_obj.strftime("%d/%m/%Y")
+                        mes_row = f"{f_obj.month:02d}"
+                        anio_row = str(f_obj.year)
+                    except Exception:
+                        continue
+
+                    # Validar Art. 63 (hasta 3 períodos anteriores)
+                    diff_meses = (int(periodo_anio) - int(anio_row)) * 12 + (int(periodo_mes) - int(mes_row))
+                    if diff_meses < 0 or diff_meses > 3:
+                        descartados_otro_periodo += 1
+                        continue
+
+                    clase_doc = r[1].strip() if len(r) > 1 else "4"
+                    tipo_doc = r[2].strip() if len(r) > 2 else "03"
+                    num_doc = r[3].strip().replace("-", "").upper() if len(r) > 3 else ""
+                    if not num_doc:
+                        continue
+
+                    nit_prov = r[4].strip() if len(r) > 4 else ""
+                    nombre_prov = r[5].strip() if len(r) > 5 else ""
+
+                    def to_f(v):
+                        try:
+                            return float(str(v).replace("$", "").replace(",", "").strip())
+                        except:
+                            return 0.0
+
+                    exenta_int = to_f(r[6]) if len(r) > 6 else 0.0
+                    exenta_imp = to_f(r[7]) if len(r) > 7 else 0.0
+                    exenta_rec = to_f(r[8]) if len(r) > 8 else 0.0
+                    gravada_int = to_f(r[9]) if len(r) > 9 else 0.0
+                    gravada_imp = to_f(r[10]) if len(r) > 10 else 0.0
+                    iva = to_f(r[13]) if len(r) > 13 else 0.0
+                    total = to_f(r[14]) if len(r) > 14 else 0.0
+
+                    # Evitar duplicados
+                    existe = db.query(DteCompra).filter(
+                        DteCompra.empresa_id == empresa_id,
+                        DteCompra.numero_documento == num_doc,
+                        DteCompra.version == version
+                    ).first()
+
+                    if existe:
+                        filas_ya_existentes += 1
+                        continue
+
+                    nuevo_dte = DteCompra(
+                        empresa_id=empresa_id,
+                        periodo_mes=periodo_mes,
+                        periodo_anio=periodo_anio,
+                        fecha_emision=fecha_emision,
+                        clase_documento=clase_doc,
+                        tipo_documento=tipo_doc,
+                        numero_resolucion=num_doc,
+                        serie_documento="",
+                        numero_documento=num_doc,
+                        nit_proveedor=nit_prov,
+                        nombre_proveedor=nombre_prov,
+                        compras_internas_exentas=exenta_int + exenta_imp + exenta_rec,
+                        compras_internas_gravadas=gravada_int + gravada_imp,
+                        credito_fiscal=iva,
+                        total_compras=total,
+                        tipo_operacion=r[16].strip() if len(r) > 16 else "1",
+                        clasificacion=r[17].strip() if len(r) > 17 else "1",
+                        sector=r[18].strip() if len(r) > 18 else "2",
+                        tipo_costo_gasto=r[19].strip() if len(r) > 19 else "5",
+                        raw_json={"origen": "anexo3_csv", "fila": r},
+                        omitido=False,
+                        version=version
+                    )
+                    db.add(nuevo_dte)
+                    procesados += 1
+                    filas_procesadas += 1
+
+                if filas_procesadas == 0 and not errores:
+                    if filas_ya_existentes > 0:
+                        errores.append(f"{file.filename}: Las {filas_ya_existentes} compras de este archivo ya estaban previamente registradas.")
+                    else:
+                        errores.append(f"{file.filename}: No se encontraron filas de compras válidas para el período {periodo_mes}/{periodo_anio}.")
+                continue
 
             start_row = (header_idx + 2) if header_idx != -1 else 0
             filas_procesadas = 0
