@@ -205,7 +205,7 @@ export default function AnexoCompras() {
       if (totalOtraEmpresa > 0 || totalOtroPeriodo > 0) {
         const descartadosDetalle = [];
         if (totalOtraEmpresa > 0) descartadosDetalle.push(`${totalOtraEmpresa} de otras empresas`);
-        if (totalOtroPeriodo > 0) descartadosDetalle.push(`${totalOtroPeriodo} de otros períodos`);
+        if (totalOtroPeriodo > 0) descartadosDetalle.push(`${totalOtroPeriodo} fuera del plazo legal de 3 meses (Art. 63 Ley de IVA)`);
         mensajeFinal += ` Se filtraron e ignoraron ${descartadosDetalle.join(" y ")}.`;
       }
 
@@ -571,7 +571,7 @@ export default function AnexoCompras() {
         </div>
         <h3 className="text-lg font-medium text-slate-800 mb-1">Arrastra tus archivos aquí o haz clic para seleccionarlos</h3>
         <p className="text-sm text-slate-500">
-          Soporta <strong>archivos JSON</strong> de DTEs (03, 05, 14) o el <strong>archivo Excel / CSV</strong> del Libro de Compras oficial descargado del Ministerio de Hacienda.
+          Soporta <strong>archivos JSON</strong> de DTEs (03, 05, 14) o el <strong>archivo Excel / CSV</strong> del Libro de Compras oficial descargado del Ministerio de Hacienda. <span className="text-emerald-700 font-medium">Permite compras del período y de hasta 3 meses anteriores (Art. 63 Ley de IVA).</span>
         </p>
       </div>
 

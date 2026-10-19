@@ -269,9 +269,11 @@ async def upload_dtes(
                 if len(p_parts) == 2:
                     p_mes = p_parts[0].zfill(2)
                     p_anio = p_parts[1].strip()
-                    if p_mes != periodo_mes or p_anio != periodo_anio:
+                    # Ley de IVA Art. 63: se permiten reportes del período o de hasta 3 períodos tributarios anteriores
+                    diff_rep = (int(periodo_anio) - int(p_anio)) * 12 + (int(periodo_mes) - int(p_mes))
+                    if diff_rep < 0 or diff_rep > 3:
                         descartados_otro_periodo += 1
-                        errores.append(f"{file.filename}: El período del reporte ({periodo_reporte}) no coincide con el seleccionado ({periodo_mes}/{periodo_anio}).")
+                        errores.append(f"{file.filename}: El período del reporte ({periodo_reporte}) excede el plazo legal de 3 meses anteriores al seleccionado ({periodo_mes}/{periodo_anio}).")
                         continue
 
             start_row = (header_idx + 2) if header_idx != -1 else 0
@@ -325,7 +327,9 @@ async def upload_dtes(
                     except Exception:
                         continue
 
-                    if mes_row != periodo_mes or anio_row != periodo_anio:
+                    # Ley de IVA Art. 63: se permiten compras del período y de hasta 3 períodos tributarios anteriores
+                    diff_meses = (int(periodo_anio) - int(anio_row)) * 12 + (int(periodo_mes) - int(mes_row))
+                    if diff_meses < 0 or diff_meses > 3:
                         descartados_otro_periodo += 1
                         continue
 
@@ -488,8 +492,10 @@ async def upload_dtes(
                 errores.append(f"{file.filename}: Fecha de emisión inválida o formato no reconocido ({fecha_cruda}).")
                 continue
 
-            if mes_dte != periodo_mes or anio_dte != periodo_anio:
-                # El comprobante corresponde a otro período
+            # 2. FILTRO POR PERÍODO (MES Y AÑO) - Art. 63 Ley de IVA (hasta 3 períodos tributarios anteriores)
+            diff_meses = (int(periodo_anio) - int(anio_dte)) * 12 + (int(periodo_mes) - int(mes_dte))
+            if diff_meses < 0 or diff_meses > 3:
+                # El comprobante excede los 3 meses legales o tiene fecha futura
                 descartados_otro_periodo += 1
                 continue
                 
