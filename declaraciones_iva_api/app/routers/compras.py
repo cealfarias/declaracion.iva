@@ -278,6 +278,7 @@ async def upload_dtes(
 
             start_row = (header_idx + 2) if header_idx != -1 else 0
             filas_procesadas = 0
+            filas_ya_existentes = 0
 
             def is_item_num(val):
                 s = str(val or "").strip()
@@ -384,6 +385,7 @@ async def upload_dtes(
                     ).first()
 
                     if existe:
+                        filas_ya_existentes += 1
                         continue
 
                     nuevo_dte = DteCompra(
@@ -418,7 +420,10 @@ async def upload_dtes(
                     continue
 
             if filas_procesadas == 0 and not errores:
-                errores.append(f"{file.filename}: No se encontraron filas de compras válidas para el período {periodo_mes}/{periodo_anio}.")
+                if filas_ya_existentes > 0:
+                    errores.append(f"{file.filename}: Las {filas_ya_existentes} compras de este reporte ya estaban registradas previamente en la declaración.")
+                else:
+                    errores.append(f"{file.filename}: No se encontraron filas de compras válidas para el período {periodo_mes}/{periodo_anio}.")
             continue
 
         # CASO 2: Archivo JSON individual de DTE
