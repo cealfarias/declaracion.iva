@@ -28,3 +28,5 @@ jobs:
           python-version: '3.12'
       - name: Check Python syntax
         run: python -m compileall -q declaraciones_iva_api
+      - name: Verify company route security contracts
+        run: python -m unittest discover -s declaraciones_iva_api/tests -p "test_security_contract.py"
