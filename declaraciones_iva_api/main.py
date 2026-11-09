@@ -73,11 +73,3 @@ app.include_router(retenciones.router, prefix="/api/v1/retenciones", tags=["rete
 def root():
     return {"message": "API de Declaraciones de IVA en funcionamiento"}
 
-@app.delete("/api/v1/debug/wipe_db")
-def wipe_database():
-    try:
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-        return {"message": "Base de datos borrada y recreada exitosamente"}
-    except Exception as e:
-        return {"error": str(e)}
