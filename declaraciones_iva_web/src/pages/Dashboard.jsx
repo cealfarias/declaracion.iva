@@ -25,7 +25,8 @@ export default function Dashboard() {
     localStorage.setItem('dashboard_anio', anio);
   }, [anio]);
 
-  const { user, selectEmpresa, activeEmpresa, logout } = useAuth();
+  const { user, token, selectEmpresa, activeEmpresa, logout } = useAuth();
+  const authConfig = { headers: { Authorization: `Bearer ${token}` } };
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
 
@@ -38,7 +39,7 @@ export default function Dashboard() {
   const fetchEmpresas = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/api/v1/empresas/usuario/${user?.id || 1}`);
+      const response = await axios.get(`${API_URL}/api/v1/empresas/usuario/${user?.id}`, authConfig);
       setEmpresas(response.data);
     } catch (error) {
       console.error('Error fetching empresas', error);
@@ -69,14 +70,14 @@ export default function Dashboard() {
     e.preventDefault();
     try {
       if (editingId) {
-        await axios.put(`${API_URL}/api/v1/empresas/${editingId}`, newEmpresa);
+        await axios.put(`${API_URL}/api/v1/empresas/${editingId}`, newEmpresa, authConfig);
         setEmpresas(empresas.map(emp => emp.id === editingId ? { ...emp, ...newEmpresa } : emp));
         enqueueMessages([{ text: "Empresa actualizada correctamente.", type: "success" }]);
       } else {
         const response = await axios.post(`${API_URL}/api/v1/empresas`, {
           ...newEmpresa,
-          usuario_id: user?.id || 1
-        });
+          usuario_id: user?.id
+        }, authConfig);
         const created = { id: response.data.empresa_id, ...newEmpresa };
         setEmpresas([...empresas, created]);
         enqueueMessages([{ text: "Empresa registrada exitosamente.", type: "success" }]);
@@ -87,6 +88,19 @@ export default function Dashboard() {
       console.error('Error creando empresa', error);
       const errorMsg = error.response?.data?.detail || "Hubo un error al guardar los datos de la empresa.";
       enqueueMessages([{ text: errorMsg, type: "error" }]);
+    }
+  };
+
+  const handleRetirarEmpresa = async (e, empresa) => {
+    e.stopPropagation();
+    if (!window.confirm(`¿Retirar "${empresa.razon_social}" de tu lista? No se borrarán sus documentos ni declaraciones. Para volver a verla tendrás que vincularla nuevamente.`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/v1/empresas/${empresa.id}/mi-vinculo`, authConfig);
+      setEmpresas(actual => actual.filter(item => item.id !== empresa.id));
+      if (activeEmpresa?.id === empresa.id) selectEmpresa(null);
+      enqueueMessages([{ text: 'Empresa retirada de tu panel sin borrar datos tributarios.', type: 'success' }]);
+    } catch (error) {
+      enqueueMessages([{ text: error.response?.data?.detail || 'No se pudo retirar la empresa.', type: 'error' }]);
     }
   };
 
@@ -126,6 +140,15 @@ export default function Dashboard() {
                   title="Editar empresa"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleRetirarEmpresa(e, empresa)}
+                  className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-700"
+                  title="Retirar empresa de mi panel (sin borrar documentos)"
+                  aria-label={`Retirar ${empresa.razon_social} de mi panel`}
+                >
+                  <span aria-hidden="true">✕</span>
                 </button>
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-1 truncate" title={empresa.razon_social}>{empresa.razon_social}</h3>
