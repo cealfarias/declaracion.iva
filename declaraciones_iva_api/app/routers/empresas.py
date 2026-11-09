@@ -29,7 +29,7 @@ def exigir_vinculo(db: Session, usuario_id: int, empresa_id: int) -> UsuarioEmpr
         UsuarioEmpresa.usuario_id == usuario_id,
         UsuarioEmpresa.empresa_id == empresa_id
     ).first()
-    if not vinculo:
+    if not vinculo or vinculo.archivado:
         raise HTTPException(status_code=403, detail="No tienes acceso a esta empresa.")
     return vinculo
 
@@ -55,8 +55,10 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
                 UsuarioEmpresa.usuario_id == usuario.id,
                 UsuarioEmpresa.empresa_id == existing_empresa.id
             ).first()
-            if existing_link:
+            if existing_link and not existing_link.archivado:
                 return {"message": "Empresa ya registrada en tu panel", "empresa_id": existing_empresa.id}
+            if existing_link and existing_link.archivado:
+                raise HTTPException(status_code=409, detail="Esta empresa está archivada. Restáurala desde tu panel.")
             raise HTTPException(
                 status_code=409,
                 detail="El NIT o NRC ya pertenece a una empresa registrada. Solicita acceso al administrador; no se permite vinculación automática."
@@ -94,7 +96,7 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
 def get_empresas(usuario_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
     if usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No puedes consultar empresas de otro usuario.")
-    vinculos = db.query(UsuarioEmpresa).filter(UsuarioEmpresa.usuario_id == usuario_id).all()
+    vinculos = db.query(UsuarioEmpresa).filter(UsuarioEmpresa.usuario_id == usuario_id, UsuarioEmpresa.archivado.is_(False)).all()
     empresas = []
     for v in vinculos:
         empresas.append({
@@ -138,6 +140,26 @@ def update_empresa(empresa_id: int, empresa_data: EmpresaUpdate, db: Session = D
 def desvincular_empresa(empresa_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
     """Retira una empresa del panel del usuario sin borrar registros contables."""
     vinculo = exigir_vinculo(db, usuario.id, empresa_id)
-    db.delete(vinculo)
+    vinculo.archivado = True
     db.commit()
-    return {"message": "Empresa retirada de tu panel. Sus documentos permanecen intactos."}
+    return {"message": "Empresa archivada. Puedes restaurarla cuando lo necesites."}
+
+@router.get("/empresas/archivadas")
+def empresas_archivadas(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
+    vinculos = db.query(UsuarioEmpresa).filter(
+        UsuarioEmpresa.usuario_id == usuario.id, UsuarioEmpresa.archivado.is_(True)
+    ).all()
+    return [{"id": v.empresa.id, "razon_social": v.empresa.razon_social, "nit": v.empresa.nit, "nrc": v.empresa.nrc} for v in vinculos]
+
+@router.post("/empresas/{empresa_id}/restaurar")
+def restaurar_empresa(empresa_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
+    vinculo = db.query(UsuarioEmpresa).filter(
+        UsuarioEmpresa.usuario_id == usuario.id, UsuarioEmpresa.empresa_id == empresa_id
+    ).first()
+    if not vinculo:
+        raise HTTPException(status_code=404, detail="No existe una empresa archivada vinculada a tu cuenta.")
+    if not vinculo.archivado:
+        return {"message": "La empresa ya está activa."}
+    vinculo.archivado = False
+    db.commit()
+    return {"message": "Empresa restaurada correctamente."}
