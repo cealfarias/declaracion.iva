@@ -46,29 +46,21 @@ class EmpresaCreate(BaseModel):
 def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
     empresa.usuario_id = usuario.id
     try:
-        # Verify if NIT or NRC already exists
+        # No conceder acceso a empresas ajenas solo por conocer NIT o NRC.
         existing_empresa = db.query(Empresa).filter(
             (Empresa.nit == empresa.nit) | (Empresa.nrc == empresa.nrc)
         ).first()
-        
         if existing_empresa:
-            # If it already exists, just link the user to the existing company
-            # Check if link already exists
             existing_link = db.query(UsuarioEmpresa).filter(
-                UsuarioEmpresa.usuario_id == empresa.usuario_id,
+                UsuarioEmpresa.usuario_id == usuario.id,
                 UsuarioEmpresa.empresa_id == existing_empresa.id
             ).first()
-            
-            if not existing_link:
-                db_usuario_empresa = UsuarioEmpresa(
-                    usuario_id=empresa.usuario_id,
-                    empresa_id=existing_empresa.id,
-                    rol="admin"
-                )
-                db.add(db_usuario_empresa)
-                db.commit()
-                
-            return {"message": "Empresa vinculada exitosamente", "empresa_id": existing_empresa.id}
+            if existing_link:
+                return {"message": "Empresa ya registrada en tu panel", "empresa_id": existing_empresa.id}
+            raise HTTPException(
+                status_code=409,
+                detail="El NIT o NRC ya pertenece a una empresa registrada. Solicita acceso al administrador; no se permite vinculación automática."
+            )
 
         # Crear nueva Empresa si no existe
         db_empresa = Empresa(
@@ -91,9 +83,12 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
         db.commit()
         
         return {"message": "Empresa creada", "empresa_id": db_empresa.id}
-    except Exception as e:
+    except HTTPException:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error interno al crear o vincular la empresa.")
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error interno al crear la empresa.")
 
 @router.get("/empresas/usuario/{usuario_id}")
 def get_empresas(usuario_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
