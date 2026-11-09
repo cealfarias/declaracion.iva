@@ -1,4 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from app.core.security import SECRET_KEY, ALGORITHM
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
@@ -8,6 +11,28 @@ from app.models.models import Empresa, UsuarioEmpresa, Usuario
 # A simple dependency to get the current user ID would go here, we'll mock it for now or require it in the schema
 
 router = APIRouter()
+bearer = HTTPBearer()
+
+def usuario_actual(credentials: HTTPAuthorizationCredentials = Depends(bearer), db: Session = Depends(get_db)) -> Usuario:
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = int(payload.get("id"))
+    except (JWTError, ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Sesión inválida o vencida.")
+    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
+    if not usuario:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado.")
+    return usuario
+
+def exigir_vinculo(db: Session, usuario_id: int, empresa_id: int) -> UsuarioEmpresa:
+    vinculo = db.query(UsuarioEmpresa).filter(
+        UsuarioEmpresa.usuario_id == usuario_id,
+        UsuarioEmpresa.empresa_id == empresa_id
+    ).first()
+    if not vinculo:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta empresa.")
+    return vinculo
+
 
 class EmpresaCreate(BaseModel):
     razon_social: str
@@ -18,7 +43,8 @@ class EmpresaCreate(BaseModel):
     usuario_id: int # El ID del usuario creador (temporal)
 
 @router.post("/empresas")
-def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db)):
+def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
+    empresa.usuario_id = usuario.id
     try:
         # Verify if NIT or NRC already exists
         existing_empresa = db.query(Empresa).filter(
@@ -70,7 +96,9 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error interno al crear o vincular la empresa.")
 
 @router.get("/empresas/usuario/{usuario_id}")
-def get_empresas(usuario_id: int, db: Session = Depends(get_db)):
+def get_empresas(usuario_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
+    if usuario_id != usuario.id:
+        raise HTTPException(status_code=403, detail="No puedes consultar empresas de otro usuario.")
     vinculos = db.query(UsuarioEmpresa).filter(UsuarioEmpresa.usuario_id == usuario_id).all()
     empresas = []
     for v in vinculos:
@@ -91,7 +119,10 @@ class EmpresaUpdate(BaseModel):
     combustible_50_porciento: Optional[bool] = None
 
 @router.put("/empresas/{empresa_id}")
-def update_empresa(empresa_id: int, empresa_data: EmpresaUpdate, db: Session = Depends(get_db)):
+def update_empresa(empresa_id: int, empresa_data: EmpresaUpdate, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
+    vinculo = exigir_vinculo(db, usuario.id, empresa_id)
+    if vinculo.rol != "admin":
+        raise HTTPException(status_code=403, detail="Solo un administrador puede editar la empresa.")
     empresa = db.query(Empresa).filter_by(id=empresa_id).first()
     if not empresa:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
@@ -107,3 +138,11 @@ def update_empresa(empresa_id: int, empresa_data: EmpresaUpdate, db: Session = D
         
     db.commit()
     return {"message": "Empresa actualizada correctamente"}
+
+@router.delete("/empresas/{empresa_id}/mi-vinculo")
+def desvincular_empresa(empresa_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
+    """Retira una empresa del panel del usuario sin borrar registros contables."""
+    vinculo = exigir_vinculo(db, usuario.id, empresa_id)
+    db.delete(vinculo)
+    db.commit()
+    return {"message": "Empresa retirada de tu panel. Sus documentos permanecen intactos."}
