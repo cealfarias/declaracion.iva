@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   Bars3Icon, XMarkIcon, BuildingOffice2Icon, HomeIcon,
   ShoppingBagIcon, DocumentTextIcon, ReceiptPercentIcon,
-  NoSymbolIcon, CalculatorIcon, ArrowRightStartOnRectangleIcon
+  NoSymbolIcon, CalculatorIcon, ArrowRightStartOnRectangleIcon, ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 const items = [
@@ -13,6 +13,7 @@ const items = [
   { label: 'Ventas consumidor final', to: '/consumidor-final', icon: ReceiptPercentIcon, periodo: true },
   { label: 'Ventas contribuyentes', to: '/ventas-contribuyentes', icon: DocumentTextIcon, periodo: true },
   { label: 'Documentos invalidados', to: '/anulados', icon: NoSymbolIcon, periodo: true },
+  { label: 'Retenciones', to: '/retenciones', icon: ShieldCheckIcon, periodo: true },
   { label: 'Liquidación', to: '/liquidacion', icon: CalculatorIcon, periodo: true }
 ];
 
