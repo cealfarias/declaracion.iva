@@ -6,6 +6,7 @@ import { AssistantProvider } from './contexts/AssistantContext';
 import Login from './pages/Login';
 import Registro from './pages/Registro';
 import Avatar from './components/Avatar';
+import AppShell from './components/AppShell';
 
 import Terminos from './pages/Terminos';
 import Dashboard from './pages/Dashboard';
@@ -90,7 +91,7 @@ function App() {
       <AuthProvider>
         <AssistantProvider>
           <Router>
-            <AppRoutes />
+            <AppShell><AppRoutes /></AppShell>
             <Avatar />
           </Router>
         </AssistantProvider>
