@@ -34,6 +34,7 @@ class UsuarioEmpresa(Base):
     usuario_id = Column(Integer, ForeignKey("iva_usuarios.id"))
     empresa_id = Column(Integer, ForeignKey("iva_empresas.id"))
     rol = Column(String, default="admin")  # admin, contador, asistente
+    archivado = Column(Boolean, default=False, nullable=False)
 
     usuario = relationship("Usuario", back_populates="empresas")
     empresa = relationship("Empresa", back_populates="usuarios")
