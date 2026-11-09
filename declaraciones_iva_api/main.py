@@ -37,7 +37,15 @@ except Exception:
 
 # Migración idempotente de vínculos archivados (no elimina datos).
 with engine.begin() as conn:
-    conn.execute(text("ALTER TABLE iva_usuario_empresa ADD COLUMN IF NOT EXISTS archivado BOOLEAN NOT NULL DEFAULT FALSE"))
+    if engine.dialect.name == "postgresql":
+        conn.execute(text("ALTER TABLE iva_usuario_empresa ADD COLUMN IF NOT EXISTS archivado BOOLEAN NOT NULL DEFAULT FALSE"))
+    elif engine.dialect.name == "sqlite":
+        from sqlalchemy import inspect
+        columns = {col["name"] for col in inspect(conn).get_columns("iva_usuario_empresa")}
+        if "archivado" not in columns:
+            conn.execute(text("ALTER TABLE iva_usuario_empresa ADD COLUMN archivado BOOLEAN NOT NULL DEFAULT 0"))
+    else:
+        raise RuntimeError("Migración archivado pendiente para este motor de base de datos.")
 
 app = FastAPI(title="Declaraciones de IVA API", version="1.0.0")
 
