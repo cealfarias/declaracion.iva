@@ -77,8 +77,7 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
             combustible_50_porciento=empresa.combustible_50_porciento
         )
         db.add(db_empresa)
-        db.commit()
-        db.refresh(db_empresa)
+        db.flush()  # Obtener ID sin confirmar hasta crear también el vínculo
         
         # Vincular al usuario
         db_usuario_empresa = UsuarioEmpresa(
@@ -141,7 +140,11 @@ def update_empresa(empresa_id: int, empresa_data: EmpresaUpdate, db: Session = D
     if empresa_data.combustible_50_porciento is not None:
         empresa.combustible_50_porciento = empresa_data.combustible_50_porciento
         
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="El NIT o NRC ya está registrado.")
     return {"message": "Empresa actualizada correctamente"}
 
 @router.delete("/empresas/{empresa_id}/mi-vinculo")
