@@ -8,6 +8,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Dashboard() {
   const [empresas, setEmpresas] = useState([]);
+  const [archivadas, setArchivadas] = useState([]);
+  const [mostrarArchivadas, setMostrarArchivadas] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -41,6 +43,8 @@ export default function Dashboard() {
     try {
       const response = await axios.get(`${API_URL}/api/v1/empresas/usuario/${user?.id}`, authConfig);
       setEmpresas(response.data);
+      const archivedResponse = await axios.get(`${API_URL}/api/v1/empresas/archivadas`, authConfig);
+      setArchivadas(archivedResponse.data);
     } catch (error) {
       console.error('Error fetching empresas', error);
       enqueueMessages([{ text: "Ocurrió un error al cargar tus empresas.", type: "error" }]);
@@ -97,10 +101,22 @@ export default function Dashboard() {
     try {
       await axios.delete(`${API_URL}/api/v1/empresas/${empresa.id}/mi-vinculo`, authConfig);
       setEmpresas(actual => actual.filter(item => item.id !== empresa.id));
+      setArchivadas(actual => [...actual, empresa]);
       if (activeEmpresa?.id === empresa.id) selectEmpresa(null);
-      enqueueMessages([{ text: 'Empresa retirada de tu panel sin borrar datos tributarios.', type: 'success' }]);
+      enqueueMessages([{ text: 'Empresa archivada. Puedes restaurarla cuando quieras.', type: 'success' }]);
     } catch (error) {
       enqueueMessages([{ text: error.response?.data?.detail || 'No se pudo retirar la empresa.', type: 'error' }]);
+    }
+  };
+
+  const handleRestaurarEmpresa = async (empresa) => {
+    try {
+      await axios.post(`${API_URL}/api/v1/empresas/${empresa.id}/restaurar`, {}, authConfig);
+      setArchivadas(actual => actual.filter(item => item.id !== empresa.id));
+      setEmpresas(actual => [...actual, empresa]);
+      enqueueMessages([{ text: 'Empresa restaurada correctamente.', type: 'success' }]);
+    } catch (error) {
+      enqueueMessages([{ text: error.response?.data?.detail || 'No se pudo restaurar la empresa.', type: 'error' }]);
     }
   };
 
@@ -118,6 +134,22 @@ export default function Dashboard() {
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
           Nueva Empresa
         </button>
+      </div>
+
+      <div className="mb-6">
+        <button type="button" onClick={() => setMostrarArchivadas(actual => !actual)} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+          {mostrarArchivadas ? 'Ocultar archivadas' : 'Ver empresas archivadas'} ({archivadas.length})
+        </button>
+        {mostrarArchivadas && (
+          <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+            {archivadas.length === 0 ? <p className="text-sm text-slate-500">No hay empresas archivadas.</p> : archivadas.map(empresa => (
+              <div key={empresa.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-2">
+                <div><p className="font-semibold text-slate-800">{empresa.razon_social}</p><p className="text-xs text-slate-500">NIT: {empresa.nit}</p></div>
+                <button type="button" onClick={() => handleRestaurarEmpresa(empresa)} className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-700">Restaurar</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading ? (
