@@ -5,6 +5,8 @@ from app.core.security import SECRET_KEY, ALGORITHM
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
+from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_db
 from app.models.models import Empresa, UsuarioEmpresa, Usuario
@@ -40,15 +42,18 @@ class EmpresaCreate(BaseModel):
     nrc: str = None
     actividad_economica: str = None
     combustible_50_porciento: bool = False
-    usuario_id: int # El ID del usuario creador (temporal)
+    usuario_id: int | None = None  # Compatibilidad; se ignora y se utiliza el JWT
 
 @router.post("/empresas")
 def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_actual)):
-    empresa.usuario_id = usuario.id
+    nit = empresa.nit.strip()
+    nrc = (empresa.nrc or "").strip()
+    if not nit or not nrc:
+        raise HTTPException(status_code=422, detail="NIT y NRC son obligatorios.")
     try:
         # No conceder acceso a empresas ajenas solo por conocer NIT o NRC.
         existing_empresa = db.query(Empresa).filter(
-            (Empresa.nit == empresa.nit) | (Empresa.nrc == empresa.nrc)
+            or_(Empresa.nit == nit, Empresa.nrc == nrc)
         ).first()
         if existing_empresa:
             existing_link = db.query(UsuarioEmpresa).filter(
@@ -67,8 +72,8 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
         # Crear nueva Empresa si no existe
         db_empresa = Empresa(
             razon_social=empresa.razon_social,
-            nit=empresa.nit,
-            nrc=empresa.nrc,
+            nit=nit,
+            nrc=nrc,
             combustible_50_porciento=empresa.combustible_50_porciento
         )
         db.add(db_empresa)
@@ -77,7 +82,7 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
         
         # Vincular al usuario
         db_usuario_empresa = UsuarioEmpresa(
-            usuario_id=empresa.usuario_id,
+            usuario_id=usuario.id,
             empresa_id=db_empresa.id,
             rol="admin"
         )
@@ -88,6 +93,9 @@ def create_empresa(empresa: EmpresaCreate, db: Session = Depends(get_db), usuari
     except HTTPException:
         db.rollback()
         raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="El NIT o NRC ya está registrado.")
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Error interno al crear la empresa.")
