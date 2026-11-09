@@ -35,6 +35,10 @@ try:
 except Exception:
     pass
 
+# Migración idempotente de vínculos archivados (no elimina datos).
+with engine.begin() as conn:
+    conn.execute(text("ALTER TABLE iva_usuario_empresa ADD COLUMN IF NOT EXISTS archivado BOOLEAN NOT NULL DEFAULT FALSE"))
+
 app = FastAPI(title="Declaraciones de IVA API", version="1.0.0")
 
 origins = [
