@@ -463,56 +463,16 @@ def registrar_excedente_impuesto_anterior(
     mes: str,
     anio: str,
     req: ExcedenteImpuestoAnteriorRequest,
-    db: Session = Depends(get_db),
 ):
-    """Registro explícito de 164; no reemplaza saldos existentes ni arrastra automáticamente.
-
-    Requiere que la migración de la columna 164 ya esté aplicada.
-    """
+    """Ruta histórica cerrada: prohíbe saldos sin respaldo documental."""
     validar_periodo_fiscal(mes, anio)
-    # UPDATE condicional atómico: dos peticiones simultáneas no pueden
-    # reemplazarse mutuamente aunque ambas observaran inicialmente NULL.
-    liq = db.query(Liquidacion).filter(
-        Liquidacion.empresa_id == empresa_id,
-        Liquidacion.mes == mes,
-        Liquidacion.anio == anio,
-    ).first()
-    if liq is None:
-        db.add(Liquidacion(
-            empresa_id=empresa_id, mes=mes, anio=anio,
-            excedente_impuesto_anterior=req.importe,
-        ))
-    else:
-        resultado = db.execute(
-            update(Liquidacion)
-            .where(
-                Liquidacion.id == liq.id,
-                Liquidacion.excedente_impuesto_anterior.is_(None),
-            )
-            .values(excedente_impuesto_anterior=req.importe)
-        )
-        if resultado.rowcount != 1:
-            db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="La casilla 164 ya tiene un importe registrado; no se sobrescribe.",
-            )
-    try:
-        db.commit()
-    except IntegrityError as exc:
-        db.rollback()
-        # Si otra petición creó el mismo período simultáneamente,
-        # la restricción UNIQUE impide duplicar el registro.
-        raise HTTPException(
-            status_code=409,
-            detail="El período fue modificado concurrentemente; consulte el saldo antes de reintentar.",
-        ) from exc
-    return {
-        'mensaje': 'Excedente anterior registrado para conciliación fiscal.',
-        'casilla': 164,
-        'importe': float(req.importe),
-        'periodo': f"{anio}-{mes}",
-    }
+    raise HTTPException(
+        status_code=409,
+        detail=(
+            "El registro sin respaldo de la casilla 164 está deshabilitado. "
+            "Utilice excedente-impuesto-anterior-auditado con origen y referencia."
+        ),
+    )
 
 
 class Excedente164AuditadoRequest(ExcedenteImpuestoAnteriorRequest):
