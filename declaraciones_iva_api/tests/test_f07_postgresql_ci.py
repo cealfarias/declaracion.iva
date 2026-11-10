@@ -34,7 +34,7 @@ def test_migracion_164_y_unicidad_en_postgresql():
         conn.execute(text("SET search_path TO f07_ci_test"))
         Usuario.__table__.create(conn, checkfirst=True)
         Empresa.__table__.create(conn, checkfirst=True)
-        conn.execute(text(\"INSERT INTO iva_usuarios (id, email, password_hash, nombre) VALUES (1, 'ci@example.invalid', 'ci-no-login', 'CI')\"))
+        conn.execute(text("INSERT INTO iva_usuarios (id, email, password_hash, nombre) VALUES (1, 'ci@example.invalid', 'ci-no-login', 'CI')"))
         # Crear esquema anterior sin la columna 164 para probar migración real.
         # Crear todas las columnas heredadas que el ORM necesita;
         # retirar únicamente la nueva columna para reproducir la migración.
