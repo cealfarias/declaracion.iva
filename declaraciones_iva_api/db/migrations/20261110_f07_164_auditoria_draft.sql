@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS iva_excedentes_164_auditoria (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     liquidacion_id INTEGER NOT NULL REFERENCES iva_liquidaciones(id),
     empresa_id INTEGER NOT NULL REFERENCES iva_empresas(id),
+    usuario_id INTEGER NOT NULL REFERENCES iva_usuarios(id),
     anio VARCHAR(4) NOT NULL,
     mes VARCHAR(2) NOT NULL,
     importe NUMERIC(18,2) NOT NULL CHECK (importe >= 0),
@@ -19,5 +20,14 @@ CREATE TABLE IF NOT EXISTS iva_excedentes_164_auditoria (
 
 COMMENT ON TABLE iva_excedentes_164_auditoria IS
   'Trazabilidad inicial de saldos casilla 164; no sustituye conciliación fiscal ni auditoría de cambios.';
+
+-- Validación de correspondencia empresa/período con la liquidación referenciada.
+-- Requiere índice único compuesto para FK sin permitir combinaciones inconsistentes.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_iva_liquidaciones_id_empresa_periodo
+    ON iva_liquidaciones (id, empresa_id, anio, mes);
+ALTER TABLE iva_excedentes_164_auditoria
+    ADD CONSTRAINT fk_164_liquidacion_empresa_periodo
+    FOREIGN KEY (liquidacion_id, empresa_id, anio, mes)
+    REFERENCES iva_liquidaciones (id, empresa_id, anio, mes);
 
 COMMIT;
