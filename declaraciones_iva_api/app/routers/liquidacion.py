@@ -437,6 +437,60 @@ def validar_remanente_query(valor: str) -> Decimal:
     return importe
 
 
+class ExcedenteImpuestoAnteriorRequest(BaseModel):
+    """Casilla 164 conciliada manualmente, nunca calculada desde la 155."""
+    importe: Decimal
+
+    @field_validator("importe", mode="before")
+    @classmethod
+    def validar_importe(cls, value):
+        if value is None or isinstance(value, bool):
+            raise ValueError("El importe de la casilla 164 debe ser numérico.")
+        try:
+            importe = Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError) as exc:
+            raise ValueError("El importe de la casilla 164 debe ser numérico.") from exc
+        if not importe.is_finite() or importe < 0 or importe.as_tuple().exponent < -2:
+            raise ValueError("El importe debe ser finito, no negativo y tener máximo dos decimales.")
+        return importe
+
+
+@router.post('/{empresa_id}/excedente-impuesto-anterior')
+def registrar_excedente_impuesto_anterior(
+    empresa_id: int,
+    mes: str,
+    anio: str,
+    req: ExcedenteImpuestoAnteriorRequest,
+    db: Session = Depends(get_db),
+):
+    """Registro explícito de 164; no reemplaza saldos existentes ni arrastra automáticamente.
+
+    Requiere que la migración de la columna 164 ya esté aplicada.
+    """
+    validar_periodo_fiscal(mes, anio)
+    liq = db.query(Liquidacion).filter(
+        Liquidacion.empresa_id == empresa_id,
+        Liquidacion.mes == mes,
+        Liquidacion.anio == anio,
+    ).first()
+    if liq is not None and liq.excedente_impuesto_anterior is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="La casilla 164 ya tiene un importe registrado; no se sobrescribe automáticamente.",
+        )
+    if liq is None:
+        liq = Liquidacion(empresa_id=empresa_id, mes=mes, anio=anio)
+        db.add(liq)
+    liq.excedente_impuesto_anterior = req.importe
+    db.commit()
+    return {
+        'mensaje': 'Excedente anterior registrado para conciliación fiscal.',
+        'casilla': 164,
+        'importe': float(req.importe),
+        'periodo': f"{anio}-{mes}",
+    }
+
+
 @router.post('/{empresa_id}/remanente')
 def update_remanente(empresa_id: int, mes: str, anio: str, remanente: str, db: Session = Depends(get_db)):
     validar_periodo_fiscal(mes, anio)
