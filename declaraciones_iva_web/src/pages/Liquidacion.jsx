@@ -18,6 +18,7 @@ export default function Liquidacion() {
   
   const [data, setData] = useState(null);
   const [diferenciasServidor, setDiferenciasServidor] = useState([]);
+  const [ajustesHistoricosLocales, setAjustesHistoricosLocales] = useState(false);
   const [loading, setLoading] = useState(true);
   
   const [editRemanente, setEditRemanente] = useState(false);
@@ -163,6 +164,7 @@ export default function Liquidacion() {
       res.anulados_cf_count = anuladosCfCount;
       res.anulados_ccf_count = anuladosCcfCount;
 
+      setAjustesHistoricosLocales(tieneAjustesLegados);
       if (tieneAjustesLegados) {
       res.ventas_cf = {
         neto: netoCfValido,
@@ -328,6 +330,7 @@ export default function Liquidacion() {
     } catch (error) {
       console.error("No se pudo cargar el conjunto completo de documentos para liquidación.", error);
       setData(null);
+      setAjustesHistoricosLocales(false);
       setDiferenciasServidor([]);
       enqueueMessages([{ text: "No se pudo cargar la liquidación completa. No se muestran cálculos parciales; revise la conexión y vuelva a intentar.", type: "error" }]);
     } finally {
@@ -419,6 +422,14 @@ export default function Liquidacion() {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12 font-sans">
+      {ajustesHistoricosLocales && (
+        <div role="status" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
+            <p className="font-bold">Liquidación con ajustes históricos locales</p>
+            <p className="text-sm mt-1">Esta liquidación utiliza datos o reglas históricas del navegador que todavía no han sido conciliados con PostgreSQL. Aunque no aparezcan diferencias numéricas, confirme los importes antes de presentar el F-07. No borre los datos del navegador hasta completar la migración.</p>
+          </div>
+        </div>
+      )}
       {diferenciasServidor.length > 0 && (
         <div role="alert" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
