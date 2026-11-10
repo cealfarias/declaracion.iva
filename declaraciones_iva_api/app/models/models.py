@@ -223,6 +223,29 @@ class Liquidacion(Base):
     empresa = relationship("Empresa")
 
 
+
+class Excedente164Auditoria(Base):
+    """Procedencia de la casilla 164, pendiente de habilitación HTTP."""
+    __tablename__ = "iva_excedentes_164_auditoria"
+
+    __table_args__ = (
+        UniqueConstraint("liquidacion_id", name="uq_excedentes_164_liquidacion"),
+        UniqueConstraint("empresa_id", "anio", "mes", name="uq_excedentes_164_empresa_periodo"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    liquidacion_id = Column(Integer, ForeignKey("iva_liquidaciones.id"), nullable=False)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("iva_usuarios.id"), nullable=False)
+    anio = Column(String(4), nullable=False)
+    mes = Column(String(2), nullable=False)
+    importe = Column(Numeric(18, 2), nullable=False)
+    origen = Column(String(32), nullable=False)
+    referencia = Column(String(250), nullable=False)
+    registrado_en = Column(DateTime(timezone=True), nullable=False)
+
+
+
 class DteRetencion(Base):
     __tablename__ = "iva_dtes_retenciones"
 
