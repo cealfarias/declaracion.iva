@@ -17,6 +17,7 @@ export default function Liquidacion() {
   const { enqueueMessages } = useAssistant();
   
   const [data, setData] = useState(null);
+  const [diferenciasServidor, setDiferenciasServidor] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [editRemanente, setEditRemanente] = useState(false);
@@ -94,6 +95,13 @@ export default function Liquidacion() {
         axios.get(`${API_URL}/api/v1/anulados/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] }))
       ]);
       const res = liqRes.data;
+      // Conservar cifras originales para detectar divergencias con los ajustes del navegador.
+      const cifrasServidor = {
+        debito: Number(res.totales?.debito || 0),
+        credito: Number(res.totales?.credito || 0),
+        impuesto: Number(res.impuesto_a_pagar || 0),
+        remanente: Number(res.remanente_siguiente || 0)
+      };
       const comprasList = comprasRes.data || [];
       const ventasCfList = ventasCfRes.data || [];
       const ventasCcfList = ventasCcfRes.data || [];
@@ -288,6 +296,16 @@ export default function Liquidacion() {
         console.error("Error al persistir remanente siguiente", err);
       }
 
+      const cifrasPantalla = {
+        debito: Number(res.totales?.debito || 0),
+        credito: Number(res.totales?.credito || 0),
+        impuesto: Number(res.impuesto_a_pagar || 0),
+        remanente: Number(res.remanente_siguiente || 0)
+      };
+      const nombres = { debito: "Débito fiscal", credito: "Crédito fiscal", impuesto: "Impuesto a pagar", remanente: "Remanente siguiente" };
+      setDiferenciasServidor(Object.keys(cifrasServidor)
+        .filter(campo => Math.abs(cifrasServidor[campo] - cifrasPantalla[campo]) > 0.009)
+        .map(campo => ({ nombre: nombres[campo], servidor: cifrasServidor[campo], pantalla: cifrasPantalla[campo] })));
       setData(res);
       setRemanenteInput(res.remanente_anterior !== undefined ? res.remanente_anterior.toString() : "0.00");
       setAjustes({
@@ -298,6 +316,7 @@ export default function Liquidacion() {
         percepciones_efectuadas: (res.percepciones_efectuadas || 0).toString()
       });
     } catch (error) {
+      setDiferenciasServidor([]);
       enqueueMessages([{ text: "Error al cargar la liquidación.", type: "error" }]);
     } finally {
       setLoading(false);
@@ -388,6 +407,19 @@ export default function Liquidacion() {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12 font-sans">
+      {diferenciasServidor.length > 0 && (
+        <div role="alert" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
+            <p className="font-bold">Atención: diferencias entre servidor y pantalla</p>
+            <p className="text-sm mt-1">Los ajustes históricos o cálculos locales modifican importes recibidos del servidor. Revise estos valores antes de presentar una declaración.</p>
+            <ul className="mt-2 list-disc pl-5 text-sm">
+              {diferenciasServidor.map(item => (
+                <li key={item.nombre}>{item.nombre}: servidor ${item.servidor.toFixed(2)}; pantalla ${item.pantalla.toFixed(2)}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-indigo-600 border-b border-indigo-700 sticky top-0 z-30 shadow-md">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
