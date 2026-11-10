@@ -1,0 +1,63 @@
+name: F07 - Verificacion automatica
+
+on:
+  push:
+    branches:
+      - feature/sidebar-empresas-invalidados
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f07-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend - pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: declaraciones_iva_api
+    env:
+      DATABASE_URL: sqlite:///:memory:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: declaraciones_iva_api/requirements.txt
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pytest-subtests httpx
+      - name: Ejecutar pruebas
+        run: python -m pytest -q tests
+
+  frontend:
+    name: Frontend - compilacion
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: declaraciones_iva_web
+    steps:
+      - name: Obtener codigo
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: declaraciones_iva_web/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Compilar frontend
+        run: npm run build
