@@ -32,7 +32,8 @@ SELECT empresa_id,
        COUNT(*) FILTER (WHERE estado = 'auditoria_sin_saldo') AS auditorias_sin_saldo,
        COUNT(*) FILTER (WHERE estado = 'importe_discrepante') AS importes_discrepantes,
        COUNT(*) FILTER (WHERE estado = 'periodo_discrepante') AS periodos_discrepantes,
-       COUNT(*) FILTER (WHERE estado = 'auditoria_huerfana') AS auditorias_huerfanas
+       COUNT(*) FILTER (WHERE estado = 'auditoria_huerfana') AS auditorias_huerfanas,
+       COUNT(*) FILTER (WHERE estado NOT IN ('coincidente', 'sin_saldo')) AS periodos_pendientes_revision
 FROM inventario
 WHERE estado <> 'sin_saldo'
 GROUP BY empresa_id
