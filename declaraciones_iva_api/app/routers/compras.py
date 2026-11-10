@@ -262,7 +262,7 @@ async def upload_dtes(
             # Validar si el archivo pertenece a la empresa si trae NIT en el encabezado
             if nit_reporte:
                 clean_rep_nit = clean_id(nit_reporte)
-                if emp_nit and clean_rep_nit and clean_rep_nit not in emp_nit and emp_nit not in clean_rep_nit:
+                if emp_nit and clean_rep_nit and clean_rep_nit != emp_nit:
                     descartados_otra_empresa += 1
                     errores.append(f"{file.filename}: El NIT del reporte ({nit_reporte}) no coincide con la empresa seleccionada ({empresa.nit}).")
                     continue
@@ -580,7 +580,7 @@ async def upload_dtes(
                 rec_nit = clean_id(receptor.get("nit") or receptor.get("numDocumento"))
                 rec_nrc = clean_id(receptor.get("nrc"))
                 
-                if emp_nit and rec_nit and (emp_nit == rec_nit or emp_nit in rec_nit or rec_nit in emp_nit):
+                if emp_nit and rec_nit and (emp_nit == rec_nit):
                     pertenece = True
                 elif emp_nrc and rec_nrc and (emp_nrc == rec_nrc or emp_nrc.lstrip("0") == rec_nrc.lstrip("0")):
                     pertenece = True
@@ -589,7 +589,7 @@ async def upload_dtes(
                 emi_nit = clean_id(emisor.get("nit"))
                 emi_nrc = clean_id(emisor.get("nrc"))
                 
-                if emp_nit and emi_nit and (emp_nit == emi_nit or emp_nit in emi_nit or emi_nit in emp_nit):
+                if emp_nit and emi_nit and (emp_nit == emi_nit):
                     pertenece = True
                 elif emp_nrc and emi_nrc and (emp_nrc == emi_nrc or emp_nrc.lstrip("0") == emi_nrc.lstrip("0")):
                     pertenece = True
