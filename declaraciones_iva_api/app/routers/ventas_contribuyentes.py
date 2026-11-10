@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 import json
 
 from app.core.database import get_db
+from app.core.authorization import autorizar_empresa_tributaria
 from app.models.models import DteVentaContribuyente, Empresa, DeclaracionEstado, DteAnulado
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
 
 def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str, tipo_libro: str = 'ventas_contribuyentes', version: int = 1) -> bool:
     estado = db.query(DeclaracionEstado).filter(
