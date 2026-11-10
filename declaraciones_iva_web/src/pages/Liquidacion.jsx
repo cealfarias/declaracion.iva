@@ -520,7 +520,23 @@ export default function Liquidacion() {
             
             <div className="flex items-center space-x-3">
               <button 
-                onClick={() => window.print()}
+                onClick={() => {
+                  if (!data || loading) {
+                    enqueueMessages([{ text: "Espere a que se cargue la liquidación completa antes de imprimir.", type: "error" }]);
+                    return;
+                  }
+                  if (ajustesHistoricosLocales || diferenciasServidor.length > 0) {
+                    const confirmar = window.confirm(
+                      "ATENCIÓN: esta liquidación contiene ajustes históricos locales o diferencias pendientes de conciliación. " +
+                      "La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
+                    );
+                    if (!confirmar) return;
+                  }
+                  window.print();
+                }}
+                disabled={!data || loading}
+                aria-label="Imprimir liquidación F-07"
+                title={!data || loading ? "Espere a que se cargue la liquidación" : "Imprimir liquidación"
                 className="bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center border border-indigo-400 cursor-pointer"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
