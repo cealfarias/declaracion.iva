@@ -443,14 +443,24 @@ export default function Liquidacion() {
 
   const saveAjustes = async () => {
     try {
-      const payload = {
-        remanente_anterior: parseFloat(remanenteInput) || 0,
-        retenciones_recibidas: parseFloat(ajustes.retenciones_recibidas) || 0,
-        percepciones_recibidas: parseFloat(ajustes.percepciones_recibidas) || 0,
-        anticipo_cuenta_2: parseFloat(ajustes.anticipo_cuenta_2) || 0,
-        retenciones_efectuadas: parseFloat(ajustes.retenciones_efectuadas) || 0,
-        percepciones_efectuadas: parseFloat(ajustes.percepciones_efectuadas) || 0
+      const entradas = {
+        remanente_anterior: remanenteInput,
+        retenciones_recibidas: ajustes.retenciones_recibidas,
+        percepciones_recibidas: ajustes.percepciones_recibidas,
+        anticipo_cuenta_2: ajustes.anticipo_cuenta_2,
+        retenciones_efectuadas: ajustes.retenciones_efectuadas,
+        percepciones_efectuadas: ajustes.percepciones_efectuadas
       };
+      const payload = {};
+      for (const [campo, entrada] of Object.entries(entradas)) {
+        const texto = String(entrada ?? "").trim();
+        const valor = Number(texto);
+        if (!texto || !Number.isFinite(valor) || valor < 0 || !/^\\d+(?:\\.\\d{1,2})?$/.test(texto)) {
+          enqueueMessages([{ text: `Importe inválido en ${campo}. Ingrese un número no negativo con hasta dos decimales.`, type: "error" }]);
+          return;
+        }
+        payload[campo] = valor;
+      }
       await axios.post(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/ajustes?mes=${mes}&anio=${anio}`, payload);
       enqueueMessages([{ text: "Ajustes de liquidación guardados.", type: "success" }]);
       setShowAjustes(false);
