@@ -508,15 +508,33 @@ def consultar_excedente_164_auditoria(
         Excedente164Auditoria.mes == mes,
         Excedente164Auditoria.anio == anio,
     ).first()
+    liquidacion = db.query(Liquidacion).filter(
+        Liquidacion.empresa_id == empresa_id,
+        Liquidacion.mes == mes,
+        Liquidacion.anio == anio,
+    ).first()
+    saldo = liquidacion.excedente_impuesto_anterior if liquidacion else None
     if registro is None:
         return {
             "casilla": 164,
             "periodo": f"{anio}-{mes}",
             "auditoria_disponible": False,
+            "consistencia": "saldo_sin_auditoria" if saldo is not None else "sin_registro",
             "respaldo": None,
         }
+    if (
+        liquidacion is None
+        or registro.liquidacion_id != liquidacion.id
+        or saldo is None
+        or Decimal(str(registro.importe)) != Decimal(str(saldo))
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Inconsistencia entre el saldo 164 y su respaldo auditado; requiere conciliación.",
+        )
     return {
         "casilla": 164,
+        "consistencia": "coincidente",
         "periodo": f"{anio}-{mes}",
         "auditoria_disponible": True,
         "respaldo": {
