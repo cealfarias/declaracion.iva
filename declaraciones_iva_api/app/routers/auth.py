@@ -1,4 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+from app.core.security import SECRET_KEY, ALGORITHM
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import timedelta
@@ -13,6 +16,7 @@ from app.core.security import verify_password, get_password_hash, create_access_
 GOOGLE_CLIENT_ID = "231508841464-22ln2h2p8k524lb6njdqmsk7s9e9bvl7.apps.googleusercontent.com"
 
 router = APIRouter()
+bearer = HTTPBearer()
 
 class UserCreate(BaseModel):
     email: str
@@ -22,6 +26,7 @@ class UserCreate(BaseModel):
     razon_social: str
     nit: str
     nrc: str
+    acepta_terminos: bool = False
 
 class UserLogin(BaseModel):
     email: str
@@ -32,6 +37,8 @@ class GoogleToken(BaseModel):
 
 @router.post("/register")
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    if not user.acepta_terminos:
+        raise HTTPException(status_code=422, detail="Debes aceptar los términos para registrarte.")
     try:
         db_user = db.query(Usuario).filter(Usuario.email == user.email).first()
         if db_user:
@@ -47,7 +54,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         
         # 1. Crear Usuario
         hashed_password = get_password_hash(user.password)
-        new_user = Usuario(email=user.email, password_hash=hashed_password, nombre=user.nombre)
+        new_user = Usuario(email=user.email, password_hash=hashed_password, nombre=user.nombre, terminos_aceptados=True)
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
@@ -68,10 +75,12 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         
         return {"message": "Usuario y Empresa creados exitosamente", "id": new_user.id}
-    except Exception as e:
+    except HTTPException:
         db.rollback()
-        print(f"Error en register: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="No se pudo completar el registro.")
 
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
@@ -111,15 +120,26 @@ def google_login(token_data: GoogleToken, db: Session = Depends(get_db)):
         print("Error en Google Auth:", e)
         raise HTTPException(status_code=500, detail="Error interno en autenticación")
 
-class TerminosAccept(BaseModel):
-    usuario_id: int
+def usuario_autenticado(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db)
+) -> Usuario:
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = int(payload.get("id"))
+    except (JWTError, TypeError, ValueError):
+        raise HTTPException(status_code=401, detail="Sesión inválida o vencida.")
+    user = db.query(Usuario).filter(Usuario.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="Usuario no encontrado.")
+    return user
+
 
 @router.post("/aceptar-terminos")
-def aceptar_terminos(req: TerminosAccept, db: Session = Depends(get_db)):
-    user = db.query(Usuario).filter(Usuario.id == req.usuario_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
+def aceptar_terminos(
+    user: Usuario = Depends(usuario_autenticado),
+    db: Session = Depends(get_db)
+):
     user.terminos_aceptados = True
     db.commit()
     return {"message": "Términos aceptados correctamente"}
