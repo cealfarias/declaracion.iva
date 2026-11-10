@@ -52,6 +52,7 @@ def test_164_auditado_jwt_y_aislamiento_empresa(escenario):
         assert consulta.status_code == 200, consulta.text
         respaldo = consulta.json()["respaldo"]
         assert consulta.json()["auditoria_disponible"] is True
+        assert consulta.json()["consistencia"] == "coincidente"
         assert respaldo["referencia"] == "F07-2026-12"
         assert respaldo["usuario_id"] == ids["u1"]
         assert respaldo["importe"] == 45.67
@@ -68,6 +69,7 @@ def test_164_auditado_jwt_y_aislamiento_empresa(escenario):
         )
         assert sin_respaldo.status_code == 200
         assert sin_respaldo.json()["auditoria_disponible"] is False
+        assert sin_respaldo.json()["consistencia"] == "sin_registro"
         assert sin_respaldo.json()["respaldo"] is None
 
         audit = db.query(Excedente164Auditoria).one()
@@ -81,3 +83,32 @@ def test_164_auditado_jwt_y_aislamiento_empresa(escenario):
         )
         assert duplicada.status_code == 409, duplicada.text
         assert db.query(Excedente164Auditoria).count() == 1
+
+
+def test_164_detecta_saldo_historico_sin_respaldo_y_discrepancia(escenario):
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}/excedente-impuesto-anterior-auditoria?mes=03&anio=2027"
+    db.add(Liquidacion(empresa_id=ids["e1"], anio="2027", mes="03", excedente_impuesto_anterior=12.34))
+    db.commit()
+    with TestClient(app) as client:
+        sin_auditoria = client.get(ruta, headers=headers(ids["u1"]))
+        assert sin_auditoria.status_code == 200, sin_auditoria.text
+        assert sin_auditoria.json()["consistencia"] == "saldo_sin_auditoria"
+        assert sin_auditoria.json()["respaldo"] is None
+
+        # Auditar un período distinto para comprobar una discrepancia real.
+        ruta_post = f"/api/v1/liquidacion/{ids['e1']}/excedente-impuesto-anterior-auditado?mes=04&anio=2027"
+        payload = {"importe": "15.00", "origen": "conciliacion_manual", "referencia": "ACTA-2027-04"}
+        creada = client.post(ruta_post, json=payload, headers=headers(ids["u1"]))
+        assert creada.status_code == 200, creada.text
+        liq = db.query(Liquidacion).filter_by(empresa_id=ids["e1"], anio="2027", mes="04").one()
+        liq.excedente_impuesto_anterior = 16
+        db.commit()
+        inconsistente = client.get(
+            f"/api/v1/liquidacion/{ids['e1']}/excedente-impuesto-anterior-auditoria?mes=04&anio=2027",
+            headers=headers(ids["u1"]),
+        )
+        assert inconsistente.status_code == 409, inconsistente.text
