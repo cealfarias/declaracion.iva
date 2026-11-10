@@ -5,9 +5,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.core.database import get_db
+from app.core.authorization import autorizar_empresa_tributaria
 from app.models.models import Empresa, DteCompra, DteVenta, DteVentaContribuyente, DteAnulado, Liquidacion
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
 
 def get_previous_month_year(mes: str, anio: str):
     m = int(mes)
