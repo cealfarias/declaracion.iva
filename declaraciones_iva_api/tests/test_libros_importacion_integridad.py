@@ -87,3 +87,22 @@ def test_fecha_futura_no_guarda_documentos(cliente_json, prefix, modelo, tipo, t
     assert r.status_code == 200, r.text
     assert r.json()["procesados"] == 0, r.text
     assert db.query(modelo).count() == 0
+
+
+@pytest.mark.parametrize("prefix,modelo,tipo,titular", MODULOS)
+def test_nit_parcial_no_se_acepta_como_empresa(cliente_json, prefix, modelo, tipo, titular):
+    client, db, ids = cliente_json
+    # TEST-UNO es el NIT completo; TEST es solo un fragmento.
+    r = subir(client, prefix, ids, documento(tipo, titular, "TEST"))
+    assert r.status_code == 200, r.text
+    assert r.json()["procesados"] == 0, r.text
+    assert db.query(modelo).count() == 0
+
+
+@pytest.mark.parametrize("prefix,modelo,tipo,titular", MODULOS)
+def test_nit_con_sufijo_extra_no_se_acepta(cliente_json, prefix, modelo, tipo, titular):
+    client, db, ids = cliente_json
+    r = subir(client, prefix, ids, documento(tipo, titular, "TEST-UNO-EXTRA"))
+    assert r.status_code == 200, r.text
+    assert r.json()["procesados"] == 0, r.text
+    assert db.query(modelo).count() == 0
