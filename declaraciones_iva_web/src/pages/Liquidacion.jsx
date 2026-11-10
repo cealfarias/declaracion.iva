@@ -151,6 +151,19 @@ export default function Liquidacion() {
         }
       });
 
+      // Para períodos ordinarios, el backend es la única fuente de importes fiscales.
+      // Conservar temporalmente la ruta heredada solo cuando existan ajustes
+      // locales explícitos o los casos históricos aún pendientes de migración.
+      const tieneAjustesLegados =
+        getOmittedFromStorage() !== null ||
+        getDevolucionesManualStorage() !== null ||
+        getRemanenteManualStorage() !== null ||
+        (activeEmpresa?.id === 2 && anio === "2026" && ["01", "02", "03"].includes(mes));
+
+      res.anulados_cf_count = anuladosCfCount;
+      res.anulados_ccf_count = anuladosCcfCount;
+
+      if (tieneAjustesLegados) {
       res.ventas_cf = {
         neto: netoCfValido,
         debito: debitoCfValido
@@ -288,13 +301,10 @@ export default function Liquidacion() {
 
       res.impuesto_a_pagar = impuestoAPagar;
       res.remanente_siguiente = remanenteSiguiente;
-
-      // Guardar remanente siguiente en storage para que el mes próximo lo reciba automáticamente
-      try {
-        localStorage.setItem(`remanente_siguiente_${activeEmpresa?.id}_${mes}_${anio}`, remanenteSiguiente.toString());
-      } catch (err) {
-        console.error("Error al persistir remanente siguiente", err);
       }
+
+      // No crear nuevos remanentes locales: el arrastre ordinario se obtiene del backend.
+      // Las copias históricas existentes se conservan sin modificarlas.
 
       const cifrasPantalla = {
         debito: Number(res.totales?.debito || 0),
