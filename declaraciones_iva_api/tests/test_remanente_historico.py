@@ -72,3 +72,17 @@ def test_remanente_cruza_de_diciembre_a_enero(escenario):
     assert get_previous_month_year("01", "2026") == ("12", "2025")
     assert get_remanente_historico(db, ids["e1"], "01", "2026") == 70.00
     assert get_remanente_historico(db, ids["e1"], "02", "2026") == 45.00
+
+
+def test_ventas_omitidas_no_consumen_remanente_historico(escenario):
+    _, db, ids = escenario
+    vigente = venta(ids["e1"], "10", "2026", "V-VIGENTE", 20.00)
+    omitida = venta(ids["e1"], "10", "2026", "V-OMITIDA", 80.00)
+    omitida.omitido = True
+    db.add_all([
+        compra(ids["e1"], "09", "2026", "C-SEPT", 50.00),
+        vigente,
+        omitida,
+    ])
+    db.commit()
+    assert get_remanente_historico(db, ids["e1"], "11", "2026") == 30.00
