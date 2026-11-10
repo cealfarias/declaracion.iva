@@ -38,7 +38,8 @@ export default function Registro() {
         password: formData.password || "google-auth-random-pass-xyz",
         razon_social: formData.razon_social,
         nit: formData.nit,
-        nrc: formData.nrc
+        nrc: formData.nrc,
+        acepta_terminos: formData.aceptaTerminos
       });
 
       // Registro exitoso
