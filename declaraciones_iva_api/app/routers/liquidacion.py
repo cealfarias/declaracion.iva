@@ -313,8 +313,12 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
     total_terceros = round(retenciones_efectuadas + percepciones_efectuadas, 2)
     impuesto_a_pagar = round(impuesto_propio + total_terceros, 2)
 
-    # Remanente para el período siguiente
-    remanente_siguiente = round(excedente_credito + remanente_no_utilizado + deducciones_sobrantes, 2)
+    # Separar el crédito fiscal del excedente de deducciones tributarias.
+    # No se debe arrastrar el excedente de deducciones como crédito fiscal.
+    remanente_credito_fiscal_siguiente = round(excedente_credito + remanente_no_utilizado, 2)
+    excedente_deducciones_pendiente = round(deducciones_sobrantes, 2)
+    # Alias histórico para consumidores existentes: exclusivamente crédito fiscal.
+    remanente_siguiente = remanente_credito_fiscal_siguiente
 
     # Estructura enriquecida para el frontend
     data['liquidacion'] = {
@@ -332,12 +336,16 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
         'total_terceros': total_terceros,
         'impuesto_propio': impuesto_propio,
         'impuesto_a_pagar': impuesto_a_pagar,
-        'remanente_siguiente': remanente_siguiente
+        'remanente_siguiente': remanente_siguiente,
+        'remanente_credito_fiscal_siguiente': remanente_credito_fiscal_siguiente,
+        'excedente_deducciones_pendiente': excedente_deducciones_pendiente
     }
 
     # Campos de compatibilidad directa
     data['impuesto_a_pagar'] = impuesto_a_pagar
     data['remanente_siguiente'] = remanente_siguiente
+    data['remanente_credito_fiscal_siguiente'] = remanente_credito_fiscal_siguiente
+    data['excedente_deducciones_pendiente'] = excedente_deducciones_pendiente
     
     return data
 
