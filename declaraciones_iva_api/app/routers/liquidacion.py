@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, update
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, field_validator
 from decimal import Decimal, InvalidOperation
 from typing import Optional
@@ -468,21 +469,43 @@ def registrar_excedente_impuesto_anterior(
     Requiere que la migración de la columna 164 ya esté aplicada.
     """
     validar_periodo_fiscal(mes, anio)
+    # UPDATE condicional atómico: dos peticiones simultáneas no pueden
+    # reemplazarse mutuamente aunque ambas observaran inicialmente NULL.
     liq = db.query(Liquidacion).filter(
         Liquidacion.empresa_id == empresa_id,
         Liquidacion.mes == mes,
         Liquidacion.anio == anio,
     ).first()
-    if liq is not None and liq.excedente_impuesto_anterior is not None:
+    if liq is None:
+        db.add(Liquidacion(
+            empresa_id=empresa_id, mes=mes, anio=anio,
+            excedente_impuesto_anterior=req.importe,
+        ))
+    else:
+        resultado = db.execute(
+            update(Liquidacion)
+            .where(
+                Liquidacion.id == liq.id,
+                Liquidacion.excedente_impuesto_anterior.is_(None),
+            )
+            .values(excedente_impuesto_anterior=req.importe)
+        )
+        if resultado.rowcount != 1:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="La casilla 164 ya tiene un importe registrado; no se sobrescribe.",
+            )
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        # Si otra petición creó el mismo período simultáneamente,
+        # la restricción UNIQUE impide duplicar el registro.
         raise HTTPException(
             status_code=409,
-            detail="La casilla 164 ya tiene un importe registrado; no se sobrescribe automáticamente.",
-        )
-    if liq is None:
-        liq = Liquidacion(empresa_id=empresa_id, mes=mes, anio=anio)
-        db.add(liq)
-    liq.excedente_impuesto_anterior = req.importe
-    db.commit()
+            detail="El período fue modificado concurrentemente; consulte el saldo antes de reintentar.",
+        ) from exc
     return {
         'mensaje': 'Excedente anterior registrado para conciliación fiscal.',
         'casilla': 164,
