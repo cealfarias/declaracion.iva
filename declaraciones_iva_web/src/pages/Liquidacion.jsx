@@ -203,7 +203,21 @@ export default function Liquidacion() {
         inventario.push("Compras omitidas guardadas en este navegador: " +
           (Array.isArray(omitidasGuardadas) ? omitidasGuardadas.length : "formato no reconocido"));
       }
-      if (devolucionesGuardadas !== null) inventario.push("Devoluciones manuales guardadas en este navegador");
+      if (devolucionesGuardadas !== null) {
+        const netoLocal = Number(devolucionesGuardadas?.neto);
+        const creditoLocal = Number(devolucionesGuardadas?.credito);
+        const netoDte = Number(res.compras?.devoluciones_neto);
+        const creditoDte = Number(res.compras?.devoluciones_credito);
+        if ([netoLocal, creditoLocal, netoDte, creditoDte].every(Number.isFinite)) {
+          inventario.push(
+            `Devoluciones — navegador: neto ${netoLocal.toFixed(2)}, crédito ${creditoLocal.toFixed(2)}; ` +
+            `DTE 05 del servidor: neto ${netoDte.toFixed(2)}, crédito ${creditoDte.toFixed(2)}. ` +
+            "Comparación informativa: no se suman ni se migran automáticamente."
+          );
+        } else {
+          inventario.push("Devoluciones manuales guardadas: no se pudo comparar con los DTE 05 del servidor; revise los formatos.");
+        }
+      }
       if (remanenteGuardado !== null) inventario.push("Remanente anterior manual guardado en este navegador");
       if (remanentePrevioLocal !== null) {
         const valorPrevio = Number(remanentePrevioLocal);
