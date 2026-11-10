@@ -90,6 +90,13 @@ def test_migracion_164_y_unicidad_en_postgresql():
             db.refresh(fila)
             assert fila.excedente_impuesto_anterior == Decimal("45.67")
             assert db.query(Liquidacion).count() == 1
+            # El inventario identifica saldos existentes sin inventar procedencia.
+            inventario_sql = (raiz / "db/migrations/20261110_f07_164_inventario_historico_readonly.sql").read_text()
+            antes = db.execute(text(inventario_sql)).mappings().all()
+            assert len(antes) == 1
+            assert antes[0]["estado"] == "saldo_sin_auditoria"
+            assert antes[0]["saldo_164"] == Decimal("45.67")
+            assert antes[0]["referencia"] is None
             # La procedencia no puede referenciar una empresa o período distintos.
             db.execute(text("""
                 INSERT INTO iva_excedentes_164_auditoria
@@ -112,6 +119,10 @@ def test_migracion_164_y_unicidad_en_postgresql():
             assert db.execute(text(
                 "SELECT count(*) FROM iva_excedentes_164_auditoria"
             )).scalar_one() == 1
+            despues = db.execute(text(inventario_sql)).mappings().all()
+            assert len(despues) == 1
+            assert despues[0]["estado"] == "coincidente"
+            assert despues[0]["referencia"] == "F07-2026-12"
             # La restricción única debe rechazar duplicados en PostgreSQL real.
             db.add(Liquidacion(empresa_id=1, anio="2027", mes="01"))
             with pytest.raises(IntegrityError):
