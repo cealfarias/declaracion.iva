@@ -8,7 +8,8 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.core.authorization import autorizar_empresa_tributaria
-from app.models.models import Empresa, DteCompra, DteVenta, DteVentaContribuyente, DteAnulado, Liquidacion
+from app.models.models import Empresa, DteCompra, DteVenta, DteVentaContribuyente, DteAnulado, Liquidacion, Excedente164Auditoria, Usuario
+from app.routers.empresas import usuario_actual
 
 router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
 
@@ -511,6 +512,88 @@ def registrar_excedente_impuesto_anterior(
         'casilla': 164,
         'importe': float(req.importe),
         'periodo': f"{anio}-{mes}",
+    }
+
+
+class Excedente164AuditadoRequest(ExcedenteImpuestoAnteriorRequest):
+    origen: str
+    referencia: str
+
+    @field_validator("origen")
+    @classmethod
+    def validar_origen(cls, value):
+        if value not in ("declaracion_previa", "conciliacion_manual"):
+            raise ValueError("Origen de casilla 164 no reconocido.")
+        return value
+
+    @field_validator("referencia")
+    @classmethod
+    def validar_referencia(cls, value):
+        if not isinstance(value, str) or not 3 <= len(value.strip()) <= 250:
+            raise ValueError("Referencia documental obligatoria (3 a 250 caracteres).")
+        return value.strip()
+
+
+@router.post('/{empresa_id}/excedente-impuesto-anterior-auditado')
+def registrar_excedente_164_auditado(
+    empresa_id: int,
+    mes: str,
+    anio: str,
+    req: Excedente164AuditadoRequest,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_actual),
+):
+    """Escribe casilla 164 y procedencia en una transacción, sin sobrescribir."""
+    validar_periodo_fiscal(mes, anio)
+    try:
+        liq = db.query(Liquidacion).filter(
+            Liquidacion.empresa_id == empresa_id,
+            Liquidacion.mes == mes,
+            Liquidacion.anio == anio,
+        ).first()
+        if liq is None:
+            liq = Liquidacion(
+                empresa_id=empresa_id, mes=mes, anio=anio,
+                excedente_impuesto_anterior=req.importe,
+            )
+            db.add(liq)
+            db.flush()
+        else:
+            resultado = db.execute(
+                update(Liquidacion)
+                .where(
+                    Liquidacion.id == liq.id,
+                    Liquidacion.excedente_impuesto_anterior.is_(None),
+                )
+                .values(excedente_impuesto_anterior=req.importe)
+            )
+            if resultado.rowcount != 1:
+                db.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="La casilla 164 ya está registrada; no se sobrescribe.",
+                )
+        db.add(Excedente164Auditoria(
+            liquidacion_id=liq.id, empresa_id=empresa_id,
+            usuario_id=usuario.id, mes=mes, anio=anio,
+            importe=req.importe, origen=req.origen,
+            referencia=req.referencia,
+        ))
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Registro concurrente o referencia de auditoría inconsistente.",
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
+    return {
+        "mensaje": "Saldo 164 y respaldo registrados en una transacción.",
+        "casilla": 164, "importe": float(req.importe),
+        "periodo": f"{anio}-{mes}", "origen": req.origen,
+        "referencia": req.referencia,
     }
 
 
