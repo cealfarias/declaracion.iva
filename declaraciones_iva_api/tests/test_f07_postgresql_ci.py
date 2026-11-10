@@ -33,15 +33,12 @@ def test_migracion_164_y_unicidad_en_postgresql():
         conn.execute(text("SET search_path TO f07_ci_test"))
         Empresa.__table__.create(conn, checkfirst=True)
         # Crear esquema anterior sin la columna 164 para probar migración real.
-        conn.execute(text("""
-            CREATE TABLE iva_liquidaciones (
-                id SERIAL PRIMARY KEY,
-                empresa_id INTEGER NOT NULL REFERENCES iva_empresas(id),
-                anio VARCHAR(4) NOT NULL,
-                mes VARCHAR(2) NOT NULL,
-                remanente_anterior DOUBLE PRECISION
-            )
-        """))
+        # Crear todas las columnas heredadas que el ORM necesita;
+        # retirar únicamente la nueva columna para reproducir la migración.
+        Liquidacion.__table__.create(conn, checkfirst=True)
+        conn.execute(text(
+            "ALTER TABLE iva_liquidaciones DROP COLUMN excedente_impuesto_anterior"
+        ))
         conn.execute(text("""
             INSERT INTO iva_empresas (id, razon_social, nit, nrc)
             VALUES (1, 'Empresa CI', 'CI-001', 'CI-001')
