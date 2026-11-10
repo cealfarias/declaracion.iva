@@ -43,8 +43,8 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     for v in ventas_cf:
         cg = v.codigo_generacion or ""
         cg_clean = cg.replace("-", "")
-        if cg not in set_anulados and cg_clean not in set_anulados:
-            bruto_cf += v.ventas_gravadas
+        if not (v.omitido or False) and cg not in set_anulados and cg_clean not in set_anulados:
+            bruto_cf += (v.ventas_gravadas or 0.0)
     
     neto_cf = round(bruto_cf / 1.13, 2)
     debito_cf = round(bruto_cf - neto_cf, 2)
@@ -62,10 +62,11 @@ def calculate_liquidacion_for_period(db: Session, empresa_id: int, mes: str, ani
     for v in ventas_ccf:
         nd = v.numero_documento or ""
         nr = v.numero_resolucion or ""
-        if (nd not in set_anulados and nd.replace("-", "") not in set_anulados and
+        if (not (v.omitido or False) and
+            nd not in set_anulados and nd.replace("-", "") not in set_anulados and
             nr not in set_anulados and nr.replace("-", "") not in set_anulados):
-            neto_ccf += v.ventas_gravadas
-            debito_ccf += v.debito_fiscal
+            neto_ccf += (v.ventas_gravadas or 0.0)
+            debito_ccf += (v.debito_fiscal or 0.0)
 
     # 4. Compras (DteCompra)
     compras = db.query(DteCompra).filter(
