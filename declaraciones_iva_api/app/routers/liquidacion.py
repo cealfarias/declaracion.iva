@@ -339,6 +339,19 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
         ),
     }
 
+    # Contrato explícito de casillas: los importes no conciliados permanecen
+    # sin valor, en vez de convertir un excedente provisional en casilla 167.
+    # Las cifras 110/155 son candidatas calculadas; no equivalen todavía a
+    # una declaración fiscal validada.
+    data['casillas_f07_preliminares'] = {
+        '110': round(remanente_anterior, 2),
+        '155': remanente_credito_fiscal_siguiente,
+        '164': None,
+        '167': None,
+        '168': None,
+        '203': None,
+    }
+
     # Estructura enriquecida para el frontend
     data['liquidacion'] = {
         'total_debito': total_debito,
