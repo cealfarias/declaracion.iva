@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Numeric, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Numeric, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -198,6 +198,10 @@ class DeclaracionEstado(Base):
 
 class Liquidacion(Base):
     __tablename__ = "iva_liquidaciones"
+
+    __table_args__ = (
+        UniqueConstraint("empresa_id", "anio", "mes", name="ux_iva_liquidaciones_empresa_periodo"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), nullable=False)
