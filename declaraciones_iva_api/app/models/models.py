@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, JSON
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Numeric, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -205,6 +205,8 @@ class Liquidacion(Base):
     mes = Column(String(2), nullable=False)
     
     remanente_anterior = Column(Float, default=0.0)
+    # Casilla 164: NULL indica saldo aún no conciliado; requiere migración SQL previa.
+    excedente_impuesto_anterior = Column(Numeric(18, 2), nullable=True)
     retenciones_recibidas = Column(Float, default=0.0)
     percepciones_recibidas = Column(Float, default=0.0)
     retenciones_efectuadas = Column(Float, default=0.0)
