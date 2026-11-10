@@ -77,12 +77,28 @@ export default function Liquidacion() {
   };
 
   const saveDevoluciones = (netoVal, credVal) => {
-    localStorage.setItem(`devoluciones_manual_${activeEmpresa?.id}_${mes}_${anio}`, JSON.stringify({
-      neto: parseFloat(netoVal) || 0,
-      credito: parseFloat(credVal) || 0
-    }));
+    const neto = Number(String(netoVal).trim());
+    const credito = Number(String(credVal).trim());
+    if (
+      String(netoVal).trim() === "" || String(credVal).trim() === "" ||
+      !Number.isFinite(neto) || !Number.isFinite(credito) ||
+      neto < 0 || credito < 0
+    ) {
+      enqueueMessages([{ text: "Ingrese importes válidos, no negativos, para las devoluciones.", type: "error" }]);
+      return;
+    }
+    try {
+      localStorage.setItem(`devoluciones_manual_${activeEmpresa?.id}_${mes}_${anio}`, JSON.stringify({
+        neto,
+        credito
+      }));
+    } catch (errorStorage) {
+      console.error("No se pudieron guardar las devoluciones en este navegador.", errorStorage);
+      enqueueMessages([{ text: "No se guardaron las devoluciones: el almacenamiento del navegador no está disponible.", type: "error" }]);
+      return;
+    }
     setEditDevoluciones(false);
-    enqueueMessages([{ text: "Ajuste de Devoluciones sobre compras actualizado.", type: "success" }]);
+    enqueueMessages([{ text: "Devoluciones guardadas solo en este navegador; todavía no se han registrado en PostgreSQL.", type: "success" }]);
     fetchLiquidacion();
   };
 
