@@ -23,7 +23,7 @@ export default function Terminos() {
         if (!res.ok) throw new Error('No se pudo obtener el documento de términos.');
         const contentType = res.headers.get('content-type') || '';
         const body = await res.text();
-        if (contentType.includes('text/html') || /^\\s*<!doctype html|^\\s*<html/i.test(body)) {
+        if (contentType.includes('text/html') || /^\s*<!doctype html|^\s*<html/i.test(body)) {
           throw new Error('La dirección de términos devolvió una página HTML, no el documento.');
         }
         if (!body.trim()) throw new Error('El documento de términos está vacío.');
