@@ -123,6 +123,24 @@ def test_migracion_164_y_unicidad_en_postgresql():
             assert len(despues) == 1
             assert despues[0]["estado"] == "coincidente"
             assert despues[0]["referencia"] == "F07-2026-12"
+            # Alteración deliberada en CI: detectar diferencia sin corregirla.
+            db.execute(text("""
+                UPDATE iva_excedentes_164_auditoria
+                SET importe = 45.68
+                WHERE liquidacion_id = :id
+            """), {"id": fila.id})
+            db.commit()
+            discrepancia = db.execute(text(inventario_sql)).mappings().all()
+            assert len(discrepancia) == 1
+            assert discrepancia[0]["estado"] == "importe_discrepante"
+            assert discrepancia[0]["saldo_164"] == Decimal("45.67")
+            db.execute(text("""
+                UPDATE iva_excedentes_164_auditoria
+                SET importe = 45.67
+                WHERE liquidacion_id = :id
+            """), {"id": fila.id})
+            db.commit()
+            assert db.execute(text(inventario_sql)).mappings().one()["estado"] == "coincidente"
             # La restricción única debe rechazar duplicados en PostgreSQL real.
             db.add(Liquidacion(empresa_id=1, anio="2027", mes="01"))
             with pytest.raises(IntegrityError):
