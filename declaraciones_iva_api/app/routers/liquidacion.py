@@ -182,7 +182,8 @@ def get_remanente_historico(db: Session, empresa_id: int, target_mes: str, targe
         DteVenta.codigo_generacion,
         DteVenta.ventas_gravadas
     ).filter(
-        DteVenta.empresa_id == empresa_id
+        DteVenta.empresa_id == empresa_id,
+        or_(DteVenta.omitido == False, DteVenta.omitido.is_(None))
     ).all()
     
     ventas_cf_map = {}
@@ -206,7 +207,8 @@ def get_remanente_historico(db: Session, empresa_id: int, target_mes: str, targe
         DteVentaContribuyente.numero_resolucion,
         DteVentaContribuyente.debito_fiscal
     ).filter(
-        DteVentaContribuyente.empresa_id == empresa_id
+        DteVentaContribuyente.empresa_id == empresa_id,
+        or_(DteVentaContribuyente.omitido == False, DteVentaContribuyente.omitido.is_(None))
     ).all()
     
     debito_ccf_map = {}
