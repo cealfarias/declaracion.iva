@@ -29,3 +29,20 @@ referencia documental y fecha. Antes de activar el uso fiscal se debe:
 
 **No ejecutar la migración de auditoría ni activar su escritura todavía**.
 El diseño no equivale a implementación ni aprobación fiscal.
+
+## Implementación parcial en rama de desarrollo (2026-11-10)
+
+- `POST /{empresa_id}/excedente-impuesto-anterior-auditado` registra
+  importe, origen, referencia y usuario JWT en una misma transacción.
+- El modelo `Excedente164Auditoria` y la migración borrador están en el
+  repositorio. La tabla de auditoría debe existir antes de invocar el endpoint.
+- La prueba aislada verifica persistencia, rechazo de duplicados y validación
+  de referencia; se agregó una prueba adicional de reversión ante error.
+- **Bloqueante:** el endpoint histórico
+  `POST /{empresa_id}/excedente-impuesto-anterior` sigue aceptando
+  importes sin respaldo. No declarar obligatoria la trazabilidad hasta
+  deshabilitarlo o migrarlo de forma compatible con los clientes existentes.
+- **Bloqueante:** comprobar que las autorizaciones de empresa y el usuario
+  JWT se apliquen en pruebas HTTP reales sin anular dependencias.
+- No aplicar migraciones en producción ni habilitar operaciones fiscales
+  sin preflight, respaldo, reversión y aprobación expresa.
