@@ -26,6 +26,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: declaraciones_iva_api
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest pytest-subtests httpx
+      - name: Run complete backend test suite
+        working-directory: declaraciones_iva_api
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+        run: python -m pytest -q tests
       - name: Check Python syntax
         run: python -m compileall -q declaraciones_iva_api
       - name: Verify company route security contracts
