@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://declaraciones-iva-api.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Liquidacion() {
   const navigate = useNavigate();
@@ -35,7 +35,6 @@ export default function Liquidacion() {
 
   useEffect(() => {
     if (!token) return;
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     if (!activeEmpresa) {
       navigate('/dashboard');
     }
