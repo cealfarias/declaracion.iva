@@ -54,6 +54,8 @@ async def autorizar_empresa_tributaria(
     """Verifica la empresa en rutas, formularios y registros con ID propio."""
     from app.models.models import DteVentaContribuyente, DteAnulado
 
+    if request.url.path == "/api/v1/anulados/consultar-mh":
+        return  # Consulta externa sin empresa: requiere JWT, no vínculo.
     params = request.path_params
     empresa_id = params.get("empresa_id")
     if empresa_id is None and "id" in params:
