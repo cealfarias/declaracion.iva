@@ -44,3 +44,45 @@ async def autorizar_compras(
     ).first()
     if vinculo is None:
         raise HTTPException(status_code=403, detail="No tienes acceso a esta empresa.")
+
+
+async def autorizar_empresa_tributaria(
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_actual),
+):
+    """Verifica la empresa en rutas, formularios y registros con ID propio."""
+    from app.models.models import DteVentaContribuyente, DteAnulado
+
+    params = request.path_params
+    empresa_id = params.get("empresa_id")
+    if empresa_id is None and "id" in params:
+        registro = db.query(DteVentaContribuyente).filter(
+            DteVentaContribuyente.id == int(params["id"])
+        ).first()
+        if registro is None:
+            raise HTTPException(status_code=404, detail="Registro no encontrado.")
+        empresa_id = registro.empresa_id
+    if empresa_id is None and "anulado_id" in params:
+        registro = db.query(DteAnulado).filter(
+            DteAnulado.id == int(params["anulado_id"])
+        ).first()
+        if registro is None:
+            raise HTTPException(status_code=404, detail="Documento no encontrado.")
+        empresa_id = registro.empresa_id
+    if empresa_id is None and request.url.path.endswith("/upload"):
+        form = await request.form()
+        empresa_id = form.get("empresa_id")
+    if empresa_id is None:
+        raise HTTPException(status_code=400, detail="Falta identificar la empresa.")
+    try:
+        empresa_id = int(empresa_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Identificador de empresa inválido.")
+    vinculo = db.query(UsuarioEmpresa).filter(
+        UsuarioEmpresa.usuario_id == usuario.id,
+        UsuarioEmpresa.empresa_id == empresa_id,
+        UsuarioEmpresa.archivado.is_(False),
+    ).first()
+    if vinculo is None:
+        raise HTTPException(status_code=403, detail="No tienes acceso a esta empresa.")
