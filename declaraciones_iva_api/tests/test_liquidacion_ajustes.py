@@ -81,3 +81,27 @@ def test_deducciones_mayores_que_impuesto_no_generan_pago_negativo(escenario):
     assert liq["deducciones_sobrantes"] == 30.0
     assert liq["impuesto_propio"] == 0.0
     assert liq["impuesto_a_pagar"] == 7.0
+
+
+def test_excedente_deducciones_no_se_convierte_en_credito_fiscal(escenario):
+    r = consultar(escenario, {
+        "retenciones_recibidas": 80.0,
+        "percepciones_recibidas": 50.0,
+    })
+    liq = r["liquidacion"]
+    assert liq["excedente_deducciones_pendiente"] == 30.0
+    assert liq["remanente_credito_fiscal_siguiente"] == 0.0
+    assert liq["remanente_siguiente"] == 0.0
+    assert r["excedente_deducciones_pendiente"] == 30.0
+    assert r["remanente_siguiente"] == 0.0
+
+
+def test_remanente_fiscal_y_excedente_deducciones_permanecen_separados(escenario):
+    r = consultar(escenario, {
+        "remanente_anterior": 40.0,
+        "retenciones_recibidas": 10.0,
+    }, debito=0.0)
+    liq = r["liquidacion"]
+    assert liq["remanente_credito_fiscal_siguiente"] == 40.0
+    assert liq["excedente_deducciones_pendiente"] == 10.0
+    assert liq["remanente_siguiente"] == 40.0
