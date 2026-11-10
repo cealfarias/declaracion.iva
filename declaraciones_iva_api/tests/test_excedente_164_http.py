@@ -84,12 +84,10 @@ def test_164_rechaza_periodo_invalido_antes_de_db():
 def test_164_registra_importe_sin_modificar_otros_campos():
     db = DBFalsa()
     respuesta = cliente(db).post(RUTA, json={"importe": "45.67"})
-    assert respuesta.status_code == 200
-    assert respuesta.json()["importe"] == 45.67
-    assert len(db.added) == 1
-    assert db.added[0].empresa_id == 7
-    assert db.added[0].excedente_impuesto_anterior == Decimal("45.67")
-    assert db.commits == 1
+    assert respuesta.status_code == 409
+    assert "sin respaldo" in respuesta.json()["detail"]
+    assert len(db.added) == 0
+    assert db.commits == 0
 
 
 @pytest.mark.parametrize("saldo", [Decimal("0.00"), Decimal("10.00")])
