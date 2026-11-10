@@ -17,6 +17,7 @@ export default function Liquidacion() {
   const { enqueueMessages } = useAssistant();
   
   const [data, setData] = useState(null);
+  const [auditoria164, setAuditoria164] = useState({ estado: 'pendiente', respaldo: null });
   const [diferenciasServidor, setDiferenciasServidor] = useState([]);
   const [ajustesHistoricosLocales, setAjustesHistoricosLocales] = useState(false);
   const [inventarioHistorico, setInventarioHistorico] = useState([]);
@@ -105,6 +106,7 @@ export default function Liquidacion() {
   const fetchLiquidacion = async () => {
     setLoading(true);
     setData(null);
+    setAuditoria164({ estado: 'pendiente', respaldo: null });
     try {
       const [liqRes, comprasRes, ventasCfRes, ventasCcfRes, anuladosRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
@@ -113,6 +115,18 @@ export default function Liquidacion() {
         axios.get(`${API_URL}/api/v1/ventas-contribuyentes/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
         axios.get(`${API_URL}/api/v1/anulados/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`)
       ]);
+      // Consulta independiente: un error de auditoría no altera los importes fiscales.
+      try {
+        const auditoriaRes = await axios.get(
+          `${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/excedente-impuesto-anterior-auditoria?mes=${mes}&anio=${anio}`
+        );
+        setAuditoria164({
+          estado: auditoriaRes.data.auditoria_disponible ? 'disponible' : 'sin_respaldo',
+          respaldo: auditoriaRes.data.respaldo ?? null
+        });
+      } catch {
+        setAuditoria164({ estado: 'error', respaldo: null });
+      }
       const res = liqRes.data;
       // Conservar cifras originales para detectar divergencias con los ajustes del navegador.
       const cifrasServidor = {
@@ -571,6 +585,31 @@ export default function Liquidacion() {
                 );
               })}
             </dl>
+          </div>
+        </section>
+      )}
+      {data?.casillas_f07_preliminares && (
+        <section aria-label="Respaldo documental de casilla 164" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-slate-300 bg-white p-4">
+            <h2 className="font-bold text-slate-900">Trazabilidad de la casilla 164</h2>
+            {auditoria164.estado === 'disponible' && auditoria164.respaldo ? (
+              <dl className="mt-2 text-sm text-slate-800 space-y-1">
+                <div><dt className="inline font-semibold">Origen: </dt><dd className="inline">{auditoria164.respaldo.origen}</dd></div>
+                <div><dt className="inline font-semibold">Referencia: </dt><dd className="inline">{auditoria164.respaldo.referencia}</dd></div>
+                <div><dt className="inline font-semibold">Importe registrado: </dt><dd className="inline">{Number(auditoria164.respaldo.importe).toFixed(2)}</dd></div>
+                <div><dt className="inline font-semibold">Usuario de registro: </dt><dd className="inline">{auditoria164.respaldo.usuario_id}</dd></div>
+                <div><dt className="inline font-semibold">Fecha de registro: </dt><dd className="inline">{auditoria164.respaldo.registrado_en || 'No disponible'}</dd></div>
+              </dl>
+            ) : (
+              <p role="status" className="text-sm mt-2 text-amber-900">
+                {auditoria164.estado === 'sin_respaldo'
+                  ? 'No existe respaldo auditado para este período; esto no significa que el saldo sea cero.'
+                  : auditoria164.estado === 'error'
+                    ? 'No fue posible consultar el respaldo de la casilla 164. Verifique la conexión o la disponibilidad de la migración.'
+                    : 'Consultando respaldo documental…'}
+              </p>
+            )}
+            <p className="text-xs text-slate-600 mt-2">El respaldo documenta el origen del saldo; no certifica por sí mismo la conciliación normativa del F-07.</p>
           </div>
         </section>
       )}
