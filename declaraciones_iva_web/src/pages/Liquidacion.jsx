@@ -305,28 +305,28 @@ export default function Liquidacion() {
   };
 
   const saveRemanente = async () => {
+    const val = Number(remanenteInput);
+    if (!Number.isFinite(val) || val < 0) {
+      enqueueMessages([{ text: "Ingrese un remanente válido, mayor o igual a cero.", type: "error" }]);
+      return;
+    }
     try {
-      const val = parseFloat(remanenteInput) || 0;
-      localStorage.setItem(`remanente_manual_${activeEmpresa?.id}_${mes}_${anio}`, val.toString());
-      setEditRemanente(false);
-      setData(prev => {
-        if (!prev) return prev;
-        const deb = prev.totales?.debito || 0;
-        const cred = prev.totales?.credito || 0;
-        const dif = Number((deb - cred).toFixed(2));
-        let remSig = dif > 0 ? Math.max(0, Number((val - dif).toFixed(2))) : Number((Math.abs(dif) + val).toFixed(2));
-        return {
-          ...prev,
-          remanente_anterior: val,
-          remanente_siguiente: remSig
-        };
+      // PostgreSQL debe confirmar el guardado antes de actualizar el estado local.
+      await axios.post(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/remanente`, null, {
+        params: { mes, anio, remanente: val }
       });
-      await axios.post(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/remanente?mes=${mes}&anio=${anio}&remanente=${val}`);
+      // Conservar la preferencia manual histórica solo después de confirmar el servidor.
+      try {
+        localStorage.setItem(`remanente_manual_${activeEmpresa?.id}_${mes}_${anio}`, val.toString());
+      } catch (storageError) {
+        console.warn("No se pudo guardar la copia local del remanente.", storageError);
+      }
+      setEditRemanente(false);
       enqueueMessages([{ text: `Remanente anterior actualizado a $${val.toFixed(2)}.`, type: "success" }]);
-      fetchLiquidacion();
+      await fetchLiquidacion();
     } catch (error) {
-      enqueueMessages([{ text: "Remanente anterior actualizado.", type: "success" }]);
-      fetchLiquidacion();
+      console.error("Error al guardar remanente en el servidor.", error);
+      enqueueMessages([{ text: "No se guardó el remanente en el servidor. Revise la conexión e intente nuevamente.", type: "error" }]);
     }
   };
 
