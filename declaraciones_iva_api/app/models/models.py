@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Numeric, JSON, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float, Numeric, JSON, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -242,7 +242,7 @@ class Excedente164Auditoria(Base):
     importe = Column(Numeric(18, 2), nullable=False)
     origen = Column(String(32), nullable=False)
     referencia = Column(String(250), nullable=False)
-    registrado_en = Column(DateTime(timezone=True), nullable=False)
+    registrado_en = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 
