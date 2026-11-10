@@ -330,7 +330,7 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
     data['estado_normativo_f07'] = {
         'version_referencia': 'F-07 v14',
         'conciliacion_completa': False,
-        'casillas_pendientes': [164, 167, 168, 203],
+        'casillas_pendientes': [167, 168, 203],
         'remanente_credito_calculado_provisional': remanente_credito_fiscal_siguiente,
         'excedente_deducciones_calculado_provisional': excedente_deducciones_pendiente,
         'advertencia': (
@@ -343,10 +343,14 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
     # sin valor, en vez de convertir un excedente provisional en casilla 167.
     # Las cifras 110/155 son candidatas calculadas; no equivalen todavía a
     # una declaración fiscal validada.
+    excedente_anterior = (
+        liq.excedente_impuesto_anterior
+        if liq is not None else None
+    )
     data['casillas_f07_preliminares'] = {
         '110': round(remanente_anterior, 2),
         '155': remanente_credito_fiscal_siguiente,
-        '164': None,
+        '164': float(excedente_anterior) if excedente_anterior is not None else None,
         '167': None,
         '168': None,
         '203': None,
