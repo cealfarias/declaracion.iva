@@ -104,6 +104,7 @@ export default function Liquidacion() {
 
   const fetchLiquidacion = async () => {
     setLoading(true);
+    setData(null);
     try {
       const [liqRes, comprasRes, ventasCfRes, ventasCcfRes, anuladosRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
@@ -460,6 +461,33 @@ export default function Liquidacion() {
   };
 
   if (!activeEmpresa) return null;
+
+  // Nunca presentar una declaración de importes cero cuando el servidor no
+  // entregó todos los datos. Cero fiscal válido requiere una respuesta completa.
+  if (loading || !data) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <section role={loading ? "status" : "alert"} className="w-full max-w-lg rounded-xl bg-white border border-slate-200 p-6 shadow-sm">
+          <h1 className="text-xl font-bold text-slate-900">Liquidación de Impuestos F-07</h1>
+          <p className="mt-2 text-slate-700">
+            {loading
+              ? "Cargando los documentos y cálculos del período. Espere antes de revisar o imprimir."
+              : "No se pudo cargar la liquidación completa. Por seguridad, no se muestran importes ni se permite imprimir una declaración incompleta."}
+          </p>
+          {!loading && (
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button type="button" onClick={() => fetchLiquidacion()} className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+                Reintentar carga
+              </button>
+              <button type="button" onClick={() => navigate("/dashboard")} className="rounded-lg border border-slate-300 px-4 py-2 text-slate-800 hover:bg-slate-100">
+                Volver al panel
+              </button>
+            </div>
+          )}
+        </section>
+      </main>
+    );
+  }
 
   // Cálculos detallados F-07
   const debito = data?.totales?.debito || 0;
