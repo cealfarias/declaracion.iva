@@ -8,6 +8,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.preflight_f07_164 import verificar_preflight_164
@@ -85,5 +86,24 @@ def test_migracion_164_y_unicidad_en_postgresql():
             db.refresh(fila)
             assert fila.excedente_impuesto_anterior == Decimal("45.67")
             assert db.query(Liquidacion).count() == 1
+            # La restricción única debe rechazar duplicados en PostgreSQL real.
+            db.add(Liquidacion(empresa_id=1, anio="2027", mes="01"))
+            with pytest.raises(IntegrityError):
+                db.commit()
+            db.rollback()
+            assert db.query(Liquidacion).count() == 1
+
+            # La migración es idempotente y no debe alterar el saldo existente.
+            with engine.begin() as otra_conn:
+                otra_conn.execute(text("SET search_path TO f07_ci_test"))
+                raw2 = otra_conn.connection.driver_connection
+                with raw2.cursor() as cursor2:
+                    cursor2.execute(migration)
+                    cursor2.execute(unique)
+            db.expire_all()
+            assert db.query(Liquidacion).filter_by(
+                empresa_id=1, anio="2027", mes="01"
+            ).one().excedente_impuesto_anterior == Decimal("45.67")
+
 
     engine.dispose()
