@@ -61,7 +61,7 @@ def test_registro_164_no_crea_duplicado_de_periodo():
         with TestClient(app) as cliente:
             primera = cliente.post(ruta, json={"importe": "0.00"})
             segunda = cliente.post(ruta, json={"importe": "5.00"})
-        assert primera.status_code == 200
+        assert primera.status_code == 409
         assert segunda.status_code == 409
         assert db.query(Liquidacion).filter_by(
             empresa_id=1, anio="2027", mes="02"
