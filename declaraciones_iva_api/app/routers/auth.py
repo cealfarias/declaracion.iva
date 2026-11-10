@@ -56,8 +56,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         hashed_password = get_password_hash(user.password)
         new_user = Usuario(email=user.email, password_hash=hashed_password, nombre=user.nombre, terminos_aceptados=True)
         db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
+        db.flush()
         
         # 2. Crear Empresa
         nueva_empresa = Empresa(
@@ -66,8 +65,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
             nrc=user.nrc
         )
         db.add(nueva_empresa)
-        db.commit()
-        db.refresh(nueva_empresa)
+        db.flush()
         
         # 3. Vincular (1 Usuario = 1 Empresa)
         vinculo = UsuarioEmpresa(usuario_id=new_user.id, empresa_id=nueva_empresa.id, rol="admin")
