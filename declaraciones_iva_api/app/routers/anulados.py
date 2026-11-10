@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 import json
 import urllib.request
 import ssl
+from urllib.parse import urlencode
 
 from app.core.database import get_db
+from app.core.authorization import autorizar_empresa_tributaria
 from app.models.models import DteAnulado, Empresa, DeclaracionEstado
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
 
 def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str, tipo_libro: str = "anulados", version: int = 1) -> bool:
     estado = db.query(DeclaracionEstado).filter(
@@ -146,10 +148,9 @@ def crear_modificatoria(empresa_id: int, mes: str, anio: str, numero_original: s
 def verificar_dte_hacienda(codigo_generacion: str, fecha_emision_yyyy_mm_dd: str, ambiente: str = "01") -> dict:
     if not codigo_generacion or not fecha_emision_yyyy_mm_dd:
         return {"ok": False, "error": "Faltan parámetros"}
-    url = f"https://admin.factura.gob.sv/prod/consultas/publica/simple/1?codigoGeneracion={codigo_generacion}&fechaEmi={fecha_emision_yyyy_mm_dd}&ambiente={ambiente}"
+    query = urlencode({"codigoGeneracion": codigo_generacion, "fechaEmi": fecha_emision_yyyy_mm_dd, "ambiente": ambiente})
+    url = f"https://admin.factura.gob.sv/prod/consultas/publica/simple/1?{query}"
     ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
         req = urllib.request.Request(url, headers=headers)
@@ -163,7 +164,7 @@ def verificar_dte_hacienda(codigo_generacion: str, fecha_emision_yyyy_mm_dd: str
                 "selloVal": data.get("selloVal")
             }
     except Exception as e:
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": "No fue posible verificar el documento con Hacienda."}
 
 @router.get("/consultar-mh")
 def consultar_mh(codigo_generacion: str, fecha_emision: str, ambiente: str = "01"):
