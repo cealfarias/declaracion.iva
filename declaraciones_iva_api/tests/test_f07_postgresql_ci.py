@@ -93,17 +93,23 @@ def test_migracion_164_y_unicidad_en_postgresql():
             db.rollback()
             assert db.query(Liquidacion).count() == 1
 
-            # La migración es idempotente y no debe alterar el saldo existente.
-            with engine.begin() as otra_conn:
-                otra_conn.execute(text("SET search_path TO f07_ci_test"))
-                raw2 = otra_conn.connection.driver_connection
-                with raw2.cursor() as cursor2:
-                    cursor2.execute(migration)
-                    cursor2.execute(unique)
-            db.expire_all()
+
+        # Cerrar la transacción lectora antes de ejecutar ALTER TABLE:
+        # PostgreSQL requiere un bloqueo exclusivo para DDL.
+        conn.rollback()
+
+    with engine.begin() as conn:
+        conn.execute(text("SET search_path TO f07_ci_test"))
+        raw2 = conn.connection.driver_connection
+        with raw2.cursor() as cursor2:
+            cursor2.execute(migration)
+            cursor2.execute(unique)
+
+    with engine.connect() as conn:
+        conn.execute(text("SET search_path TO f07_ci_test"))
+        with Session(bind=conn) as db:
             assert db.query(Liquidacion).filter_by(
                 empresa_id=1, anio="2027", mes="01"
             ).one().excedente_impuesto_anterior == Decimal("45.67")
-
 
     engine.dispose()
