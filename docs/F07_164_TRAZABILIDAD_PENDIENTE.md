@@ -46,3 +46,14 @@ El diseño no equivale a implementación ni aprobación fiscal.
   JWT se apliquen en pruebas HTTP reales sin anular dependencias.
 - No aplicar migraciones en producción ni habilitar operaciones fiscales
   sin preflight, respaldo, reversión y aprobación expresa.
+
+## Cierre de vía antigua en rama de desarrollo
+
+El endpoint histórico `POST /{empresa_id}/excedente-impuesto-anterior`
+ahora responde HTTP 409 sin efectuar escrituras; se preserva la ruta para
+informar a los clientes del cambio. El endpoint auditado exige origen y
+referencia documental, además de la identidad JWT. Esta decisión **rompe
+intencionalmente el contrato de escritura anterior** y requiere validación
+de compatibilidad antes de cualquier despliegue. Los saldos históricos
+existentes sin auditoría siguen pendientes de conciliación; no se inventan
+referencias retrospectivas.
