@@ -31,6 +31,23 @@ Aplicación F-07 que importe DTE, concilie cifras y saldos, presente casillas co
 - Validación de importes y períodos implementada en endpoints de liquidación.
 - Sin prueba de aceptación completa en navegador; sin certificación normativa; sin migración histórica; producción no modificada.
 
+## Corte de seguimiento — 10 de noviembre de 2026
+
+**Hitos cerrados: 0/8. Hito prioritario en ejecución: 4 (persistencia y conciliación histórica), con dependencia crítica del hito 3 (normativa).**
+
+| Hito | Evidencia reciente | Falta para cerrar |
+| --- | --- | --- |
+| 1 Seguridad | Pruebas JWT, acceso entre empresas y vínculo archivado para consulta/escritura auditada 164 | Cobertura de todos los endpoints tributarios |
+| 2 Integridad DTE | Pruebas previas de importación y aislamiento | Conciliación de casos reales, versiones, anulados y omisiones |
+| 3 Normativa | Separación preliminar de 110/155/164/167; advertencia visible | Confirmar fórmulas y arrastres oficiales, especialmente 167/168/203 |
+| 4 Persistencia | Registro 164 auditado, inventario y resumen histórico, CI PostgreSQL | Migraciones aprobadas, reconciliar históricos y eliminar dependencia fiscal localStorage; decidir DTE 05 vs ajustes manuales |
+| 5 Interfaz | Panel de respaldo 164, estados diferenciados | Prueba completa en navegador y cifras oficiales del servidor |
+| 6 Calidad | CI de backend, frontend y PostgreSQL efímero aprobada hasta `aa2c500` | Regresión integral, restauración y pruebas de entorno real |
+| 7 Aceptación | Sin aceptación documentada | Revisión tributaria casilla por casilla |
+| 8 Publicación | Sin cambios de producción | Plan de reversión, aprobación expresa y despliegue controlado |
+
+**Siguiente entregable concreto:** contrato verificable de casillas 110/155/164/167 y sus consumidores; después abordar persistencia de devoluciones y ajustes manuales sin perder históricos. No cerrar el hito 4 solo porque su submódulo 164 tiene pruebas aprobadas.
+
 ## Riesgos críticos documentados
 - `docs/AUDITORIA_NORMATIVA_F07_SALDOS.md`: saldo fiscal 155 vs excedente 167; faltan conceptos y casillas.
 - `docs/PLAN_PERSISTENCIA_DEVOLUCIONES_F07.md`: DTE 05 y devoluciones manuales, doble descuento, trazabilidad, datos locales.
