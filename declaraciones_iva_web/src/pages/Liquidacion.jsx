@@ -102,7 +102,8 @@ export default function Liquidacion() {
         debito: Number(res.totales?.debito || 0),
         credito: Number(res.totales?.credito || 0),
         impuesto: Number(res.impuesto_a_pagar || 0),
-        remanente: Number(res.remanente_siguiente || 0)
+        remanente: Number(res.remanente_siguiente || 0),
+        remanenteAnterior: Number(res.remanente_anterior || 0)
       };
       const comprasList = comprasRes.data || [];
       const ventasCfList = ventasCfRes.data || [];
@@ -156,6 +157,18 @@ export default function Liquidacion() {
       // Para períodos ordinarios, el backend es la única fuente de importes fiscales.
       // Conservar temporalmente la ruta heredada solo cuando existan ajustes
       // locales explícitos o los casos históricos aún pendientes de migración.
+      const mesNumero = Number(mes);
+      const anioNumero = Number(anio);
+      const mesPrevio = mesNumero === 1 ? "12" : String(mesNumero - 1).padStart(2, "0");
+      const anioPrevio = mesNumero === 1 ? anioNumero - 1 : anioNumero;
+      let remanentePrevioLocal = null;
+      try {
+        remanentePrevioLocal = localStorage.getItem(
+          `remanente_siguiente_${activeEmpresa?.id}_${mesPrevio}_${anioPrevio}`
+        );
+      } catch (errorStorage) {
+        console.warn("No se pudo consultar el remanente histórico local.", errorStorage);
+      }
       const tieneAjustesLegados =
         getOmittedFromStorage() !== null ||
         getDevolucionesManualStorage() !== null ||
@@ -176,6 +189,13 @@ export default function Liquidacion() {
       }
       if (devolucionesGuardadas !== null) inventario.push("Devoluciones manuales guardadas en este navegador");
       if (remanenteGuardado !== null) inventario.push("Remanente anterior manual guardado en este navegador");
+      if (remanentePrevioLocal !== null) {
+        const valorPrevio = Number(remanentePrevioLocal);
+        const valorServidor = cifrasServidor.remanenteAnterior;
+        inventario.push(Number.isFinite(valorPrevio)
+          ? `Remanente del mes anterior guardado localmente: ${valorPrevio.toFixed(2)}; remanente anterior del servidor: ${valorServidor.toFixed(2)} (sin modificación automática)`
+          : "Remanente del mes anterior guardado localmente con formato no válido");
+      }
       if (activeEmpresa?.id === 2 && anio === "2026" && ["01", "02", "03"].includes(mes)) {
         inventario.push("Reglas históricas especiales de 2026 pendientes de conciliación");
       }
@@ -188,7 +208,7 @@ export default function Liquidacion() {
         inventario.push("No se pudo inspeccionar la copia local del remanente");
       }
       setInventarioHistorico(inventario);
-      setAjustesHistoricosLocales(tieneAjustesLegados);
+      setAjustesHistoricosLocales(tieneAjustesLegados || remanentePrevioLocal !== null);
       if (tieneAjustesLegados) {
       res.ventas_cf = {
         neto: netoCfValido,
@@ -336,9 +356,10 @@ export default function Liquidacion() {
         debito: Number(res.totales?.debito || 0),
         credito: Number(res.totales?.credito || 0),
         impuesto: Number(res.impuesto_a_pagar || 0),
-        remanente: Number(res.remanente_siguiente || 0)
+        remanente: Number(res.remanente_siguiente || 0),
+        remanenteAnterior: Number(res.remanente_anterior || 0)
       };
-      const nombres = { debito: "Débito fiscal", credito: "Crédito fiscal", impuesto: "Impuesto a pagar", remanente: "Remanente siguiente" };
+      const nombres = { debito: "Débito fiscal", credito: "Crédito fiscal", impuesto: "Impuesto a pagar", remanente: "Remanente siguiente", remanenteAnterior: "Remanente anterior" };
       setDiferenciasServidor(Object.keys(cifrasServidor)
         .filter(campo => Math.abs(cifrasServidor[campo] - cifrasPantalla[campo]) > 0.009)
         .map(campo => ({ nombre: nombres[campo], servidor: cifrasServidor[campo], pantalla: cifrasPantalla[campo] })));
