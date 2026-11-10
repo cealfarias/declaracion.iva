@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.preflight_f07_164 import verificar_preflight_164
-from app.models.models import Empresa, Liquidacion
+from app.models.models import Empresa, Liquidacion, Usuario
 
 
 @pytest.mark.skipif(
@@ -32,6 +32,7 @@ def test_migracion_164_y_unicidad_en_postgresql():
     with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS f07_ci_test"))
         conn.execute(text("SET search_path TO f07_ci_test"))
+        Usuario.__table__.create(conn, checkfirst=True)
         Empresa.__table__.create(conn, checkfirst=True)
         # Crear esquema anterior sin la columna 164 para probar migración real.
         # Crear todas las columnas heredadas que el ORM necesita;
@@ -68,11 +69,13 @@ def test_migracion_164_y_unicidad_en_postgresql():
 
         migration = (raiz / "db/migrations/20261110_f07_excedente_impuesto_164.sql").read_text()
         unique = (raiz / "db/migrations/20261110_f07_periodo_unico_draft.sql").read_text()
+        audit = (raiz / "db/migrations/20261110_f07_164_auditoria_draft.sql").read_text()
         # psycopg2 permite ejecutar los bloques SQL de migración en una conexión.
         raw = conn.connection.driver_connection
         cursor = raw.cursor()
         cursor.execute(migration)
         cursor.execute(unique)
+        cursor.execute(audit)
         raw.commit()
         cursor.close()
 
@@ -104,6 +107,7 @@ def test_migracion_164_y_unicidad_en_postgresql():
         with raw2.cursor() as cursor2:
             cursor2.execute(migration)
             cursor2.execute(unique)
+            cursor2.execute(audit)
 
     with engine.connect() as conn:
         conn.execute(text("SET search_path TO f07_ci_test"))
