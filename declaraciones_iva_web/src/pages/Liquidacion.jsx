@@ -121,7 +121,7 @@ export default function Liquidacion() {
           `${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/excedente-impuesto-anterior-auditoria?mes=${mes}&anio=${anio}`
         );
         setAuditoria164({
-          estado: auditoriaRes.data.auditoria_disponible ? 'disponible' : 'sin_respaldo',
+          estado: auditoriaRes.data.auditoria_disponible ? 'disponible' : (auditoriaRes.data.consistencia === 'saldo_sin_auditoria' ? 'saldo_sin_auditoria' : 'sin_respaldo'),
           respaldo: auditoriaRes.data.respaldo ?? null
         });
       } catch {
@@ -592,17 +592,23 @@ export default function Liquidacion() {
         <section aria-label="Respaldo documental de casilla 164" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-slate-300 bg-white p-4">
             <h2 className="font-bold text-slate-900">Trazabilidad de la casilla 164</h2>
+            <p role="status" className="mt-2 text-sm font-semibold text-amber-900">Estado fiscal: pendiente de revisión y aceptación. La coincidencia documental no significa aprobación del F-07.</p>
             {auditoria164.estado === 'disponible' && auditoria164.respaldo ? (
-              <dl className="mt-2 text-sm text-slate-800 space-y-1">
+              <div>
+                <p className="mt-2 text-sm font-semibold text-slate-800">Respaldo registrado y coincidente con el saldo almacenado.</p>
+                <dl className="mt-2 text-sm text-slate-800 space-y-1">
                 <div><dt className="inline font-semibold">Origen: </dt><dd className="inline">{auditoria164.respaldo.origen}</dd></div>
                 <div><dt className="inline font-semibold">Referencia: </dt><dd className="inline">{auditoria164.respaldo.referencia}</dd></div>
                 <div><dt className="inline font-semibold">Importe registrado: </dt><dd className="inline">{Number(auditoria164.respaldo.importe).toFixed(2)}</dd></div>
                 <div><dt className="inline font-semibold">Usuario de registro: </dt><dd className="inline">{auditoria164.respaldo.usuario_id}</dd></div>
                 <div><dt className="inline font-semibold">Fecha de registro: </dt><dd className="inline">{auditoria164.respaldo.registrado_en || 'No disponible'}</dd></div>
-              </dl>
+                </dl>
+              </div>
             ) : (
               <p role="status" className="text-sm mt-2 text-amber-900">
-                {auditoria164.estado === 'sin_respaldo'
+                {auditoria164.estado === 'saldo_sin_auditoria'
+                  ? 'Existe un saldo 164 registrado sin respaldo auditado. Requiere conciliación documental.'
+                  : auditoria164.estado === 'sin_respaldo'
                   ? 'No existe respaldo auditado para este período; esto no significa que el saldo sea cero.'
                   : auditoria164.estado === 'error'
                     ? 'No fue posible consultar el respaldo de la casilla 164. Verifique la conexión o la disponibilidad de la migración.'
