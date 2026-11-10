@@ -25,9 +25,18 @@ COMMENT ON TABLE iva_excedentes_164_auditoria IS
 -- Requiere índice único compuesto para FK sin permitir combinaciones inconsistentes.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_iva_liquidaciones_id_empresa_periodo
     ON iva_liquidaciones (id, empresa_id, anio, mes);
-ALTER TABLE iva_excedentes_164_auditoria
-    ADD CONSTRAINT fk_164_liquidacion_empresa_periodo
-    FOREIGN KEY (liquidacion_id, empresa_id, anio, mes)
-    REFERENCES iva_liquidaciones (id, empresa_id, anio, mes);
+DO $
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_164_liquidacion_empresa_periodo'
+          AND conrelid = 'iva_excedentes_164_auditoria'::regclass
+    ) THEN
+        ALTER TABLE iva_excedentes_164_auditoria
+            ADD CONSTRAINT fk_164_liquidacion_empresa_periodo
+            FOREIGN KEY (liquidacion_id, empresa_id, anio, mes)
+            REFERENCES iva_liquidaciones (id, empresa_id, anio, mes);
+    END IF;
+END $;
 
 COMMIT;
