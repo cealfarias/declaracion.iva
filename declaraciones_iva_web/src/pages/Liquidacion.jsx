@@ -545,6 +545,35 @@ export default function Liquidacion() {
           </div>
         </div>
       )}
+      {data?.casillas_f07_preliminares && (
+        <section aria-label="Conciliación de casillas F-07" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-slate-300 bg-white p-4">
+            <h2 className="font-bold text-slate-900">Conciliación de saldos F-07 (preliminar)</h2>
+            <p className="text-sm text-slate-700 mt-1">La casilla 155 corresponde al crédito fiscal; la 167 corresponde a un excedente de impuesto diferente. Los valores pendientes no equivalen a cero.</p>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              {[
+                ["110", "Crédito fiscal anterior"],
+                ["155", "Crédito fiscal siguiente"],
+                ["164", "Excedente de impuesto anterior"],
+                ["167", "Excedente de impuesto siguiente"],
+                ["168", "Impuesto a pagar"],
+                ["203", "Ajustes del impuesto"]
+              ].map(([casilla, descripcion]) => {
+                const importe = data.casillas_f07_preliminares[casilla];
+                const disponible = typeof importe === "number" && Number.isFinite(importe);
+                return (
+                  <div key={casilla} className="rounded-md bg-slate-50 p-3">
+                    <dt className="text-sm text-slate-700">Casilla {casilla} — {descripcion}</dt>
+                    <dd className="font-semibold text-slate-900 mt-1">
+                      {disponible ? `${importe.toFixed(2)} (provisional)` : "Pendiente de conciliación"}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </div>
+        </section>
+      )}
       {ajustesHistoricosLocales && (
         <div role="status" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
