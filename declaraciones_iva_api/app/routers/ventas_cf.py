@@ -231,7 +231,7 @@ async def upload_dtes_cf(
             if nit_reporte:
                 clean_rep_nit = clean_id(nit_reporte).lstrip("0")
                 clean_emp_nit = emp_nit.lstrip("0")
-                if clean_emp_nit and clean_rep_nit and clean_emp_nit != clean_rep_nit and clean_rep_nit not in clean_emp_nit and clean_emp_nit not in clean_rep_nit:
+                if clean_emp_nit and clean_rep_nit and clean_emp_nit != clean_rep_nit:
                     errores.append(f"{file.filename}: El NIT del reporte ({nit_reporte}) no coincide con la empresa seleccionada ({empresa.nit}).")
                     continue
 
@@ -425,7 +425,7 @@ async def upload_dtes_cf(
             emi_nit = clean_id(emisor_data.get("nit"))
             emi_nrc = clean_id(emisor_data.get("nrc"))
             pertenece = False
-            if emp_nit and emi_nit and (emp_nit == emi_nit or emp_nit in emi_nit or emi_nit in emp_nit):
+            if emp_nit and emi_nit and (emp_nit == emi_nit):
                 pertenece = True
             elif emp_nrc and emi_nrc and (emp_nrc == emi_nrc or emp_nrc.lstrip("0") == emi_nrc.lstrip("0")):
                 pertenece = True
