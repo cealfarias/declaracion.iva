@@ -34,6 +34,7 @@ def test_migracion_164_y_unicidad_en_postgresql():
         conn.execute(text("SET search_path TO f07_ci_test"))
         Usuario.__table__.create(conn, checkfirst=True)
         Empresa.__table__.create(conn, checkfirst=True)
+        conn.execute(text(\"INSERT INTO iva_usuarios (id, email, password_hash, nombre) VALUES (1, 'ci@example.invalid', 'ci-no-login', 'CI')\"))
         # Crear esquema anterior sin la columna 164 para probar migración real.
         # Crear todas las columnas heredadas que el ORM necesita;
         # retirar únicamente la nueva columna para reproducir la migración.
@@ -89,6 +90,28 @@ def test_migracion_164_y_unicidad_en_postgresql():
             db.refresh(fila)
             assert fila.excedente_impuesto_anterior == Decimal("45.67")
             assert db.query(Liquidacion).count() == 1
+            # La procedencia no puede referenciar una empresa o período distintos.
+            db.execute(text("""
+                INSERT INTO iva_excedentes_164_auditoria
+                    (liquidacion_id, empresa_id, usuario_id, anio, mes,
+                     importe, origen, referencia)
+                VALUES (:liquidacion_id, 1, 1, '2027', '01',
+                        45.67, 'declaracion_previa', 'F07-2026-12')
+            """), {"liquidacion_id": fila.id})
+            db.commit()
+            with pytest.raises(IntegrityError):
+                db.execute(text("""
+                    INSERT INTO iva_excedentes_164_auditoria
+                        (liquidacion_id, empresa_id, usuario_id, anio, mes,
+                         importe, origen, referencia)
+                    VALUES (:liquidacion_id, 1, 1, '2027', '02',
+                            45.67, 'declaracion_previa', 'F07-2027-01')
+                """), {"liquidacion_id": fila.id})
+                db.commit()
+            db.rollback()
+            assert db.execute(text(
+                "SELECT count(*) FROM iva_excedentes_164_auditoria"
+            )).scalar_one() == 1
             # La restricción única debe rechazar duplicados en PostgreSQL real.
             db.add(Liquidacion(empresa_id=1, anio="2027", mes="01"))
             with pytest.raises(IntegrityError):
