@@ -45,6 +45,31 @@ def test_164_auditado_jwt_y_aislamiento_empresa(escenario):
             headers=headers(ids["u1"]),
         )
         assert propia.status_code == 200, propia.text
+        consulta = client.get(
+            "/api/v1/liquidacion/{}/excedente-impuesto-anterior-auditoria?mes=01&anio=2027".format(ids["e1"]),
+            headers=headers(ids["u1"]),
+        )
+        assert consulta.status_code == 200, consulta.text
+        respaldo = consulta.json()["respaldo"]
+        assert consulta.json()["auditoria_disponible"] is True
+        assert respaldo["referencia"] == "F07-2026-12"
+        assert respaldo["usuario_id"] == ids["u1"]
+        assert respaldo["importe"] == 45.67
+
+        consulta_ajena = client.get(
+            "/api/v1/liquidacion/{}/excedente-impuesto-anterior-auditoria?mes=01&anio=2027".format(ids["e2"]),
+            headers=headers(ids["u1"]),
+        )
+        assert consulta_ajena.status_code == 403
+
+        sin_respaldo = client.get(
+            "/api/v1/liquidacion/{}/excedente-impuesto-anterior-auditoria?mes=02&anio=2027".format(ids["e1"]),
+            headers=headers(ids["u1"]),
+        )
+        assert sin_respaldo.status_code == 200
+        assert sin_respaldo.json()["auditoria_disponible"] is False
+        assert sin_respaldo.json()["respaldo"] is None
+
         audit = db.query(Excedente164Auditoria).one()
         assert audit.usuario_id == ids["u1"]
         assert audit.empresa_id == ids["e1"]
