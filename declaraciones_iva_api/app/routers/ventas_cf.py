@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 import json
 
 from app.core.database import get_db
+from app.core.authorization import autorizar_empresa_tributaria
 from app.models.models import DteVenta, Empresa, DeclaracionEstado, DteAnulado
 from app.routers.compras import is_periodo_declarado
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
 
 @router.get("/estado/{empresa_id}")
 def get_estado_declaracion(empresa_id: int, mes: str, anio: str, tipo_libro: str = "ventas_cf", db: Session = Depends(get_db)):
