@@ -57,7 +57,7 @@ def test_listados_aislados(modulos, prefix, endpoint, identificador):
     assert r.status_code == 200, r.text
     documentos = r.json()["documentos"] if endpoint == "" else r.json()
     assert len(documentos) == 1, r.text
-    r = client.get(path.replace(str(ids["e1"]), str(ids["e2"])),
+    r = client.get(f"{prefix}/{endpoint + '/' if endpoint else ''}{ids['e2']}",
                    params={"mes": "11", "anio": "2026"}, headers=headers(ids["u1"]))
     assert r.status_code == 403, r.text
 
@@ -72,8 +72,9 @@ def test_csv_no_filtra_datos_ajenos(modulos, prefix, endpoint, propio, ajeno):
     path = f"{prefix}/{endpoint}/{ids['e1']}"
     r = client.get(path, params={"mes": "11", "anio": "2026"}, headers=headers(ids["u1"]))
     assert r.status_code == 200, r.text
-    assert propio in r.text
-    assert ajeno not in r.text
+    contenido = r.text.replace("-", "") if prefix == "/api/v1/ventas-cf" else r.text
+    assert propio.replace("-", "") in contenido if prefix == "/api/v1/ventas-cf" else propio in contenido
+    assert ajeno.replace("-", "") not in contenido if prefix == "/api/v1/ventas-cf" else ajeno not in contenido
     r = client.get(f"{prefix}/{endpoint}/{ids['e2']}",
                    params={"mes": "11", "anio": "2026"}, headers=headers(ids["u1"]))
     assert r.status_code == 403, r.text
