@@ -494,6 +494,41 @@ class Excedente164AuditadoRequest(ExcedenteImpuestoAnteriorRequest):
         return value.strip()
 
 
+@router.get('/{empresa_id}/excedente-impuesto-anterior-auditoria')
+def consultar_excedente_164_auditoria(
+    empresa_id: int,
+    mes: str,
+    anio: str,
+    db: Session = Depends(get_db),
+):
+    """Consulta la procedencia de 164; nunca fabrica respaldos históricos."""
+    validar_periodo_fiscal(mes, anio)
+    registro = db.query(Excedente164Auditoria).filter(
+        Excedente164Auditoria.empresa_id == empresa_id,
+        Excedente164Auditoria.mes == mes,
+        Excedente164Auditoria.anio == anio,
+    ).first()
+    if registro is None:
+        return {
+            "casilla": 164,
+            "periodo": f"{anio}-{mes}",
+            "auditoria_disponible": False,
+            "respaldo": None,
+        }
+    return {
+        "casilla": 164,
+        "periodo": f"{anio}-{mes}",
+        "auditoria_disponible": True,
+        "respaldo": {
+            "importe": float(registro.importe),
+            "origen": registro.origen,
+            "referencia": registro.referencia,
+            "usuario_id": registro.usuario_id,
+            "registrado_en": registro.registrado_en.isoformat() if registro.registrado_en else None,
+        },
+    }
+
+
 @router.post('/{empresa_id}/excedente-impuesto-anterior-auditado')
 def registrar_excedente_164_auditado(
     empresa_id: int,
