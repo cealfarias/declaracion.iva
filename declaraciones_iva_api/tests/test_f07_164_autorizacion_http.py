@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.core.database import get_db
-from app.models.models import Liquidacion, Excedente164Auditoria
+from app.models.models import Liquidacion, Excedente164Auditoria, UsuarioEmpresa
 from app.routers.liquidacion import router
 from test_compras_autorizacion import escenario, headers
 
@@ -112,3 +112,42 @@ def test_164_detecta_saldo_historico_sin_respaldo_y_discrepancia(escenario):
             headers=headers(ids["u1"]),
         )
         assert inconsistente.status_code == 409, inconsistente.text
+
+
+def test_164_consulta_y_escritura_rechazan_vinculo_archivado(escenario):
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    vinculo = db.query(UsuarioEmpresa).filter_by(
+        usuario_id=ids["u1"], empresa_id=ids["e1"]
+    ).one()
+    vinculo.archivado = True
+    db.commit()
+    ruta = f"/api/v1/liquidacion/{ids['e1']}"
+    with TestClient(app) as client:
+        consulta = client.get(
+            ruta + "/excedente-impuesto-anterior-auditoria?mes=05&anio=2027",
+            headers=headers(ids["u1"]),
+        )
+        assert consulta.status_code == 403, consulta.text
+        escritura = client.post(
+            ruta + "/excedente-impuesto-anterior-auditado?mes=05&anio=2027",
+            json={"importe": "20.00", "origen": "declaracion_previa", "referencia": "F07-2027-04"},
+            headers=headers(ids["u1"]),
+        )
+        assert escritura.status_code == 403, escritura.text
+    assert db.query(Liquidacion).count() == 0
+    assert db.query(Excedente164Auditoria).count() == 0
+
+
+def test_164_consulta_sin_jwt_o_jwt_invalido(escenario):
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}/excedente-impuesto-anterior-auditoria?mes=06&anio=2027"
+    with TestClient(app) as client:
+        assert client.get(ruta).status_code in (401, 403)
+        respuesta = client.get(ruta, headers={"Authorization": "Bearer token-invalido"})
+        assert respuesta.status_code == 401, respuesta.text
