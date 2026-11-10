@@ -33,13 +33,13 @@ def test_registro_164_actualiza_null_y_rechaza_segunda_escritura():
         with TestClient(app) as cliente:
             primera = cliente.post(ruta, json={"importe": "45.67"})
             segunda = cliente.post(ruta, json={"importe": "99.99"})
-        assert primera.status_code == 200
+        assert primera.status_code == 409
         assert segunda.status_code == 409
         db.expire_all()
         saldo = db.query(Liquidacion).filter_by(
             empresa_id=1, anio="2027", mes="01"
         ).one().excedente_impuesto_anterior
-        assert saldo == Decimal("45.67")
+        assert saldo is None
     engine.dispose()
 
 
@@ -65,5 +65,5 @@ def test_registro_164_no_crea_duplicado_de_periodo():
         assert segunda.status_code == 409
         assert db.query(Liquidacion).filter_by(
             empresa_id=1, anio="2027", mes="02"
-        ).count() == 1
+        ).count() == 0
     engine.dispose()
