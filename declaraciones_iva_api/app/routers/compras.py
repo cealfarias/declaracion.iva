@@ -9,10 +9,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.authorization import autorizar_compras
 from app.models.models import DteCompra, Empresa, DeclaracionEstado
 import json
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(autorizar_compras)])
 
 def is_periodo_declarado(db: Session, empresa_id: int, anio: str, mes: str, tipo_libro: str = "compras", version: int = 1) -> bool:
     estado = db.query(DeclaracionEstado).filter(
