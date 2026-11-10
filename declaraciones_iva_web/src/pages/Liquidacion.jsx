@@ -536,6 +536,15 @@ export default function Liquidacion() {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12 font-sans">
+      {data?.estado_normativo_f07?.conciliacion_completa === false && (
+        <div role="alert" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
+            <p className="font-bold">F-07 pendiente de conciliación normativa</p>
+            <p className="text-sm mt-1">{data.estado_normativo_f07.advertencia}</p>
+            <p className="text-sm mt-1">Los importes de remanente y excedente mostrados son provisionales y requieren validación antes de presentar una declaración.</p>
+          </div>
+        </div>
+      )}
       {ajustesHistoricosLocales && (
         <div role="status" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
@@ -593,10 +602,10 @@ export default function Liquidacion() {
                     enqueueMessages([{ text: "Espere a que se cargue la liquidación completa antes de imprimir.", type: "error" }]);
                     return;
                   }
-                  if (ajustesHistoricosLocales || diferenciasServidor.length > 0) {
+                  if (ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
                     const confirmar = window.confirm(
                       "ATENCIÓN: esta liquidación contiene ajustes históricos locales o diferencias pendientes de conciliación. " +
-                      "La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
+                      "El cálculo puede estar pendiente de conciliación normativa. La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
                     );
                     if (!confirmar) return;
                   }
