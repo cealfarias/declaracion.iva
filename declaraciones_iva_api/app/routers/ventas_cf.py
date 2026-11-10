@@ -452,7 +452,7 @@ async def upload_dtes_cf(
                 errores.append(f'{file.filename}: La fecha de emisión ({fecha_cruda}) corresponde al período {mes_dte}/{anio_dte}, no al período seleccionado ({periodo_mes}/{periodo_anio}). Por ley de IVA de El Salvador, las ventas deben declararse obligatoriamente en el mes en que fueron emitidas.')
                 continue
                 
-            codigo_generacion = identificacion.get("codigoGeneracion", "")
+            codigo_generacion = str(identificacion.get("codigoGeneracion") or "").replace("-", "").strip().upper()
             sello = identificacion.get("selloRecibido", "")
             if not sello:
                 sello = dte_json.get("selloRecibido", "")
