@@ -19,6 +19,7 @@ export default function Liquidacion() {
   const [data, setData] = useState(null);
   const [diferenciasServidor, setDiferenciasServidor] = useState([]);
   const [ajustesHistoricosLocales, setAjustesHistoricosLocales] = useState(false);
+  const [inventarioHistorico, setInventarioHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [editRemanente, setEditRemanente] = useState(false);
@@ -164,6 +165,29 @@ export default function Liquidacion() {
       res.anulados_cf_count = anuladosCfCount;
       res.anulados_ccf_count = anuladosCcfCount;
 
+      // Inventario de solo lectura: no migra, elimina ni transmite localStorage.
+      const inventario = [];
+      const omitidasGuardadas = getOmittedFromStorage();
+      const devolucionesGuardadas = getDevolucionesManualStorage();
+      const remanenteGuardado = getRemanenteManualStorage();
+      if (omitidasGuardadas !== null) {
+        inventario.push("Compras omitidas guardadas en este navegador: " +
+          (Array.isArray(omitidasGuardadas) ? omitidasGuardadas.length : "formato no reconocido"));
+      }
+      if (devolucionesGuardadas !== null) inventario.push("Devoluciones manuales guardadas en este navegador");
+      if (remanenteGuardado !== null) inventario.push("Remanente anterior manual guardado en este navegador");
+      if (activeEmpresa?.id === 2 && anio === "2026" && ["01", "02", "03"].includes(mes)) {
+        inventario.push("Reglas históricas especiales de 2026 pendientes de conciliación");
+      }
+      const claveRemanenteAnterior = `remanente_siguiente_${activeEmpresa?.id}_${mes}_${anio}`;
+      try {
+        if (localStorage.getItem(claveRemanenteAnterior) !== null) {
+          inventario.push("Copia local del remanente siguiente (no se modifica)");
+        }
+      } catch (storageError) {
+        inventario.push("No se pudo inspeccionar la copia local del remanente");
+      }
+      setInventarioHistorico(inventario);
       setAjustesHistoricosLocales(tieneAjustesLegados);
       if (tieneAjustesLegados) {
       res.ventas_cf = {
@@ -331,6 +355,7 @@ export default function Liquidacion() {
       console.error("No se pudo cargar el conjunto completo de documentos para liquidación.", error);
       setData(null);
       setAjustesHistoricosLocales(false);
+      setInventarioHistorico([]);
       setDiferenciasServidor([]);
       enqueueMessages([{ text: "No se pudo cargar la liquidación completa. No se muestran cálculos parciales; revise la conexión y vuelva a intentar.", type: "error" }]);
     } finally {
@@ -427,6 +452,10 @@ export default function Liquidacion() {
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
             <p className="font-bold">Liquidación con ajustes históricos locales</p>
             <p className="text-sm mt-1">Esta liquidación utiliza datos o reglas históricas del navegador que todavía no han sido conciliados con PostgreSQL. Aunque no aparezcan diferencias numéricas, confirme los importes antes de presentar el F-07. No borre los datos del navegador hasta completar la migración.</p>
+            <p className="font-semibold text-sm mt-3">Inventario de ajustes detectados para este período:</p>
+            <ul className="mt-1 list-disc pl-5 text-sm">
+              {inventarioHistorico.map((detalle, indice) => <li key={indice}>{detalle}</li>)}
+            </ul>
           </div>
         </div>
       )}
