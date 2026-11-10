@@ -106,3 +106,30 @@ def test_nit_con_sufijo_extra_no_se_acepta(cliente_json, prefix, modelo, tipo, t
     assert r.status_code == 200, r.text
     assert r.json()["procesados"] == 0, r.text
     assert db.query(modelo).count() == 0
+
+
+@pytest.mark.parametrize("prefix,modelo,tipo,titular", MODULOS)
+def test_reimportacion_mismo_dte_no_duplica(cliente_json, prefix, modelo, tipo, titular):
+    client, db, ids = cliente_json
+    contenido = documento(tipo, titular, "TEST-UNO")
+    primero = subir(client, prefix, ids, contenido)
+    assert primero.status_code == 200, primero.text
+    assert primero.json()["procesados"] == 1, primero.text
+    segundo = subir(client, prefix, ids, contenido)
+    assert segundo.status_code == 200, segundo.text
+    assert segundo.json()["procesados"] == 0, segundo.text
+    assert db.query(modelo).filter_by(empresa_id=ids["e1"]).count() == 1
+
+
+@pytest.mark.parametrize("prefix,modelo,tipo,titular", MODULOS)
+def test_codigo_generacion_con_y_sin_guiones_no_duplica(cliente_json, prefix, modelo, tipo, titular):
+    client, db, ids = cliente_json
+    primero = subir(client, prefix, ids, documento(tipo, titular, "TEST-UNO"))
+    assert primero.status_code == 200, primero.text
+    assert primero.json()["procesados"] == 1, primero.text
+    segundo_dte = json.loads(documento(tipo, titular, "TEST-UNO"))
+    segundo_dte["identificacion"]["codigoGeneracion"] = "TESTJSON001"
+    segundo = subir(client, prefix, ids, json.dumps(segundo_dte).encode("utf-8"))
+    assert segundo.status_code == 200, segundo.text
+    assert segundo.json()["procesados"] == 0, segundo.text
+    assert db.query(modelo).filter_by(empresa_id=ids["e1"]).count() == 1
