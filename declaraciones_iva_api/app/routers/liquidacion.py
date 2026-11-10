@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 
 from app.core.database import get_db
@@ -353,12 +354,33 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
     return data
 
 class AjustesLiquidacionRequest(BaseModel):
-    remanente_anterior: Optional[float] = 0.0
-    retenciones_recibidas: Optional[float] = 0.0
-    percepciones_recibidas: Optional[float] = 0.0
-    retenciones_efectuadas: Optional[float] = 0.0
-    percepciones_efectuadas: Optional[float] = 0.0
-    anticipo_cuenta_2: Optional[float] = 0.0
+    remanente_anterior: Optional[Decimal] = Decimal("0.00")
+    retenciones_recibidas: Optional[Decimal] = Decimal("0.00")
+    percepciones_recibidas: Optional[Decimal] = Decimal("0.00")
+    retenciones_efectuadas: Optional[Decimal] = Decimal("0.00")
+    percepciones_efectuadas: Optional[Decimal] = Decimal("0.00")
+    anticipo_cuenta_2: Optional[Decimal] = Decimal("0.00")
+
+    @field_validator(
+        "remanente_anterior", "retenciones_recibidas", "percepciones_recibidas",
+        "retenciones_efectuadas", "percepciones_efectuadas", "anticipo_cuenta_2",
+        mode="before",
+    )
+    @classmethod
+    def validar_importe(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise ValueError("El importe debe ser numérico.")
+        try:
+            importe = Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValueError("El importe debe ser numérico.")
+        if not importe.is_finite() or importe < 0:
+            raise ValueError("El importe debe ser finito y no negativo.")
+        if importe.as_tuple().exponent < -2:
+            raise ValueError("El importe admite como máximo dos decimales.")
+        return importe
 
 @router.post('/{empresa_id}/remanente')
 def update_remanente(empresa_id: int, mes: str, anio: str, remanente: float, db: Session = Depends(get_db)):
