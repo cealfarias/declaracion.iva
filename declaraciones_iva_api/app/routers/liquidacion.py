@@ -325,6 +325,20 @@ def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: 
     # Alias histórico para consumidores existentes: exclusivamente crédito fiscal.
     remanente_siguiente = remanente_credito_fiscal_siguiente
 
+    # Contrato de transparencia fiscal: NO presentar saldos provisionales como
+    # casillas oficiales hasta completar las fórmulas y arrastres del F-07 v14.
+    data['estado_normativo_f07'] = {
+        'version_referencia': 'F-07 v14',
+        'conciliacion_completa': False,
+        'casillas_pendientes': [164, 167, 168, 203],
+        'remanente_credito_calculado_provisional': remanente_credito_fiscal_siguiente,
+        'excedente_deducciones_calculado_provisional': excedente_deducciones_pendiente,
+        'advertencia': (
+            'Saldos provisionales: no equivalen automáticamente a las '
+            'casillas oficiales 155 y 167; falta conciliación normativa.'
+        ),
+    }
+
     # Estructura enriquecida para el frontend
     data['liquidacion'] = {
         'total_debito': total_debito,
