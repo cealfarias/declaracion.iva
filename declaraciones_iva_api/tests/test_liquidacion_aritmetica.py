@@ -90,3 +90,17 @@ def test_anulacion_y_version_no_contaminan_totales(escenario):
     assert r["ventas_cf"] == {"neto": 200.00, "debito": 26.00}
     assert r["totales"]["debito"] == 26.00
     assert r["totales"]["impuesto_determinado"] == 26.00
+
+
+def test_ventas_omitidas_no_afectan_debito_fiscal(escenario):
+    _, db, ids = escenario
+    cf = venta_cf(ids["e1"], "CF-OMITIDA", 113.00)
+    cf.omitido = True
+    ccf = venta_ccf(ids["e1"], "CCF-OMITIDA", 200.00, 26.00)
+    ccf.omitido = True
+    db.add_all([cf, ccf, venta_cf(ids["e1"], "CF-VIGENTE", 226.00)])
+    db.commit()
+    r = calculate_liquidacion_for_period(db, ids["e1"], "11", "2026")
+    assert r["ventas_cf"] == {"neto": 200.00, "debito": 26.00}
+    assert r["ventas_ccf"] == {"neto": 0.00, "debito": 0.00}
+    assert r["totales"]["debito"] == 26.00
