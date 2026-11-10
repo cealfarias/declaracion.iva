@@ -382,6 +382,14 @@ class AjustesLiquidacionRequest(BaseModel):
             raise ValueError("El importe admite como máximo dos decimales.")
         return importe
 
+def validar_periodo_fiscal(mes: str, anio: str) -> None:
+    """Rechaza períodos mal formados antes de acceder a PostgreSQL."""
+    if mes not in {f"{numero:02d}" for numero in range(1, 13)}:
+        raise HTTPException(status_code=422, detail="El mes debe estar entre 01 y 12.")
+    if len(anio) != 4 or not anio.isascii() or not anio.isdecimal() or anio == "0000":
+        raise HTTPException(status_code=422, detail="El año debe contener cuatro dígitos válidos.")
+
+
 def validar_remanente_query(valor: str) -> Decimal:
     """Valida el importe recibido en la ruta de remanente antes de consultar o escribir."""
     try:
@@ -398,6 +406,7 @@ def validar_remanente_query(valor: str) -> Decimal:
 
 @router.post('/{empresa_id}/remanente')
 def update_remanente(empresa_id: int, mes: str, anio: str, remanente: str, db: Session = Depends(get_db)):
+    validar_periodo_fiscal(mes, anio)
     importe = validar_remanente_query(remanente)
     liq = db.query(Liquidacion).filter(
         Liquidacion.empresa_id == empresa_id,
@@ -416,6 +425,7 @@ def update_remanente(empresa_id: int, mes: str, anio: str, remanente: str, db: S
 
 @router.post('/{empresa_id}/ajustes')
 def update_ajustes(empresa_id: int, mes: str, anio: str, req: AjustesLiquidacionRequest, db: Session = Depends(get_db)):
+    validar_periodo_fiscal(mes, anio)
     liq = db.query(Liquidacion).filter(
         Liquidacion.empresa_id == empresa_id,
         Liquidacion.mes == mes,
