@@ -97,6 +97,12 @@ def test_migracion_164_y_unicidad_en_postgresql():
             assert antes[0]["estado"] == "saldo_sin_auditoria"
             assert antes[0]["saldo_164"] == Decimal("45.67")
             assert antes[0]["referencia"] is None
+            resumen_sql = (raiz / "db/migrations/20261110_f07_164_resumen_historico_readonly.sql").read_text()
+            resumen_antes = db.execute(text(resumen_sql)).mappings().one()
+            assert resumen_antes["empresa_id"] == 1
+            assert resumen_antes["periodos_revisados"] == 1
+            assert resumen_antes["saldos_sin_auditoria"] == 1
+            assert resumen_antes["coincidentes"] == 0
             # La procedencia no puede referenciar una empresa o período distintos.
             db.execute(text("""
                 INSERT INTO iva_excedentes_164_auditoria
@@ -123,6 +129,10 @@ def test_migracion_164_y_unicidad_en_postgresql():
             assert len(despues) == 1
             assert despues[0]["estado"] == "coincidente"
             assert despues[0]["referencia"] == "F07-2026-12"
+            resumen_despues = db.execute(text(resumen_sql)).mappings().one()
+            assert resumen_despues["periodos_revisados"] == 1
+            assert resumen_despues["saldos_sin_auditoria"] == 0
+            assert resumen_despues["coincidentes"] == 1
             # Alteración deliberada en CI: detectar diferencia sin corregirla.
             db.execute(text("""
                 UPDATE iva_excedentes_164_auditoria
