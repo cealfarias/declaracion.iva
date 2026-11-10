@@ -89,10 +89,10 @@ export default function Liquidacion() {
     try {
       const [liqRes, comprasRes, ventasCfRes, ventasCcfRes, anuladosRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
-        axios.get(`${API_URL}/api/v1/compras/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/api/v1/ventas-cf/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/api/v1/ventas-contribuyentes/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/api/v1/anulados/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`).catch(() => ({ data: [] }))
+        axios.get(`${API_URL}/api/v1/compras/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
+        axios.get(`${API_URL}/api/v1/ventas-cf/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
+        axios.get(`${API_URL}/api/v1/ventas-contribuyentes/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
+        axios.get(`${API_URL}/api/v1/anulados/list/${activeEmpresa.id}?mes=${mes}&anio=${anio}`)
       ]);
       const res = liqRes.data;
       // Conservar cifras originales para detectar divergencias con los ajustes del navegador.
@@ -316,8 +316,10 @@ export default function Liquidacion() {
         percepciones_efectuadas: (res.percepciones_efectuadas || 0).toString()
       });
     } catch (error) {
+      console.error("No se pudo cargar el conjunto completo de documentos para liquidación.", error);
+      setData(null);
       setDiferenciasServidor([]);
-      enqueueMessages([{ text: "Error al cargar la liquidación.", type: "error" }]);
+      enqueueMessages([{ text: "No se pudo cargar la liquidación completa. No se muestran cálculos parciales; revise la conexión y vuelva a intentar.", type: "error" }]);
     } finally {
       setLoading(false);
     }
