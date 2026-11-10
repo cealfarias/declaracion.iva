@@ -32,3 +32,32 @@ def calcular_excedente_impuesto_f07(*, casilla_160, casilla_166, casilla_203):
         "167": max(diferencia, Decimal("0.00")),
         "168": max(-diferencia, Decimal("0.00")),
     }
+
+
+def preparar_arrastre_excedente_impuesto(*, periodo_origen, periodo_destino, casilla_167):
+    """Prepara 167 -> 164 solo entre meses consecutivos, sin escribir en DB.
+
+    Los períodos son cadenas YYYY-MM. No mezcla el remanente de crédito 155.
+    """
+    from datetime import date
+
+    def leer_periodo(valor):
+        if not isinstance(valor, str) or len(valor) != 7 or valor[4] != "-" or not (
+            valor[:4].isascii() and valor[:4].isdigit()
+            and valor[5:].isascii() and valor[5:].isdigit()
+        ):
+            raise ValueError("Período inválido; use YYYY-MM.")
+        anio, mes = int(valor[:4]), int(valor[5:])
+        if anio < 1 or mes < 1 or mes > 12:
+            raise ValueError("Período fuera de rango.")
+        return date(anio, mes, 1)
+
+    origen = leer_periodo(periodo_origen)
+    destino = leer_periodo(periodo_destino)
+    siguiente = (
+        date(origen.year + 1, 1, 1) if origen.month == 12
+        else date(origen.year, origen.month + 1, 1)
+    )
+    if destino != siguiente:
+        raise ValueError("El arrastre fiscal requiere meses consecutivos.")
+    return {"periodo_destino": periodo_destino, "casilla_164": _importe(casilla_167, "167")}
