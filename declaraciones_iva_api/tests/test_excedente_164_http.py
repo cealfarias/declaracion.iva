@@ -34,6 +34,16 @@ class DBFalsa:
     def add(self, obj):
         self.added.append(obj)
 
+    def execute(self, _statement):
+        # El test de no sobrescritura modela una actualización condicional
+        # que no modifica filas cuando el saldo ya está registrado.
+        class Resultado:
+            rowcount = 0
+        return Resultado()
+
+    def rollback(self):
+        pass
+
     def commit(self):
         self.commits += 1
 
