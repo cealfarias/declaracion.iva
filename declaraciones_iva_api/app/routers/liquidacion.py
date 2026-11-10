@@ -382,8 +382,23 @@ class AjustesLiquidacionRequest(BaseModel):
             raise ValueError("El importe admite como máximo dos decimales.")
         return importe
 
+def validar_remanente_query(valor: str) -> Decimal:
+    """Valida el importe recibido en la ruta de remanente antes de consultar o escribir."""
+    try:
+        importe = Decimal(valor)
+    except (InvalidOperation, ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Remanente no numérico.")
+    if not importe.is_finite() or importe < 0 or importe.as_tuple().exponent < -2:
+        raise HTTPException(
+            status_code=422,
+            detail="El remanente debe ser finito, no negativo y tener máximo dos decimales.",
+        )
+    return importe
+
+
 @router.post('/{empresa_id}/remanente')
-def update_remanente(empresa_id: int, mes: str, anio: str, remanente: float, db: Session = Depends(get_db)):
+def update_remanente(empresa_id: int, mes: str, anio: str, remanente: str, db: Session = Depends(get_db)):
+    importe = validar_remanente_query(remanente)
     liq = db.query(Liquidacion).filter(
         Liquidacion.empresa_id == empresa_id,
         Liquidacion.mes == mes,
@@ -391,13 +406,13 @@ def update_remanente(empresa_id: int, mes: str, anio: str, remanente: float, db:
     ).first()
     
     if not liq:
-        liq = Liquidacion(empresa_id=empresa_id, mes=mes, anio=anio, remanente_anterior=remanente)
+        liq = Liquidacion(empresa_id=empresa_id, mes=mes, anio=anio, remanente_anterior=importe)
         db.add(liq)
     else:
-        liq.remanente_anterior = remanente
+        liq.remanente_anterior = importe
         
     db.commit()
-    return {'mensaje': 'Remanente actualizado correctamente', 'remanente': remanente}
+    return {'mensaje': 'Remanente actualizado correctamente', 'remanente': float(importe)}
 
 @router.post('/{empresa_id}/ajustes')
 def update_ajustes(empresa_id: int, mes: str, anio: str, req: AjustesLiquidacionRequest, db: Session = Depends(get_db)):
