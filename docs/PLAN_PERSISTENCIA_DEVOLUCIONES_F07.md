@@ -58,3 +58,15 @@ Confirmar con documentación fiscal si el ajuste manual debe reemplazar las cifr
 Las pruebas en `tests/test_liquidacion_aritmetica.py` comprueban que las devoluciones DTE tipo 05 se restan una sola vez de compras y crédito de su misma versión, sin mezclar documentos omitidos, otras versiones u otras empresas. También documentan el caso límite de una nota de crédito tipo 05 sin compra de origen: el contrato actual puede producir compras y crédito netos negativos. **Este comportamiento queda identificado para revisión fiscal; no se normaliza silenciosamente a cero.**
 
 **Límite:** estas pruebas no resuelven la elección entre sustituir el importe DTE por un ajuste manual o sumar una diferencia complementaria. La interfaz conserva ajustes en `localStorage` y no existe migración aprobada. No combinar automáticamente ambos importes ni modificar datos de producción.
+
+
+## Avance de diseño — 11 de noviembre de 2026
+
+Se añadió el **borrador sin aplicar** `db/migrations/20261111_f07_devoluciones_manual_auditoria_draft.sql`.
+
+- Almacena propuestas de devoluciones manuales por empresa, período, versión DTE, usuario, referencia, motivo y fecha.
+- Los importes son `NUMERIC(18,2)` no negativos, con restricciones de formato y estado único `pendiente_conciliacion`.
+- Es una tabla independiente: **no altera DTE 05, ni calcula ni sustituye casillas fiscales**.
+- Falta desarrollar y probar el contrato HTTP con JWT y protección multiempresa, definir idempotencia y la política de revisión/rectificación sin sobreescribir historial.
+- Antes de cualquier migración se requiere preflight, respaldo y prueba de reversión en PostgreSQL aislado. No ejecutar en Render ni producción.
+- La elección entre sustitución y adición exige criterio fiscal documentado; registrar una propuesta no equivale a aceptarla.
