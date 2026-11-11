@@ -19,6 +19,7 @@ export default function Liquidacion() {
   const [data, setData] = useState(null);
   const [auditoria164, setAuditoria164] = useState({ estado: 'pendiente', respaldo: null });
   const [conciliacionDte05, setConciliacionDte05] = useState(null);
+  const [propuestasDevoluciones, setPropuestasDevoluciones] = useState({ estado: 'pendiente', propuestas: [] });
   const [diferenciasServidor, setDiferenciasServidor] = useState([]);
   const [ajustesHistoricosLocales, setAjustesHistoricosLocales] = useState(false);
   const [inventarioHistorico, setInventarioHistorico] = useState([]);
@@ -113,6 +114,7 @@ export default function Liquidacion() {
     setData(null);
     setAuditoria164({ estado: 'pendiente', respaldo: null });
     setConciliacionDte05(null);
+    setPropuestasDevoluciones({ estado: 'pendiente', propuestas: [] });
     try {
       const [liqRes, comprasRes, ventasCfRes, ventasCcfRes, anuladosRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
@@ -149,6 +151,21 @@ export default function Liquidacion() {
       } catch (errorConciliacion) {
         setConciliacionDte05({
           estado: [401, 403].includes(errorConciliacion.response?.status) ? 'sin_autorizacion' : 'error'
+        });
+      }
+      // Registro documental separado: las propuestas nunca modifican los totales DTE.
+      try {
+        const propuestasRes = await axios.get(
+          `${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/propuestas-devoluciones-manuales?mes=${mes}&anio=${anio}`
+        );
+        setPropuestasDevoluciones({
+          estado: 'disponible',
+          propuestas: propuestasRes.data.propuestas ?? []
+        });
+      } catch (errorPropuestas) {
+        setPropuestasDevoluciones({
+          estado: [401, 403].includes(errorPropuestas.response?.status) ? 'sin_autorizacion' : 'error',
+          propuestas: []
         });
       }
       const res = liqRes.data;
@@ -694,6 +711,33 @@ export default function Liquidacion() {
           </div>
         </section>
       )}
+      <section aria-label="Propuestas documentales de devoluciones" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <div className="rounded-lg border border-slate-300 bg-slate-50 p-4 text-slate-900">
+          <p className="font-bold">Propuestas documentales de devoluciones (sin efecto fiscal)</p>
+          {propuestasDevoluciones.estado === 'disponible' ? (
+            propuestasDevoluciones.propuestas.length ? (
+              <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
+                {propuestasDevoluciones.propuestas.map(propuesta => (
+                  <li key={propuesta.id}>
+                    Referencia {propuesta.referencia}: neto ${Number(propuesta.neto).toFixed(2)},
+                    crédito ${Number(propuesta.credito).toFixed(2)}.
+                    Estado: {propuesta.estado}. Motivo: {propuesta.motivo}.
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="text-sm mt-1">No hay propuestas registradas para este período.</p>
+          ) : (
+            <p role="status" className="text-sm mt-1">
+              {propuestasDevoluciones.estado === 'sin_autorizacion'
+                ? 'No se pudieron consultar las propuestas por falta de sesión o permisos.'
+                : propuestasDevoluciones.estado === 'error'
+                  ? 'No se pudo consultar el registro de propuestas; verifique la conexión o migración.'
+                  : 'Consultando propuestas documentales…'}
+            </p>
+          )}
+          <p className="text-xs mt-2">Las propuestas no se suman ni sustituyen a los DTE 05; requieren conciliación fiscal.</p>
+        </div>
+      </section>
       {ajustesHistoricosLocales && (
         <div role="status" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
