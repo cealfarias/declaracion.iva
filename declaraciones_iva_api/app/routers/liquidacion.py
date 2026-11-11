@@ -286,6 +286,8 @@ def consultar_conciliacion_devoluciones(
 @router.get('/{empresa_id}')
 def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     validar_periodo_fiscal(mes, anio)
+    if version < 1:
+        raise HTTPException(status_code=422, detail="La versión debe ser mayor o igual a 1.")
     data = calculate_liquidacion_for_period(db, empresa_id, mes, anio, version)
     
     liq = db.query(Liquidacion).filter(
