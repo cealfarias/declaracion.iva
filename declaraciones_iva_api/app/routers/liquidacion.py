@@ -100,7 +100,7 @@ def listar_propuestas_devolucion_manual(
         "empresa_id": empresa_id, "periodo": f"{anio}-{mes}", "version": version,
         "propuestas": [
             {
-                "id": p.id, "neto": float(p.neto), "credito": float(p.credito),
+                "id": p.id, "neto": format(p.neto, ".2f"), "credito": format(p.credito, ".2f"),
                 "referencia": p.referencia, "motivo": p.motivo,
                 "usuario_id": p.usuario_id, "estado": p.estado,
                 "registrado_en": p.registrado_en.isoformat() if p.registrado_en else None,
