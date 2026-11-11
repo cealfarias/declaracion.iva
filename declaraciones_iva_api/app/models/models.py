@@ -246,6 +246,24 @@ class Excedente164Auditoria(Base):
 
 
 
+class DevolucionManualAuditoria(Base):
+    """Propuesta documental: no altera el cálculo de DTE 05 ni casillas F-07."""
+    __tablename__ = "iva_devoluciones_manual_auditoria"
+
+    id = Column(Integer, primary_key=True)
+    empresa_id = Column(Integer, ForeignKey("iva_empresas.id"), nullable=False, index=True)
+    usuario_id = Column(Integer, ForeignKey("iva_usuarios.id"), nullable=False)
+    anio = Column(String(4), nullable=False)
+    mes = Column(String(2), nullable=False)
+    version_dte = Column(Integer, nullable=False, default=1)
+    neto = Column(Numeric(18, 2), nullable=False)
+    credito = Column(Numeric(18, 2), nullable=False)
+    referencia = Column(String(250), nullable=False)
+    motivo = Column(String(500), nullable=False)
+    estado = Column(String(24), nullable=False, default="pendiente_conciliacion")
+    registrado_en = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class DteRetencion(Base):
     __tablename__ = "iva_dtes_retenciones"
 
