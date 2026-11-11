@@ -104,3 +104,37 @@ def test_ventas_omitidas_no_afectan_debito_fiscal(escenario):
     assert r["ventas_cf"] == {"neto": 200.00, "debito": 26.00}
     assert r["ventas_ccf"] == {"neto": 0.00, "debito": 0.00}
     assert r["totales"]["debito"] == 26.00
+
+
+def test_devoluciones_05_no_se_descontaran_dos_veces_por_version(escenario):
+    _, db, ids = escenario
+    db.add_all([
+        compra(ids["e1"], "COMPRA-V1", 200.00, 26.00, version=1),
+        compra(ids["e1"], "NC-V1", 50.00, 6.50, tipo="05", version=1),
+        compra(ids["e1"], "NC-V2", 80.00, 10.40, tipo="05", version=2),
+        compra(ids["e1"], "NC-OMITIDA", 30.00, 3.90, tipo="05", omitido=True),
+        compra(ids["e2"], "NC-AJENA", 100.00, 13.00, tipo="05"),
+    ])
+    db.commit()
+    resultado = calculate_liquidacion_for_period(db, ids["e1"], "11", "2026", version=1)
+    compras = resultado["compras"]
+    assert compras["neto_gravadas"] == 200.00
+    assert compras["credito_gravadas"] == 26.00
+    assert compras["devoluciones_neto"] == 50.00
+    assert compras["devoluciones_credito"] == 6.50
+    assert compras["neto"] == 150.00
+    assert compras["credito"] == 19.50
+
+
+def test_devolucion_05_sin_compra_de_origen_se_muestra_sin_ocultarla(escenario):
+    _, db, ids = escenario
+    db.add(compra(ids["e1"], "NC-SOLA", 50.00, 6.50, tipo="05"))
+    db.commit()
+    resultado = calculate_liquidacion_for_period(db, ids["e1"], "11", "2026")
+    compras = resultado["compras"]
+    assert compras["devoluciones_neto"] == 50.00
+    assert compras["devoluciones_credito"] == 6.50
+    # Contrato actual: los netos pueden ser negativos; requiere revisión
+    # tributaria antes de considerar este período apto para presentación.
+    assert compras["neto"] == -50.00
+    assert compras["credito"] == -6.50
