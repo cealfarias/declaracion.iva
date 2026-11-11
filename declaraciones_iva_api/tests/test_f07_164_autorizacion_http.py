@@ -193,3 +193,31 @@ def test_conciliacion_devoluciones_dte_05_solo_lectura_y_empresa(escenario):
         assert db.query(Liquidacion).count() == 0
         assert db.query(Excedente164Auditoria).count() == 0
         assert client.get(ruta + "&version=0", headers=headers(ids["u1"])).status_code == 422
+
+
+def test_conciliacion_devoluciones_dte_05_importes_y_versiones(escenario):
+    from test_liquidacion_aritmetica import compra
+
+    _client, db, ids = escenario
+    db.add_all([
+        compra(ids["e1"], "COMPRA-BASE", 200.00, 26.00),
+        compra(ids["e1"], "NOTA-05", 50.00, 6.50, tipo="05"),
+        compra(ids["e1"], "NOTA-V2", 80.00, 10.40, tipo="05", version=2),
+        compra(ids["e1"], "NOTA-OMITIDA", 30.00, 3.90, tipo="05", omitido=True),
+        compra(ids["e2"], "NOTA-OTRA-EMPRESA", 99.00, 12.87, tipo="05"),
+    ])
+    db.commit()
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}/conciliacion-devoluciones?mes=11&anio=2026"
+    with TestClient(app) as client:
+        respuesta = client.get(ruta, headers=headers(ids["u1"]))
+        assert respuesta.status_code == 200, respuesta.text
+        assert respuesta.json()["devoluciones_dte"] == {"neto": 50.0, "credito": 6.5}
+        assert respuesta.json()["ajuste_manual_persistido"] is None
+        otra_version = client.get(ruta + "&version=2", headers=headers(ids["u1"]))
+        assert otra_version.status_code == 200, otra_version.text
+        assert otra_version.json()["devoluciones_dte"] == {"neto": 80.0, "credito": 10.4}
+        assert db.query(Liquidacion).count() == 0
+        assert db.query(Excedente164Auditoria).count() == 0
