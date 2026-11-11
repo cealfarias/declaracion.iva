@@ -18,6 +18,7 @@ export default function Liquidacion() {
   
   const [data, setData] = useState(null);
   const [auditoria164, setAuditoria164] = useState({ estado: 'pendiente', respaldo: null });
+  const [conciliacionDte05, setConciliacionDte05] = useState(null);
   const [diferenciasServidor, setDiferenciasServidor] = useState([]);
   const [ajustesHistoricosLocales, setAjustesHistoricosLocales] = useState(false);
   const [inventarioHistorico, setInventarioHistorico] = useState([]);
@@ -107,6 +108,7 @@ export default function Liquidacion() {
     setLoading(true);
     setData(null);
     setAuditoria164({ estado: 'pendiente', respaldo: null });
+    setConciliacionDte05(null);
     try {
       const [liqRes, comprasRes, ventasCfRes, ventasCcfRes, anuladosRes] = await Promise.all([
         axios.get(`${API_URL}/api/v1/liquidacion/${activeEmpresa.id}?mes=${mes}&anio=${anio}`),
@@ -130,6 +132,19 @@ export default function Liquidacion() {
             ? 'discrepancia'
             : [401, 403].includes(errorAuditoria.response?.status) ? 'sin_autorizacion' : 'error',
           respaldo: null
+        });
+      }
+      // Contrato DTE 05 independiente, de solo lectura y sin ajustes manuales.
+      let devolucionesDteAuditadas = null;
+      try {
+        const conciliacionRes = await axios.get(
+          `${API_URL}/api/v1/liquidacion/${activeEmpresa.id}/conciliacion-devoluciones?mes=${mes}&anio=${anio}`
+        );
+        devolucionesDteAuditadas = conciliacionRes.data.devoluciones_dte;
+        setConciliacionDte05({ estado: 'disponible', ...conciliacionRes.data });
+      } catch (errorConciliacion) {
+        setConciliacionDte05({
+          estado: [401, 403].includes(errorConciliacion.response?.status) ? 'sin_autorizacion' : 'error'
         });
       }
       const res = liqRes.data;
@@ -226,11 +241,11 @@ export default function Liquidacion() {
       if (devolucionesGuardadas !== null) {
         const netoLocal = Number(devolucionesGuardadas?.neto);
         const creditoLocal = Number(devolucionesGuardadas?.credito);
-        const netoDte = Number(res.compras?.devoluciones_neto);
-        const creditoDte = Number(res.compras?.devoluciones_credito);
+        const netoDte = Number(devolucionesDteAuditadas?.neto);
+        const creditoDte = Number(devolucionesDteAuditadas?.credito);
         const datosCompletos = [
           devolucionesGuardadas?.neto, devolucionesGuardadas?.credito,
-          res.compras?.devoluciones_neto, res.compras?.devoluciones_credito
+          devolucionesDteAuditadas?.neto, devolucionesDteAuditadas?.credito
         ].every(valor => valor !== null && valor !== undefined && valor !== "");
         if (datosCompletos && [netoLocal, creditoLocal, netoDte, creditoDte].every(Number.isFinite)) {
           const importesDifieren = Math.round(netoLocal * 100) !== Math.round(netoDte * 100) ||
@@ -244,8 +259,11 @@ export default function Liquidacion() {
             " Comparación informativa: no se suman ni se migran automáticamente."
           );
         } else {
-          inventario.push("Devoluciones manuales guardadas: faltan importes o hay formatos inválidos; no se supone que el valor ausente sea cero.");
+          inventario.push("Devoluciones manuales guardadas: no se pudo conciliar con el contrato DTE 05 o faltan importes válidos; no se supone que el valor ausente sea cero.");
         }
+      }
+      if (devolucionesGuardadas !== null && devolucionesDteAuditadas === null) {
+        inventario.push("La consulta de conciliación DTE 05 no está disponible; no se considera verificado el saldo.");
       }
       if (remanenteGuardado !== null) inventario.push("Remanente anterior manual guardado en este navegador");
       if (remanentePrevioLocal !== null) {
