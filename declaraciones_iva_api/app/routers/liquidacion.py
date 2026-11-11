@@ -8,10 +8,108 @@ from typing import Optional
 
 from app.core.database import get_db
 from app.core.authorization import autorizar_empresa_tributaria
-from app.models.models import Empresa, DteCompra, DteVenta, DteVentaContribuyente, DteAnulado, Liquidacion, Excedente164Auditoria, Usuario
+from app.models.models import Empresa, DteCompra, DteVenta, DteVentaContribuyente, DteAnulado, Liquidacion, Excedente164Auditoria, DevolucionManualAuditoria, Usuario
 from app.routers.empresas import usuario_actual
 
 router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
+
+
+class PropuestaDevolucionManualRequest(BaseModel):
+    neto: Decimal
+    credito: Decimal
+    referencia: str
+    motivo: str
+    version_dte: int = 1
+
+    @field_validator("neto", "credito")
+    @classmethod
+    def validar_importe(cls, value: Decimal):
+        if not value.is_finite() or value < 0 or value.as_tuple().exponent < -2 or value > Decimal("9999999999999999.99"):
+            raise ValueError("Importe inválido: debe ser no negativo y tener como máximo dos decimales.")
+        return value
+
+    @field_validator("referencia")
+    @classmethod
+    def validar_referencia(cls, value: str):
+        value = value.strip()
+        if not 3 <= len(value) <= 250:
+            raise ValueError("Referencia documental obligatoria (3 a 250 caracteres).")
+        return value
+
+    @field_validator("motivo")
+    @classmethod
+    def validar_motivo(cls, value: str):
+        value = value.strip()
+        if not 5 <= len(value) <= 500:
+            raise ValueError("Motivo documental obligatorio (5 a 500 caracteres).")
+        return value
+
+    @field_validator("version_dte")
+    @classmethod
+    def validar_version(cls, value: int):
+        if value < 1:
+            raise ValueError("La versión DTE debe ser mayor o igual a 1.")
+        return value
+
+
+@router.post("/{empresa_id}/propuestas-devoluciones-manuales", status_code=201)
+def registrar_propuesta_devolucion_manual(
+    empresa_id: int, mes: str, anio: str,
+    req: PropuestaDevolucionManualRequest,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_actual),
+):
+    validar_periodo_fiscal(mes, anio)
+    propuesta = DevolucionManualAuditoria(
+        empresa_id=empresa_id, usuario_id=usuario.id, mes=mes, anio=anio,
+        version_dte=req.version_dte, neto=req.neto, credito=req.credito,
+        referencia=req.referencia, motivo=req.motivo,
+        estado="pendiente_conciliacion",
+    )
+    try:
+        db.add(propuesta)
+        db.commit()
+        db.refresh(propuesta)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="No fue posible registrar la propuesta documental.") from exc
+    return {
+        "id": propuesta.id, "empresa_id": empresa_id,
+        "periodo": f"{anio}-{mes}", "version_dte": req.version_dte,
+        "estado": "pendiente_conciliacion",
+        "afecta_calculo_fiscal": False,
+        "advertencia": "La propuesta no sustituye ni se suma a los DTE 05; requiere conciliación y aceptación fiscal.",
+    }
+
+
+@router.get("/{empresa_id}/propuestas-devoluciones-manuales")
+def listar_propuestas_devolucion_manual(
+    empresa_id: int, mes: str, anio: str, version: int = 1,
+    db: Session = Depends(get_db),
+):
+    validar_periodo_fiscal(mes, anio)
+    if version < 1:
+        raise HTTPException(status_code=422, detail="La versión debe ser mayor o igual a 1.")
+    propuestas = db.query(DevolucionManualAuditoria).filter(
+        DevolucionManualAuditoria.empresa_id == empresa_id,
+        DevolucionManualAuditoria.mes == mes,
+        DevolucionManualAuditoria.anio == anio,
+        DevolucionManualAuditoria.version_dte == version,
+    ).order_by(DevolucionManualAuditoria.id).all()
+    return {
+        "empresa_id": empresa_id, "periodo": f"{anio}-{mes}", "version": version,
+        "propuestas": [
+            {
+                "id": p.id, "neto": float(p.neto), "credito": float(p.credito),
+                "referencia": p.referencia, "motivo": p.motivo,
+                "usuario_id": p.usuario_id, "estado": p.estado,
+                "registrado_en": p.registrado_en.isoformat() if p.registrado_en else None,
+            }
+            for p in propuestas
+        ],
+        "afecta_calculo_fiscal": False,
+    }
+
 
 def get_previous_month_year(mes: str, anio: str):
     m = int(mes)
