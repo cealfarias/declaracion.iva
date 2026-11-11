@@ -126,7 +126,9 @@ export default function Liquidacion() {
         });
       } catch (errorAuditoria) {
         setAuditoria164({
-          estado: errorAuditoria.response?.status === 409 ? 'discrepancia' : 'error',
+          estado: errorAuditoria.response?.status === 409
+            ? 'discrepancia'
+            : [401, 403].includes(errorAuditoria.response?.status) ? 'sin_autorizacion' : 'error',
           respaldo: null
         });
       }
@@ -624,6 +626,8 @@ export default function Liquidacion() {
                   ? 'No existe respaldo auditado para este período; esto no significa que el saldo sea cero.'
                   : auditoria164.estado === 'discrepancia'
                     ? 'ALERTA: discrepancia entre el saldo 164 y su respaldo auditado. No presente la declaración hasta conciliar los importes y documentos.'
+                  : auditoria164.estado === 'sin_autorizacion'
+                    ? 'No se pudo verificar el respaldo de la casilla 164 por falta de autorización o sesión válida. No presente la declaración sin verificar el acceso y conciliar el saldo.'
                   : auditoria164.estado === 'error'
                     ? 'No fue posible consultar el respaldo de la casilla 164. Verifique la conexión o la disponibilidad de la migración.'
                     : 'Consultando respaldo documental…'}
@@ -690,7 +694,7 @@ export default function Liquidacion() {
                     enqueueMessages([{ text: "Espere a que se cargue la liquidación completa antes de imprimir.", type: "error" }]);
                     return;
                   }
-                  if (auditoria164.estado === 'discrepancia' || ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
+                  if (['discrepancia', 'sin_autorizacion', 'error', 'pendiente'].includes(auditoria164.estado) || ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
                     const confirmar = window.confirm(
                       "ATENCIÓN: esta liquidación puede contener una discrepancia documental de la casilla 164, ajustes históricos locales o diferencias pendientes de conciliación. " +
                       "El cálculo puede estar pendiente de conciliación normativa. La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
