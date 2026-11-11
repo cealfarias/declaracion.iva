@@ -180,4 +180,55 @@ def test_migracion_164_y_unicidad_en_postgresql():
                 empresa_id=1, anio="2027", mes="01"
             ).one().excedente_impuesto_anterior == Decimal("45.67")
 
+    # Migración independiente de propuestas documentales: sin efecto sobre DTE ni F-07.
+    manual = (raiz / "db/migrations/20261111_f07_devoluciones_manual_auditoria_draft.sql").read_text()
+    with engine.connect() as conn:
+        conn.execute(text("SET search_path TO f07_ci_test"))
+        conn.commit()
+        raw = conn.connection.driver_connection
+        with raw.cursor() as cursor:
+            cursor.execute(manual)
+        raw.commit()
+        with Session(bind=conn) as db:
+            db.execute(text("""
+                INSERT INTO iva_devoluciones_manual_auditoria
+                    (empresa_id, usuario_id, anio, mes, version_dte,
+                     neto, credito, referencia, motivo)
+                VALUES (1, 1, '2027', '01', 2, 50.00, 6.50,
+                        'DTE-05-PENDIENTE', 'Pendiente de revisión documental')
+            """))
+            db.commit()
+            registro = db.execute(text("""
+                SELECT neto, credito, estado, version_dte
+                FROM iva_devoluciones_manual_auditoria
+            """)).mappings().one()
+            assert registro["neto"] == Decimal("50.00")
+            assert registro["credito"] == Decimal("6.50")
+            assert registro["estado"] == "pendiente_conciliacion"
+            assert registro["version_dte"] == 2
+            assert db.query(Liquidacion).count() == 1
+            assert db.query(Liquidacion).one().excedente_impuesto_anterior == Decimal("45.67")
+            for columna, valor in [("neto", "-1"), ("credito", "-0.01")]:
+                with pytest.raises(IntegrityError):
+                    db.execute(text(f"""
+                        INSERT INTO iva_devoluciones_manual_auditoria
+                            (empresa_id, usuario_id, anio, mes, neto, credito,
+                             referencia, motivo)
+                        VALUES (1, 1, '2027', '02', :neto, :credito,
+                                'PRUEBA-RECHAZADA', 'Documento de prueba')
+                    """), {"neto": valor if columna == "neto" else "0",
+                           "credito": valor if columna == "credito" else "0"})
+                    db.commit()
+                db.rollback()
+            assert db.execute(text(
+                "SELECT count(*) FROM iva_devoluciones_manual_auditoria"
+            )).scalar_one() == 1
+        conn.rollback()
+    # El borrador es reejecutable sin duplicar estructura ni registros.
+    with engine.begin() as conn:
+        conn.execute(text("SET search_path TO f07_ci_test"))
+        raw = conn.connection.driver_connection
+        with raw.cursor() as cursor:
+            cursor.execute(manual)
+
     engine.dispose()
