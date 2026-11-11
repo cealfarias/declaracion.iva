@@ -263,8 +263,8 @@ def test_propuesta_devolucion_manual_autorizacion_y_no_aplicacion(escenario):
         assert db.query(Liquidacion).count() == 0
         listado = client.get(ruta, headers=headers(ids["u1"]))
         assert listado.status_code == 200, listado.text
-        assert listado.json()["propuestas"][0]["neto"] == 50.0
-        assert listado.json()["propuestas"][0]["credito"] == 6.5
+        assert listado.json()["propuestas"][0]["neto"] == "50.00"
+        assert listado.json()["propuestas"][0]["credito"] == "6.50"
         assert client.get(ruta, headers=headers(ids["u2"])).status_code == 403
         invalida = client.post(
             ruta, json={**payload, "neto": "50.001"},
