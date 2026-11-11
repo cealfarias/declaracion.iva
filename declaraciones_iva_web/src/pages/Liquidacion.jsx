@@ -655,6 +655,25 @@ export default function Liquidacion() {
           </div>
         </section>
       )}
+      {conciliacionDte05 && (
+        <section aria-label="Conciliación DTE 05" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
+            <p className="font-bold">Conciliación de devoluciones DTE 05 (solo lectura)</p>
+            {conciliacionDte05.estado === 'disponible' ? (
+              <>
+                <p className="text-sm mt-1">Período {conciliacionDte05.periodo}; versión {conciliacionDte05.version}. Neto DTE 05: ${Number(conciliacionDte05.devoluciones_dte?.neto).toFixed(2)}; crédito fiscal DTE 05: ${Number(conciliacionDte05.devoluciones_dte?.credito).toFixed(2)}.</p>
+                <p className="text-sm mt-1">Estos importes no incluyen ajustes manuales del navegador y no equivalen a una conciliación fiscal aprobada.</p>
+              </>
+            ) : (
+              <p role="alert" className="text-sm mt-1">
+                {conciliacionDte05.estado === 'sin_autorizacion'
+                  ? 'No se pudo verificar DTE 05: sesión o permisos insuficientes.'
+                  : 'No se pudo consultar el inventario DTE 05 del servidor; no considere verificados estos importes.'}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
       {ajustesHistoricosLocales && (
         <div role="status" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
@@ -712,7 +731,7 @@ export default function Liquidacion() {
                     enqueueMessages([{ text: "Espere a que se cargue la liquidación completa antes de imprimir.", type: "error" }]);
                     return;
                   }
-                  if (['discrepancia', 'sin_autorizacion', 'error', 'pendiente'].includes(auditoria164.estado) || ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
+                  if ((conciliacionDte05?.estado !== 'disponible') || ['discrepancia', 'sin_autorizacion', 'error', 'pendiente'].includes(auditoria164.estado) || ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
                     const confirmar = window.confirm(
                       "ATENCIÓN: esta liquidación puede contener una discrepancia documental de la casilla 164, ajustes históricos locales o diferencias pendientes de conciliación. " +
                       "El cálculo puede estar pendiente de conciliación normativa. La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
