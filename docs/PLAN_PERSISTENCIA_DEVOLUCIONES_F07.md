@@ -51,3 +51,10 @@ Definir unicidad de ajuste vigente por empresa y período o permitir múltiples 
 ## Siguiente decisión
 
 Confirmar con documentación fiscal si el ajuste manual debe reemplazar las cifras DTE 05 o reflejar un asiento complementario. Hasta entonces, no añadir columnas ni alterar la fórmula tributaria.
+
+
+## Evidencia de regresión agregada (2026-11-10)
+
+Las pruebas en `tests/test_liquidacion_aritmetica.py` comprueban que las devoluciones DTE tipo 05 se restan una sola vez de compras y crédito de su misma versión, sin mezclar documentos omitidos, otras versiones u otras empresas. También documentan el caso límite de una nota de crédito tipo 05 sin compra de origen: el contrato actual puede producir compras y crédito netos negativos. **Este comportamiento queda identificado para revisión fiscal; no se normaliza silenciosamente a cero.**
+
+**Límite:** estas pruebas no resuelven la elección entre sustituir el importe DTE por un ajuste manual o sumar una diferencia complementaria. La interfaz conserva ajustes en `localStorage` y no existe migración aprobada. No combinar automáticamente ambos importes ni modificar datos de producción.
