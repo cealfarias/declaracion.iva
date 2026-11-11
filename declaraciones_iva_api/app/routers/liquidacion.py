@@ -252,6 +252,37 @@ def get_remanente_historico(db: Session, empresa_id: int, target_mes: str, targe
 
     return round(remanente_acumulado, 2)
 
+@router.get('/{empresa_id}/conciliacion-devoluciones')
+def consultar_conciliacion_devoluciones(
+    empresa_id: int,
+    mes: str,
+    anio: str,
+    version: int = 1,
+    db: Session = Depends(get_db),
+):
+    """Inventario DTE 05 de solo lectura; no interpreta ajustes del navegador."""
+    validar_periodo_fiscal(mes, anio)
+    if version < 1:
+        raise HTTPException(status_code=422, detail="La versión debe ser mayor o igual a 1.")
+    compras = calculate_liquidacion_for_period(db, empresa_id, mes, anio, version)["compras"]
+    return {
+        "empresa_id": empresa_id,
+        "periodo": f"{anio}-{mes}",
+        "version": version,
+        "origen": "dte_05",
+        "devoluciones_dte": {
+            "neto": compras["devoluciones_neto"],
+            "credito": compras["devoluciones_credito"],
+        },
+        "ajuste_manual_persistido": None,
+        "estado_conciliacion": "pendiente_definicion_normativa",
+        "advertencia": (
+            "Los importes DTE 05 no incluyen ajustes manuales del navegador. "
+            "No sumar ni sustituir importes sin conciliación documental."
+        ),
+    }
+
+
 @router.get('/{empresa_id}')
 def get_liquidacion(empresa_id: int, mes: str, anio: str, version: int = 1, db: Session = Depends(get_db)):
     validar_periodo_fiscal(mes, anio)
