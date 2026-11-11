@@ -237,3 +237,38 @@ def test_liquidacion_rechaza_version_no_positiva(escenario):
             headers=headers(ids["u1"]),
         )
         assert ajena.status_code == 403, ajena.text
+
+
+def test_propuesta_devolucion_manual_autorizacion_y_no_aplicacion(escenario):
+    from app.models.models import DevolucionManualAuditoria
+
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}/propuestas-devoluciones-manuales?mes=11&anio=2026"
+    payload = {
+        "neto": "50.00", "credito": "6.50", "version_dte": 1,
+        "referencia": "NOTA-05-2026", "motivo": "Revisión documental pendiente",
+    }
+    with TestClient(app) as client:
+        assert client.post(ruta, json=payload).status_code in (401, 403)
+        assert client.post(ruta, json=payload, headers=headers(ids["u2"])).status_code == 403
+        assert db.query(DevolucionManualAuditoria).count() == 0
+        propia = client.post(ruta, json=payload, headers=headers(ids["u1"]))
+        assert propia.status_code == 201, propia.text
+        assert propia.json()["afecta_calculo_fiscal"] is False
+        assert propia.json()["estado"] == "pendiente_conciliacion"
+        assert db.query(DevolucionManualAuditoria).count() == 1
+        assert db.query(Liquidacion).count() == 0
+        listado = client.get(ruta, headers=headers(ids["u1"]))
+        assert listado.status_code == 200, listado.text
+        assert listado.json()["propuestas"][0]["neto"] == 50.0
+        assert listado.json()["propuestas"][0]["credito"] == 6.5
+        assert client.get(ruta, headers=headers(ids["u2"])).status_code == 403
+        invalida = client.post(
+            ruta, json={**payload, "neto": "50.001"},
+            headers=headers(ids["u1"]),
+        )
+        assert invalida.status_code == 422, invalida.text
+        assert db.query(DevolucionManualAuditoria).count() == 1
