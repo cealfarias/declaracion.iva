@@ -124,8 +124,11 @@ export default function Liquidacion() {
           estado: auditoriaRes.data.auditoria_disponible ? 'disponible' : (auditoriaRes.data.consistencia === 'saldo_sin_auditoria' ? 'saldo_sin_auditoria' : 'sin_respaldo'),
           respaldo: auditoriaRes.data.respaldo ?? null
         });
-      } catch {
-        setAuditoria164({ estado: 'error', respaldo: null });
+      } catch (errorAuditoria) {
+        setAuditoria164({
+          estado: errorAuditoria.response?.status === 409 ? 'discrepancia' : 'error',
+          respaldo: null
+        });
       }
       const res = liqRes.data;
       // Conservar cifras originales para detectar divergencias con los ajustes del navegador.
@@ -610,6 +613,8 @@ export default function Liquidacion() {
                   ? 'Existe un saldo 164 registrado sin respaldo auditado. Requiere conciliación documental.'
                   : auditoria164.estado === 'sin_respaldo'
                   ? 'No existe respaldo auditado para este período; esto no significa que el saldo sea cero.'
+                  : auditoria164.estado === 'discrepancia'
+                    ? 'ALERTA: discrepancia entre el saldo 164 y su respaldo auditado. No presente la declaración hasta conciliar los importes y documentos.'
                   : auditoria164.estado === 'error'
                     ? 'No fue posible consultar el respaldo de la casilla 164. Verifique la conexión o la disponibilidad de la migración.'
                     : 'Consultando respaldo documental…'}
