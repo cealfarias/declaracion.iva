@@ -525,6 +525,9 @@ def consultar_excedente_164_auditoria(
     if (
         liquidacion is None
         or registro.liquidacion_id != liquidacion.id
+        or registro.empresa_id != liquidacion.empresa_id
+        or registro.anio != liquidacion.anio
+        or registro.mes != liquidacion.mes
         or saldo is None
         or Decimal(str(registro.importe)) != Decimal(str(saldo))
     ):
