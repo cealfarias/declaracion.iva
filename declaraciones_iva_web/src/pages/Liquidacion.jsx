@@ -226,14 +226,23 @@ export default function Liquidacion() {
         const creditoLocal = Number(devolucionesGuardadas?.credito);
         const netoDte = Number(res.compras?.devoluciones_neto);
         const creditoDte = Number(res.compras?.devoluciones_credito);
-        if ([netoLocal, creditoLocal, netoDte, creditoDte].every(Number.isFinite)) {
+        const datosCompletos = [
+          devolucionesGuardadas?.neto, devolucionesGuardadas?.credito,
+          res.compras?.devoluciones_neto, res.compras?.devoluciones_credito
+        ].every(valor => valor !== null && valor !== undefined && valor !== "");
+        if (datosCompletos && [netoLocal, creditoLocal, netoDte, creditoDte].every(Number.isFinite)) {
+          const importesDifieren = Math.round(netoLocal * 100) !== Math.round(netoDte * 100) ||
+            Math.round(creditoLocal * 100) !== Math.round(creditoDte * 100);
           inventario.push(
             `Devoluciones — navegador: neto ${netoLocal.toFixed(2)}, crédito ${creditoLocal.toFixed(2)}; ` +
             `DTE 05 del servidor: neto ${netoDte.toFixed(2)}, crédito ${creditoDte.toFixed(2)}. ` +
-            "Comparación informativa: no se suman ni se migran automáticamente."
+            (importesDifieren
+              ? "DISCREPANCIA: los importes no coinciden; requiere conciliación documental."
+              : "Importes coincidentes, sin aceptación fiscal todavía.") +
+            " Comparación informativa: no se suman ni se migran automáticamente."
           );
         } else {
-          inventario.push("Devoluciones manuales guardadas: no se pudo comparar con los DTE 05 del servidor; revise los formatos.");
+          inventario.push("Devoluciones manuales guardadas: faltan importes o hay formatos inválidos; no se supone que el valor ausente sea cero.");
         }
       }
       if (remanenteGuardado !== null) inventario.push("Remanente anterior manual guardado en este navegador");
