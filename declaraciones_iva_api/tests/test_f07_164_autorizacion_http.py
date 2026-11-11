@@ -272,3 +272,55 @@ def test_propuesta_devolucion_manual_autorizacion_y_no_aplicacion(escenario):
         )
         assert invalida.status_code == 422, invalida.text
         assert db.query(DevolucionManualAuditoria).count() == 1
+
+
+def test_propuestas_devoluciones_validaciones_y_filtro_version(escenario):
+    from app.models.models import DevolucionManualAuditoria
+
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}/propuestas-devoluciones-manuales?mes=11&anio=2026"
+    payload = {
+        "neto": "100.00", "credito": "13.00",
+        "referencia": "DOCUMENTO-2026-11", "motivo": "Conciliación documental pendiente",
+        "version_dte": 2,
+    }
+    with TestClient(app) as client:
+        for campo, valor in [
+            ("neto", "-0.01"), ("neto", "0.001"),
+            ("credito", "-1"), ("credito", "0.001"),
+            ("neto", "10000000000000000.00"),
+            ("referencia", "  "), ("motivo", "abc"),
+            ("version_dte", 0),
+        ]:
+            respuesta = client.post(
+                ruta, json={**payload, campo: valor}, headers=headers(ids["u1"])
+            )
+            assert respuesta.status_code == 422, (campo, valor, respuesta.text)
+        assert db.query(DevolucionManualAuditoria).count() == 0
+
+        creada = client.post(ruta, json=payload, headers=headers(ids["u1"]))
+        assert creada.status_code == 201, creada.text
+        assert creada.json()["version_dte"] == 2
+        assert creada.json()["afecta_calculo_fiscal"] is False
+        assert db.query(Liquidacion).count() == 0
+
+        v1 = client.get(ruta, headers=headers(ids["u1"]))
+        assert v1.status_code == 200, v1.text
+        assert v1.json()["propuestas"] == []
+
+        v2 = client.get(ruta + "&version=2", headers=headers(ids["u1"]))
+        assert v2.status_code == 200, v2.text
+        assert len(v2.json()["propuestas"]) == 1
+        assert v2.json()["propuestas"][0]["referencia"] == payload["referencia"]
+
+        version_invalida = client.get(ruta + "&version=0", headers=headers(ids["u1"]))
+        assert version_invalida.status_code == 422, version_invalida.text
+        ajena = client.get(
+            f"/api/v1/liquidacion/{ids['e2']}/propuestas-devoluciones-manuales?mes=11&anio=2026&version=2",
+            headers=headers(ids["u1"]),
+        )
+        assert ajena.status_code == 403, ajena.text
+        assert db.query(DevolucionManualAuditoria).count() == 1
