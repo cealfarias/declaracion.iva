@@ -151,3 +151,25 @@ def test_164_consulta_sin_jwt_o_jwt_invalido(escenario):
         assert client.get(ruta).status_code in (401, 403)
         respuesta = client.get(ruta, headers={"Authorization": "Bearer token-invalido"})
         assert respuesta.status_code == 401, respuesta.text
+
+
+def test_164_detecta_respaldo_con_periodo_inconsistente(escenario):
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    with TestClient(app) as client:
+        creada = client.post(
+            f"/api/v1/liquidacion/{ids['e1']}/excedente-impuesto-anterior-auditado?mes=09&anio=2027",
+            json={"importe": "22.00", "origen": "declaracion_previa", "referencia": "F07-2027-08"},
+            headers=headers(ids["u1"]),
+        )
+        assert creada.status_code == 200, creada.text
+        auditoria = db.query(Excedente164Auditoria).one()
+        auditoria.mes = "10"
+        db.commit()
+        respuesta = client.get(
+            f"/api/v1/liquidacion/{ids['e1']}/excedente-impuesto-anterior-auditoria?mes=10&anio=2027",
+            headers=headers(ids["u1"]),
+        )
+        assert respuesta.status_code == 409, respuesta.text
