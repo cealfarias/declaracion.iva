@@ -173,3 +173,23 @@ def test_164_detecta_respaldo_con_periodo_inconsistente(escenario):
             headers=headers(ids["u1"]),
         )
         assert respuesta.status_code == 409, respuesta.text
+
+
+def test_conciliacion_devoluciones_dte_05_solo_lectura_y_empresa(escenario):
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}/conciliacion-devoluciones?mes=07&anio=2027"
+    with TestClient(app) as client:
+        assert client.get(ruta).status_code in (401, 403)
+        assert client.get(ruta, headers=headers(ids["u2"])).status_code == 403
+        respuesta = client.get(ruta, headers=headers(ids["u1"]))
+        assert respuesta.status_code == 200, respuesta.text
+        cuerpo = respuesta.json()
+        assert cuerpo["devoluciones_dte"] == {"neto": 0.0, "credito": 0.0}
+        assert cuerpo["ajuste_manual_persistido"] is None
+        assert cuerpo["estado_conciliacion"] == "pendiente_definicion_normativa"
+        assert db.query(Liquidacion).count() == 0
+        assert db.query(Excedente164Auditoria).count() == 0
+        assert client.get(ruta + "&version=0", headers=headers(ids["u1"])).status_code == 422
