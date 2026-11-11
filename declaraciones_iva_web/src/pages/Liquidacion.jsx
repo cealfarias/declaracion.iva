@@ -251,7 +251,11 @@ export default function Liquidacion() {
           devolucionesGuardadas?.neto, devolucionesGuardadas?.credito,
           devolucionesDteAuditadas?.neto, devolucionesDteAuditadas?.credito
         ].every(valor => valor !== null && valor !== undefined && valor !== "");
-        if (datosCompletos && [netoLocal, creditoLocal, netoDte, creditoDte].every(Number.isFinite)) {
+        if (datosCompletos && [netoLocal, creditoLocal, netoDte, creditoDte].every(
+          valor => Number.isFinite(valor) && valor >= 0 &&
+            Number.isSafeInteger(Math.round(valor * 100)) &&
+            Math.abs(valor * 100 - Math.round(valor * 100)) <= 1e-7
+        )) {
           const importesDifieren = Math.round(netoLocal * 100) !== Math.round(netoDte * 100) ||
             Math.round(creditoLocal * 100) !== Math.round(creditoDte * 100);
           inventario.push(
