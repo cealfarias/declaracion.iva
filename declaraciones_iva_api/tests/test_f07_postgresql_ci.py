@@ -181,7 +181,7 @@ def test_migracion_164_y_unicidad_en_postgresql():
             ).one().excedente_impuesto_anterior == Decimal("45.67")
 
     # Migración independiente de propuestas documentales: sin efecto sobre DTE ni F-07.
-    manual = (raiz / "db/migrations/20261111_f07_devoluciones_manual_auditoria_draft.sql").read_text()
+    manual = (raiz.parent / "db/migrations/20261111_f07_devoluciones_manual_auditoria_draft.sql").read_text()
     with engine.connect() as conn:
         conn.execute(text("SET search_path TO f07_ci_test"))
         conn.commit()
