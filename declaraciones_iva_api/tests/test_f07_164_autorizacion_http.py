@@ -221,3 +221,19 @@ def test_conciliacion_devoluciones_dte_05_importes_y_versiones(escenario):
         assert otra_version.json()["devoluciones_dte"] == {"neto": 80.0, "credito": 10.4}
         assert db.query(Liquidacion).count() == 0
         assert db.query(Excedente164Auditoria).count() == 0
+
+
+def test_liquidacion_rechaza_version_no_positiva(escenario):
+    _client, db, ids = escenario
+    app = FastAPI()
+    app.include_router(router, prefix="/api/v1/liquidacion")
+    app.dependency_overrides[get_db] = lambda: db
+    ruta = f"/api/v1/liquidacion/{ids['e1']}?mes=11&anio=2026&version=0"
+    with TestClient(app) as client:
+        respuesta = client.get(ruta, headers=headers(ids["u1"]))
+        assert respuesta.status_code == 422, respuesta.text
+        ajena = client.get(
+            f"/api/v1/liquidacion/{ids['e2']}?mes=11&anio=2026&version=0",
+            headers=headers(ids["u1"]),
+        )
+        assert ajena.status_code == 403, ajena.text
