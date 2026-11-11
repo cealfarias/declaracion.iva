@@ -84,9 +84,13 @@ export default function Liquidacion() {
     if (
       String(netoVal).trim() === "" || String(credVal).trim() === "" ||
       !Number.isFinite(neto) || !Number.isFinite(credito) ||
-      neto < 0 || credito < 0
+      neto < 0 || credito < 0 ||
+      !Number.isSafeInteger(Math.round(neto * 100)) ||
+      !Number.isSafeInteger(Math.round(credito * 100)) ||
+      Math.abs(neto * 100 - Math.round(neto * 100)) > 1e-7 ||
+      Math.abs(credito * 100 - Math.round(credito * 100)) > 1e-7
     ) {
-      enqueueMessages([{ text: "Ingrese importes válidos, no negativos, para las devoluciones.", type: "error" }]);
+      enqueueMessages([{ text: "Ingrese importes válidos, no negativos y con máximo dos decimales para las devoluciones.", type: "error" }]);
       return;
     }
     try {
@@ -335,8 +339,20 @@ export default function Liquidacion() {
       // Comprobar si hay ajustes manuales guardados de devoluciones
       const devManual = getDevolucionesManualStorage();
       if (devManual) {
-        if (devManual.neto !== undefined) devolucionesNeto = parseFloat(devManual.neto) || 0;
-        if (devManual.credito !== undefined) devolucionesCredito = parseFloat(devManual.credito) || 0;
+        // No interpretar ajustes locales incompletos o corruptos como cero.
+        const netoManual = Number(devManual.neto);
+        const creditoManual = Number(devManual.credito);
+        const valido = [devManual.neto, devManual.credito].every(
+          valor => valor !== null && valor !== undefined && valor !== ""
+        ) && [netoManual, creditoManual].every(
+          valor => Number.isFinite(valor) && valor >= 0 &&
+            Number.isSafeInteger(Math.round(valor * 100)) &&
+            Math.abs(valor * 100 - Math.round(valor * 100)) <= 1e-7
+        );
+        if (valido) {
+          devolucionesNeto = netoManual;
+          devolucionesCredito = creditoManual;
+        }
       } else if (activeEmpresa?.id === 2 && mes === "02" && anio === "2026" && devolucionesNeto === 0) {
         // En Febrero 2026, según el F-07 oficial presentado a Hacienda:
         // Casilla 80 = 2,910.84 | Casilla 130 = 378.41
