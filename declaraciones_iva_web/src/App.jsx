@@ -1,38 +1,49 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AssistantProvider } from './contexts/AssistantContext';
-import Login from './pages/Login';
-import Registro from './pages/Registro';
 import Avatar from './components/Avatar';
 import AppShell from './components/AppShell';
 
-import Terminos from './pages/Terminos';
-import Dashboard from './pages/Dashboard';
-import Anexos from './pages/Anexos';
-import Configuracion from './pages/Configuracion';
-import AnexoCompras from './pages/AnexoCompras';
-import AnexoVentasCF from './pages/AnexoVentasCF';
-import AnexoVentasContribuyentes from './pages/AnexoVentasContribuyentes';
-import AnexoAnulados from './pages/AnexoAnulados';
-import AnexoRetenciones from './pages/AnexoRetenciones';
-import Liquidacion from './pages/Liquidacion';
+const Login = lazy(() => import('./pages/Login'));
+const Registro = lazy(() => import('./pages/Registro'));
+const Terminos = lazy(() => import('./pages/Terminos'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Anexos = lazy(() => import('./pages/Anexos'));
+const Configuracion = lazy(() => import('./pages/Configuracion'));
+const AnexoCompras = lazy(() => import('./pages/AnexoCompras'));
+const AnexoVentasCF = lazy(() => import('./pages/AnexoVentasCF'));
+const AnexoVentasContribuyentes = lazy(() => import('./pages/AnexoVentasContribuyentes'));
+const AnexoAnulados = lazy(() => import('./pages/AnexoAnulados'));
+const AnexoRetenciones = lazy(() => import('./pages/AnexoRetenciones'));
+const Liquidacion = lazy(() => import('./pages/Liquidacion'));
 
 const ProtectedRoute = ({ children, requireTerms = true }) => {
   const { token, user } = useAuth();
   if (!token) return <Navigate to="/login" />;
-  
+
   if (requireTerms && user && user.terminos_aceptados !== true) {
     return <Navigate to="/terminos" state={{ fromGuard: true }} />;
   }
-  
+
   if (!requireTerms && user && user.terminos_aceptados === true) {
     return <Navigate to="/dashboard" />;
   }
 
   return children;
 };
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#f3f4f6] px-4">
+      <div role="status" aria-live="polite" className="flex flex-col items-center gap-3">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <p className="text-sm font-medium text-slate-500">Cargando módulo…</p>
+      </div>
+    </div>
+  );
+}
 
 function AppRoutes() {
   return (
@@ -45,15 +56,15 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/login" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
-      
+
       <Route path="/terminos" element={<Terminos />} />
-      
+
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Dashboard />
         </ProtectedRoute>
       } />
-      
+
       <Route path="/anexos" element={
         <ProtectedRoute>
           <Anexos />
@@ -105,7 +116,11 @@ function App() {
       <AuthProvider>
         <AssistantProvider>
           <Router>
-            <AppShell><AppRoutes /></AppShell>
+            <AppShell>
+              <Suspense fallback={<RouteFallback />}>
+                <AppRoutes />
+              </Suspense>
+            </AppShell>
             <Avatar />
           </Router>
         </AssistantProvider>
