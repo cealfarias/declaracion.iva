@@ -10,6 +10,8 @@ import AppShell from './components/AppShell';
 
 import Terminos from './pages/Terminos';
 import Dashboard from './pages/Dashboard';
+import Anexos from './pages/Anexos';
+import Configuracion from './pages/Configuracion';
 import AnexoCompras from './pages/AnexoCompras';
 import AnexoVentasCF from './pages/AnexoVentasCF';
 import AnexoVentasContribuyentes from './pages/AnexoVentasContribuyentes';
@@ -52,6 +54,18 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       
+      <Route path="/anexos" element={
+        <ProtectedRoute>
+          <Anexos />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/configuracion" element={
+        <ProtectedRoute>
+          <Configuracion />
+        </ProtectedRoute>
+      } />
+
       <Route path="/compras" element={
         <ProtectedRoute>
           <AnexoCompras />

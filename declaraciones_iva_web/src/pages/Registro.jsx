@@ -123,7 +123,7 @@ export default function Registro() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Nombre Completo</label>
                 <input 
                   type="text" required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.nombre}
                   onChange={(e) => setFormData({...formData, nombre: e.target.value})}
                 />
@@ -133,7 +133,7 @@ export default function Registro() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Correo Electrónico</label>
                 <input 
                   type="email" required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                 />
@@ -143,7 +143,7 @@ export default function Registro() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Contraseña</label>
                 <input 
                   type="password" required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                 />
@@ -158,7 +158,7 @@ export default function Registro() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Razón Social</label>
                 <input 
                   type="text" required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.razon_social}
                   onChange={(e) => setFormData({...formData, razon_social: e.target.value})}
                 />
@@ -168,7 +168,7 @@ export default function Registro() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">NIT</label>
                 <input 
                   type="text" required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.nit}
                   onChange={(e) => setFormData({...formData, nit: e.target.value})}
                   placeholder="0000-000000-000-0"
@@ -179,7 +179,7 @@ export default function Registro() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">NRC</label>
                 <input 
                   type="text" required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.nrc}
                   onChange={(e) => setFormData({...formData, nrc: e.target.value})}
                 />
@@ -192,20 +192,20 @@ export default function Registro() {
               <input
                 id="terminos"
                 type="checkbox"
-                className="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                 checked={formData.aceptaTerminos}
                 onChange={(e) => setFormData({...formData, aceptaTerminos: e.target.checked})}
               />
             </div>
             <label htmlFor="terminos" className="ml-3 text-sm text-slate-600">
-              He leído y acepto los <Link to="/terminos" target="_blank" className="font-medium text-indigo-600 hover:underline">Términos de Referencia</Link> y la política de privacidad de la plataforma. Entiendo que los datos fiscales son de mi entera responsabilidad.
+              He leído y acepto los <Link to="/terminos" target="_blank" className="font-medium text-blue-600 hover:underline">Términos de Referencia</Link> y la política de privacidad de la plataforma. Entiendo que los datos fiscales son de mi entera responsabilidad.
             </label>
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 transition-all disabled:opacity-70"
+            className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-70"
           >
             {loading ? 'Creando cuenta...' : 'Completar Registro'}
           </button>
@@ -218,7 +218,7 @@ export default function Registro() {
         </div>
         
         <div className="mt-6 text-center">
-          <Link to="/login" className="inline-block font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
+          <Link to="/login" className="inline-block font-semibold text-blue-600 hover:text-blue-500 transition-colors">
             Inicia sesión aquí
           </Link>
         </div>

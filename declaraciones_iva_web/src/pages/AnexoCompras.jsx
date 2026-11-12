@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Download, FileSpreadsheet, Lock, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 
@@ -8,9 +9,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function AnexoCompras() {
   const [searchParams] = useSearchParams();
-  const mes = searchParams.get("mes");
-  const anio = searchParams.get("anio");
-  
+  const currentDate = new Date();
+  const mes = searchParams.get("mes") || localStorage.getItem("dashboard_mes") || String(currentDate.getMonth() + 1).padStart(2, "0");
+  const anio = searchParams.get("anio") || localStorage.getItem("dashboard_anio") || String(currentDate.getFullYear());
+
   const { user, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
@@ -35,7 +37,7 @@ export default function AnexoCompras() {
     fetchCompras();
   }, [activeEmpresa, mes, anio, activeVersion]);
 
-  
+
   const fetchEstadoDeclaracion = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=compras`);
@@ -43,7 +45,7 @@ export default function AnexoCompras() {
       setVersiones(vers);
       const maxV = Math.max(...vers.map(v => v.version));
       setActiveVersion(maxV);
-      
+
       if (vers.find(v => v.version === maxV)?.declarado) {
         enqueueMessages([{ text: "Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones.", type: "warning" }]);
       }
@@ -51,7 +53,7 @@ export default function AnexoCompras() {
       console.error("Error al cargar el estado de la declaración");
     }
   };
-  
+
   const handleSaveNumero = async () => {
     try {
       await axios.put(`${API_URL}/api/v1/compras/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=compras`);
@@ -61,11 +63,11 @@ export default function AnexoCompras() {
       enqueueMessages([{ text: "Error al guardar el número.", type: "error" }]);
     }
   };
-  
+
   const crearModificatoria = async () => {
     const original = prompt("Ingresa el Número de la Declaración original que vas a modificar:");
     if (!original) return;
-    
+
     try {
       await axios.post(`${API_URL}/api/v1/compras/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${original}&tipo_libro=compras`);
       enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
@@ -75,7 +77,7 @@ export default function AnexoCompras() {
       enqueueMessages([{ text: error.response?.data?.detail || "Error al crear modificatoria.", type: "error" }]);
     }
   };
-  
+
   const currentEstado = versiones.find(v => v.version === activeVersion) || {declarado: false};
   const isDeclarado = currentEstado.declarado;
 
@@ -152,7 +154,7 @@ export default function AnexoCompras() {
       const name = f.name.toLowerCase();
       return validExtensions.some(ext => name.endsWith(ext));
     });
-    
+
     if (validFiles.length === 0) {
       enqueueMessages([{ text: `⚠️ No se encontraron archivos válidos. Por favor sube archivos JSON de DTEs, o el archivo Excel/CSV del Libro de Compras oficial descargado de Hacienda.`, type: "error" }]);
       return;
@@ -183,7 +185,7 @@ export default function AnexoCompras() {
           const response = await axios.post(`${API_URL}/api/v1/compras/upload`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
-          
+
           if (response.data.procesados) {
             totalProcesados += response.data.procesados;
           }
@@ -200,7 +202,7 @@ export default function AnexoCompras() {
            todosErrores.push(`${validFiles[i].name}: Falló la conexión (Network Error).`);
         }
       }
-      
+
       let mensajeFinal = `Procesamiento completado: ${totalProcesados} comprobantes válidos para ${activeEmpresa.razon_social}.`;
       if (totalOtraEmpresa > 0 || totalOtroPeriodo > 0) {
         const descartadosDetalle = [];
@@ -251,9 +253,9 @@ export default function AnexoCompras() {
 
     if (validCompras.length === 0) {
       if (compras.some(item => !item.omitido && item.tipo_documento === "14")) {
-        enqueueMessages([{ 
-          text: "En este período sólo tienes Facturas de Sujeto Excluido (DTE 14). Debes descargarlas usando el botón morado 'Descargar CSV Anexo 5 (Sujetos Excluidos)' para cargarlas en la Casilla 66 de Hacienda.", 
-          type: "warning" 
+        enqueueMessages([{
+          text: "En este período sólo tienes Facturas de Sujeto Excluido (DTE 14). Debes descargarlas usando el botón morado 'Descargar CSV Anexo 5 (Sujetos Excluidos)' para cargarlas en la Casilla 66 de Hacienda.",
+          type: "warning"
         }]);
       } else {
         enqueueMessages([{ text: "No hay compras activas para exportar en el Anexo 3 de este período.", type: "warning" }]);
@@ -289,7 +291,7 @@ export default function AnexoCompras() {
         formatMoney(c.total_compras),
         duiExport, // DUI Proveedor (vacío si hay NIT)
         getValid(c.tipo_operacion, c.tipo_documento === "14" ? "2" : "1"),
-        getValid(c.clasificacion, "1"),  
+        getValid(c.clasificacion, "1"),
         getValid(c.sector, "2"),
         getValid(c.tipo_costo_gasto, "5"),
         "3" // Número de Anexo (siempre 3 para compras)
@@ -307,9 +309,9 @@ export default function AnexoCompras() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    enqueueMessages([{ 
-      text: `Archivo CSV F-07 (Anexo 3) descargado con éxito. Se incluyeron ${validCompras.length} comprobantes (${compras.length - validCompras.length} omitidos excluidos).`, 
-      type: "success" 
+    enqueueMessages([{
+      text: `Archivo CSV F-07 (Anexo 3) descargado con éxito. Se incluyeron ${validCompras.length} comprobantes (${compras.length - validCompras.length} omitidos excluidos).`,
+      type: "success"
     }]);
   };
 
@@ -366,9 +368,9 @@ export default function AnexoCompras() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    enqueueMessages([{ 
-      text: `Archivo CSV Anexo 5 (Sujetos Excluidos - Casilla 66 F-07) descargado con éxito. Se incluyeron ${validSujetos.length} compras a sujetos excluidos.`, 
-      type: "success" 
+    enqueueMessages([{
+      text: `Archivo CSV Anexo 5 (Sujetos Excluidos - Casilla 66 F-07) descargado con éxito. Se incluyeron ${validSujetos.length} compras a sujetos excluidos.`,
+      type: "success"
     }]);
   };
 
@@ -383,7 +385,7 @@ export default function AnexoCompras() {
       sector: compra.sector || "0",
       tipo_costo: compra.tipo_costo_gasto || "0"
     };
-    
+
     // Actualizar campo
     payload[field === "tipo_costo_gasto" ? "tipo_costo" : field] = value;
 
@@ -402,19 +404,19 @@ export default function AnexoCompras() {
 
     try {
       const response = await axios.put(`${API_URL}/api/v1/compras/toggle_omitir/${id}`);
-      enqueueMessages([{ 
-        text: response.data.omitido 
-          ? "Comprobante omitido del F-07 y de los totales." 
-          : "Comprobante reactivado e incluido en el F-07.", 
-        type: "info" 
+      enqueueMessages([{
+        text: response.data.omitido
+          ? "Comprobante omitido del F-07 y de los totales."
+          : "Comprobante reactivado e incluido en el F-07.",
+        type: "info"
       }]);
     } catch (error) {
       if (error.response?.status === 404) {
-        enqueueMessages([{ 
-          text: nextState 
-            ? "Comprobante omitido del F-07 y totales." 
-            : "Comprobante reactivado en el F-07 y totales.", 
-          type: "info" 
+        enqueueMessages([{
+          text: nextState
+            ? "Comprobante omitido del F-07 y totales."
+            : "Comprobante reactivado en el F-07 y totales.",
+          type: "info"
         }]);
       } else {
         enqueueMessages([{ text: error.response?.data?.detail || "Error al actualizar estado de omisión.", type: "error" }]);
@@ -450,17 +452,17 @@ export default function AnexoCompras() {
   if (!activeEmpresa) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in-up">
+    <div className="space-y-6 animate-fade-in-up">
 
-      <div className="mb-6 flex border-b border-slate-200">
+      <div className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
         {versiones.map(v => (
           <button
             key={v.version}
             onClick={() => setActiveVersion(v.version)}
-            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-              activeVersion === v.version 
-                ? "border-indigo-600 text-indigo-600" 
-                : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              activeVersion === v.version
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100"
             }`}
           >
             {v.version === 1 ? "Original" : `Modificatoria ${v.version - 1}`}
@@ -468,7 +470,7 @@ export default function AnexoCompras() {
           </button>
         ))}
       </div>
-      
+
       {isDeclarado && (
         <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg flex items-center justify-between">
           <div className="flex">
@@ -479,9 +481,9 @@ export default function AnexoCompras() {
               <p className="text-sm text-amber-700 font-medium">Período Bloqueado</p>
               <div className="mt-2 flex items-center space-x-2">
                 <span className="text-sm text-amber-800">Número de Declaración MH:</span>
-                <input 
-                  type="text" 
-                  value={numeroInput || currentEstado.numero_declaracion || ""} 
+                <input
+                  type="text"
+                  value={numeroInput || currentEstado.numero_declaracion || ""}
                   onChange={e => setNumeroInput(e.target.value)}
                   placeholder="Ej. 12345678"
                   className="px-2 py-1 border border-amber-300 rounded text-sm focus:ring-amber-500 focus:border-amber-500"
@@ -491,80 +493,87 @@ export default function AnexoCompras() {
             </div>
           </div>
           {activeVersion === Math.max(...versiones.map(v=>v.version)) && activeVersion < 3 && (
-            <button onClick={crearModificatoria} className="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-sm text-sm hover:bg-indigo-700">
+            <button onClick={crearModificatoria} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-sm text-sm hover:bg-blue-700">
               Crear Modificatoria
             </button>
           )}
         </div>
       )}
 
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <div className="flex items-center space-x-2 text-sm text-slate-500 mb-2">
-            <button onClick={() => navigate('/dashboard')} className="hover:text-indigo-600">Dashboard</button>
-            <span>/</span>
-            <span className="text-slate-800 font-medium">Anexo de Compras</span>
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 ring-1 ring-blue-100">
+              <FileSpreadsheet className="h-3 w-3" />
+              Anexo 3 · F-07
+            </span>
+            <span className="text-xs text-slate-500">Período {mes}/{anio}</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+          <h2 className="mt-2 truncate text-xl font-bold tracking-tight text-slate-900">
             {activeEmpresa.razon_social}
-          </h1>
-          <p className="text-slate-500 mt-1">Período: {mes}/{anio}</p>
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            NIT {activeEmpresa.nit} · {comprasActivas.length} registro{comprasActivas.length === 1 ? '' : 's'} activo{comprasActivas.length === 1 ? '' : 's'}
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {!isDeclarado && (
             <>
-              <button 
+              <button
                 onClick={limpiarAnexo}
-                className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
               >
-                🗑️ Limpiar Anexo
+                <Trash2 className="h-4 w-4" />
+                Limpiar
               </button>
-              <button 
+              <button
                 onClick={declararAnexo}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100"
               >
-                🔒 Marcar como Declarado
+                <Lock className="h-4 w-4" />
+                Marcar como declarado
               </button>
             </>
           )}
           {comprasActivas.some(c => c.tipo_documento === "14") && (
-            <button 
+            <button
               onClick={exportCSVAnexo5}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors flex items-center space-x-1.5"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
               title="Descargar Anexo 5 oficial del Ministerio de Hacienda (Compras a Sujetos Excluidos - Casilla 66)"
             >
-              <span>📄</span>
-              <span>Descargar CSV Anexo 5 (Sujetos Excluidos)</span>
+              <Download className="h-4 w-4" />
+              CSV Anexo 5
             </button>
           )}
-          <button 
+          <button
             onClick={exportCSV}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
           >
-            Descargar CSV F07 (Anexo 3)
+            <Download className="h-4 w-4" />
+            Descargar CSV F-07
           </button>
         </div>
       </div>
 
       {/* Zona de Drag and Drop */}
-      <div 
+      <div
         className={`mb-8 border-2 border-dashed rounded-xl p-10 text-center transition-colors ${!isDeclarado ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'} ${
-          isDragging ? 'border-amber-500 bg-amber-50' : 'border-slate-300 bg-white hover:border-amber-400 hover:bg-slate-50'
+          isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-white hover:border-blue-400 hover:bg-slate-50'
         }`}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         onClick={() => fileInputRef.current.click()}
       >
-        <input 
-          type="file" 
-          multiple 
-          accept=".json,.xlsx,.xls,.csv" 
-          className="hidden" 
+        <input
+          type="file"
+          multiple
+          accept=".json,.xlsx,.xls,.csv"
+          className="hidden"
           ref={fileInputRef}
           onChange={(e) => handleFileUpload(e.target.files)}
         />
-        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
@@ -608,7 +617,7 @@ export default function AnexoCompras() {
               <p className="text-[11px] text-slate-400 mt-0.5">Excluye compras omitidas</p>
             )}
           </div>
-          <div className="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+          <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           </div>
         </div>
@@ -676,15 +685,15 @@ export default function AnexoCompras() {
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="M: Importaciones Gravadas Servicios">M. Import. Grav. Sv.</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="N: Crédito Fiscal">N. Crédito Fiscal</th>
                 <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider" title="O: Total Compras">O. Total</th>
-                <th className="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-l border-slate-200" colSpan="4">Configuración F07</th>
+                <th className="px-4 py-3 text-center text-xs font-bold text-blue-700 uppercase tracking-wider border-l border-slate-200" colSpan="4">Configuración F07</th>
                 <th className="px-4 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider border-l border-slate-200" rowSpan="2">Acciones</th>
               </tr>
               <tr className="bg-slate-100 border-b border-slate-300">
                 <th colSpan="15" className="border-r border-slate-200"></th>
-                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">T. Operación</th>
-                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">Clasificación</th>
-                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">Sector</th>
-                <th className="px-2 py-1 text-xs text-indigo-700 font-medium">Costo/Gasto</th>
+                <th className="px-2 py-1 text-xs text-blue-700 font-medium">T. Operación</th>
+                <th className="px-2 py-1 text-xs text-blue-700 font-medium">Clasificación</th>
+                <th className="px-2 py-1 text-xs text-blue-700 font-medium">Sector</th>
+                <th className="px-2 py-1 text-xs text-blue-700 font-medium">Costo/Gasto</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
@@ -712,11 +721,11 @@ export default function AnexoCompras() {
                     return new Date(dateA) - new Date(dateB);
                   })
                   .map((compra) => (
-                  <tr 
-                    key={compra.id} 
+                  <tr
+                    key={compra.id}
                     className={`transition-colors border-b ${
-                      compra.omitido 
-                        ? "bg-amber-100/80 border-l-4 border-l-rose-600 border-b-amber-200 hover:bg-amber-200/80 text-rose-950 font-medium" 
+                      compra.omitido
+                        ? "bg-amber-100/80 border-l-4 border-l-rose-600 border-b-amber-200 hover:bg-amber-200/80 text-rose-950 font-medium"
                         : "bg-white hover:bg-slate-50 text-slate-800 border-b-slate-100"
                     }`}
                   >
@@ -747,7 +756,7 @@ export default function AnexoCompras() {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.compras_internas_exentas || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.internaciones_exentas || 0).toFixed(2)}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right text-slate-600">${(compra.importaciones_exentas || 0).toFixed(2)}</td>
@@ -769,7 +778,7 @@ export default function AnexoCompras() {
                           ${(compra.credito_fiscal || 0).toFixed(2)}
                         </span>
                       ) : (
-                        <span className="text-indigo-600 font-semibold">${(compra.credito_fiscal || 0).toFixed(2)}</span>
+                        <span className="text-blue-600 font-semibold">${(compra.credito_fiscal || 0).toFixed(2)}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-xs text-right font-bold">
@@ -781,12 +790,12 @@ export default function AnexoCompras() {
                         <span className="text-emerald-700">${(compra.total_compras || 0).toFixed(2)}</span>
                       )}
                     </td>
-                    
+
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
-                      <select 
-                        value={compra.tipo_operacion || (compra.tipo_documento === "14" ? "2" : "1")} 
+                      <select
+                        value={compra.tipo_operacion || (compra.tipo_documento === "14" ? "2" : "1")}
                         onChange={(e) => updateConfig(compra.id, "tipo_operacion", e.target.value)}
-                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                        className={`text-xs rounded p-1 w-20 focus:ring-blue-500 ${
                           compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
                         }`}
                         disabled={isDeclarado || compra.omitido}
@@ -797,10 +806,10 @@ export default function AnexoCompras() {
                       </select>
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
-                      <select 
-                        value={compra.clasificacion || "1"} 
+                      <select
+                        value={compra.clasificacion || "1"}
                         onChange={(e) => updateConfig(compra.id, "clasificacion", e.target.value)}
-                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                        className={`text-xs rounded p-1 w-20 focus:ring-blue-500 ${
                           compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
                         }`}
                         disabled={isDeclarado || compra.omitido}
@@ -811,10 +820,10 @@ export default function AnexoCompras() {
                       </select>
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
-                      <select 
-                        value={compra.sector || "2"} 
+                      <select
+                        value={compra.sector || "2"}
                         onChange={(e) => updateConfig(compra.id, "sector", e.target.value)}
-                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                        className={`text-xs rounded p-1 w-20 focus:ring-blue-500 ${
                           compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
                         }`}
                         disabled={isDeclarado || compra.omitido}
@@ -828,10 +837,10 @@ export default function AnexoCompras() {
                       </select>
                     </td>
                     <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
-                      <select 
-                        value={compra.tipo_costo_gasto || "5"} 
+                      <select
+                        value={compra.tipo_costo_gasto || "5"}
                         onChange={(e) => updateConfig(compra.id, "tipo_costo_gasto", e.target.value)}
-                        className={`text-xs rounded p-1 w-20 focus:ring-indigo-500 ${
+                        className={`text-xs rounded p-1 w-20 focus:ring-blue-500 ${
                           compra.omitido ? "border-amber-400 bg-amber-50 text-slate-500" : "border-slate-300"
                         }`}
                         disabled={isDeclarado || compra.omitido}

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 
 const AuthContext = createContext();
 
@@ -6,34 +6,43 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+function readStoredUser() {
+  const storedToken = localStorage.getItem('iva_token');
+  if (!storedToken) return null;
+
+  let decodedId = null;
+  try {
+    const payload = JSON.parse(atob(storedToken.split('.')[1]));
+    decodedId = payload.id;
+  } catch (error) {
+    console.error('No se pudo decodificar el token', error);
+  }
+
+  const storedId = localStorage.getItem('iva_user_id');
+  return {
+    nombre: localStorage.getItem('iva_user_name') || 'Usuario',
+    id: storedId ? parseInt(storedId, 10) : decodedId,
+    terminos_aceptados: localStorage.getItem('iva_terminos_aceptados') === 'true',
+  };
+}
+
+function readStoredEmpresa() {
+  const storedEmpresa = localStorage.getItem('iva_active_empresa');
+  if (!storedEmpresa) return null;
+  try {
+    return JSON.parse(storedEmpresa);
+  } catch (error) {
+    console.error('No se pudo leer la empresa activa', error);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem('iva_token') || null);
-  const [user, setUser] = useState(null);
-  const [activeEmpresa, setActiveEmpresa] = useState(null); // { id, razon_social, nit, nrc }
-
-  useEffect(() => {
-    // In a real app, verify token and fetch user details here
-    if (token) {
-      let decodedId = null;
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        decodedId = payload.id;
-      } catch (e) {
-        console.error("No se pudo decodificar el token", e);
-      }
-      
-      setUser({ 
-        nombre: localStorage.getItem('iva_user_name') || 'Usuario',
-        id: localStorage.getItem('iva_user_id') ? parseInt(localStorage.getItem('iva_user_id')) : decodedId,
-        terminos_aceptados: localStorage.getItem('iva_terminos_aceptados') === 'true'
-      });
-      
-      const storedEmpresa = localStorage.getItem('iva_active_empresa');
-      if (storedEmpresa) {
-        setActiveEmpresa(JSON.parse(storedEmpresa));
-      }
-    }
-  }, [token]);
+  // Hidratación síncrona: evita que un refresh en una vista protegida redirija
+  // al dashboard antes de recuperar la empresa activa.
+  const [user, setUser] = useState(readStoredUser);
+  const [activeEmpresa, setActiveEmpresa] = useState(readStoredEmpresa);
 
   const login = (newToken, userData) => {
     setToken(newToken);
@@ -53,6 +62,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('iva_token');
     localStorage.removeItem('iva_user_name');
     localStorage.removeItem('iva_user_id');
+    localStorage.removeItem('iva_terminos_aceptados');
     localStorage.removeItem('iva_active_empresa');
   };
 

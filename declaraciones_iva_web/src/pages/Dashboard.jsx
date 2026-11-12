@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 
@@ -14,7 +15,7 @@ export default function Dashboard() {
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [newEmpresa, setNewEmpresa] = useState({ razon_social: '', nit: '', nrc: '', actividad_economica: '', combustible_50_porciento: false });
-  
+
   const currentDate = new Date();
   const [mes, setMes] = useState(localStorage.getItem('dashboard_mes') || (currentDate.getMonth() + 1).toString().padStart(2, '0'));
   const [anio, setAnio] = useState(localStorage.getItem('dashboard_anio') || currentDate.getFullYear().toString());
@@ -27,7 +28,7 @@ export default function Dashboard() {
     localStorage.setItem('dashboard_anio', anio);
   }, [anio]);
 
-  const { user, token, selectEmpresa, activeEmpresa, logout } = useAuth();
+  const { user, token, selectEmpresa, activeEmpresa } = useAuth();
   const authConfig = { headers: { Authorization: `Bearer ${token}` } };
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export default function Dashboard() {
     selectEmpresa(empresa);
     enqueueMessages([{ text: `Has seleccionado la empresa ${empresa.razon_social}.`, type: "success" }]);
   };
-  
+
   const handleEditClick = (e, emp) => {
     e.stopPropagation();
     setEditingId(emp.id);
@@ -122,17 +123,20 @@ export default function Dashboard() {
 
   const renderSeleccionEmpresa = () => (
     <>
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Selecciona una Empresa</h2>
-          <p className="text-slate-500 mt-2">Elige el perfil con el que trabajarás hoy o registra uno nuevo.</p>
+          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 ring-1 ring-blue-100">
+            Gestión de empresas
+          </span>
+          <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Selecciona una empresa</h2>
+          <p className="mt-1 text-sm text-slate-500">Elige el perfil con el que trabajarás hoy o registra uno nuevo.</p>
         </div>
-        <button 
+        <button
           onClick={() => { setShowModal(true); setEditingId(null); setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false }); }}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition shadow-sm flex items-center"
+          className="btn-primary shrink-0"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-          Nueva Empresa
+          <Plus className="h-4 w-4" />
+          Nueva empresa
         </button>
       </div>
 
@@ -157,18 +161,18 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {empresas.map(empresa => (
-            <div 
-              key={empresa.id} 
+            <div
+              key={empresa.id}
               onClick={() => handleSelect(empresa)}
-              className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 cursor-pointer transition-all group"
+              className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition-all group"
             >
               <div className="flex justify-between items-start mb-4">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 </div>
-                <button 
+                <button
                   onClick={(e) => handleEditClick(e, empresa)}
-                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                  className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                   title="Editar empresa"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -190,12 +194,12 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
-          
+
           {empresas.length === 0 && (
-            <div className="col-span-full bg-indigo-50 border border-dashed border-indigo-200 rounded-xl p-12 text-center">
-              <h3 className="text-lg font-bold text-indigo-900 mb-2">No tienes empresas registradas</h3>
-              <p className="text-indigo-700 mb-4">Comienza registrando tu primera empresa para generar declaraciones.</p>
-              <button onClick={() => { setShowModal(true); setEditingId(null); setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false }); }} className="text-indigo-600 font-semibold hover:underline">
+            <div className="col-span-full bg-blue-50 border border-dashed border-blue-200 rounded-xl p-12 text-center">
+              <h3 className="text-lg font-bold text-blue-900 mb-2">No tienes empresas registradas</h3>
+              <p className="text-blue-700 mb-4">Comienza registrando tu primera empresa para generar declaraciones.</p>
+              <button onClick={() => { setShowModal(true); setEditingId(null); setNewEmpresa({ razon_social: '', nit: '', nrc: '', combustible_50_porciento: false }); }} className="text-blue-600 font-semibold hover:underline">
                 Registrar mi primera empresa
               </button>
             </div>
@@ -207,48 +211,64 @@ export default function Dashboard() {
 
   const renderF07Dashboard = () => (
     <div className="flex flex-col space-y-6 animate-fade-in-up">
-      <div className="flex justify-between items-end mb-2">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Panel Principal - {activeEmpresa.razon_social}</h2>
-          <p className="text-sm text-slate-500 mt-1">NIT: {activeEmpresa.nit} | NRC: {activeEmpresa.nrc}</p>
-          
-          <div className="flex items-center space-x-4 mt-3">
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-semibold text-slate-700">Año:</label>
-              <input 
-                type="number" 
-                min="2000" 
-                max="2100" 
-                className="border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-24" 
-                value={anio} 
-                onChange={(e) => setAnio(e.target.value)} 
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-semibold text-slate-700">Mes:</label>
-              <select className="border border-slate-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={mes} onChange={(e) => setMes(e.target.value)}>
-                <option value="01">Enero</option>
-                <option value="02">Febrero</option>
-                <option value="03">Marzo</option>
-                <option value="04">Abril</option>
-                <option value="05">Mayo</option>
-                <option value="06">Junio</option>
-                <option value="07">Julio</option>
-                <option value="08">Agosto</option>
-                <option value="09">Septiembre</option>
-                <option value="10">Octubre</option>
-                <option value="11">Noviembre</option>
-                <option value="12">Diciembre</option>
-              </select>
-            </div>
-          </div>
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 ring-1 ring-blue-100">
+            Panel de control
+          </span>
+          <h2 className="mt-2 truncate text-xl font-bold tracking-tight text-slate-900">
+            {activeEmpresa.razon_social}
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            NIT {activeEmpresa.nit} · NRC {activeEmpresa.nrc || 'No registrado'}
+          </p>
         </div>
-        <button 
-          onClick={() => selectEmpresa(null)}
-          className="bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition shadow-sm"
-        >
-          Cambiar Empresa
-        </button>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label htmlFor="dashboard-anio" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Año
+            </label>
+            <input
+              id="dashboard-anio"
+              type="number"
+              min="2000"
+              max="2100"
+              className="input-base w-24"
+              value={anio}
+              onChange={(e) => setAnio(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="dashboard-mes" className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Mes
+            </label>
+            <select id="dashboard-mes" className="input-base min-w-[150px]" value={mes} onChange={(e) => setMes(e.target.value)}>
+              <option value="01">Enero</option>
+              <option value="02">Febrero</option>
+              <option value="03">Marzo</option>
+              <option value="04">Abril</option>
+              <option value="05">Mayo</option>
+              <option value="06">Junio</option>
+              <option value="07">Julio</option>
+              <option value="08">Agosto</option>
+              <option value="09">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
+          <button
+            onClick={() => selectEmpresa(null)}
+            className="btn-secondary"
+          >
+            Cambiar empresa
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-sm font-semibold text-slate-700">Módulos del período</h3>
+        <span className="text-xs text-slate-400">Selecciona un módulo para continuar</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -260,7 +280,7 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Contribuyentes</h3>
           <p className="text-sm text-slate-500 mb-5">Importa tus CCF, NC y ND generados para tu anexo de contribuyentes.</p>
-          <button 
+          <button
             onClick={() => navigate(`/ventas-contribuyentes?mes=${mes}&anio=${anio}`)}
             className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition"
           >
@@ -276,9 +296,9 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Consumidor Final</h3>
           <p className="text-sm text-slate-500 mb-5">Importa tus FCF emitidas para tu anexo a consumidor final.</p>
-          <button 
+          <button
             onClick={() => navigate(`/consumidor-final?mes=${mes}&anio=${anio}`)}
-            className="w-full bg-emerald-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-emerald-700 transition"
+            className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition"
           >
             Generar Anexo
           </button>
@@ -292,28 +312,28 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Libro de Compras</h3>
           <p className="text-sm text-slate-500 mb-5">Importa los comprobantes recibidos de tus proveedores para tu anexo de compras.</p>
-          <button 
+          <button
             onClick={() => navigate(`/compras?mes=${mes}&anio=${anio}`)}
-            className="w-full bg-amber-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-amber-700 transition"
+            className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition"
           >
             Generar Anexo
           </button>
         </div>
 
         {/* Card for Liquidacion */}
-        <div className="bg-indigo-700 rounded-xl p-6 border border-indigo-800 shadow-md hover:shadow-lg transition-shadow relative overflow-hidden group col-span-1 md:col-span-2 lg:col-span-3 mt-4">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 rounded-xl p-6 border border-slate-800 shadow-md hover:shadow-lg transition-shadow relative overflow-hidden group col-span-1 md:col-span-2 lg:col-span-3">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
-              <div className="w-12 h-12 bg-white text-indigo-700 rounded-lg flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-white/10 text-blue-200 ring-1 ring-white/15 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
               </div>
               <h3 className="text-xl font-bold text-white mb-1">Liquidación de Impuestos</h3>
-              <p className="text-sm text-indigo-200 mb-5 sm:mb-0 max-w-md">Consolida la información de tus anexos de compras y ventas para determinar el pago a cuenta o remanente del mes de forma automática.</p>
+              <p className="text-sm text-slate-300 mb-5 sm:mb-0 max-w-md">Consolida la información de tus anexos de compras y ventas para determinar el pago a cuenta o remanente del mes de forma automática.</p>
             </div>
-            <button 
+            <button
               onClick={() => navigate(`/liquidacion?mes=${mes}&anio=${anio}`)}
-              className="bg-white text-indigo-700 text-sm font-bold py-3 px-8 rounded-lg hover:bg-indigo-50 transition w-full sm:w-auto whitespace-nowrap shadow-sm"
+              className="bg-white text-slate-900 text-sm font-bold py-3 px-8 rounded-lg hover:bg-blue-50 transition w-full sm:w-auto whitespace-nowrap shadow-sm"
             >
               Ver Liquidación (F-07)
             </button>
@@ -328,9 +348,9 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Documentos Anulados</h3>
           <p className="text-sm text-slate-500 mb-5">Importa los JSON de Invalidación para excluirlos de tus impuestos.</p>
-          <button 
+          <button
             onClick={() => navigate(`/anulados?mes=${mes}&anio=${anio}`)}
-            className="w-full bg-red-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-red-700 transition"
+            className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition"
           >
             Gestionar Anulados
           </button>
@@ -344,9 +364,9 @@ export default function Dashboard() {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">Retenciones 1% (Casilla 162)</h3>
           <p className="text-sm text-slate-500 mb-5">Importa tus DTE 07 para generar el anexo y deducir retenciones efectuadas al declarante.</p>
-          <button 
+          <button
             onClick={() => navigate(`/retenciones?mes=${mes}&anio=${anio}`)}
-            className="w-full bg-purple-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-purple-700 transition"
+            className="w-full bg-blue-600 text-white text-sm font-medium py-2 rounded-lg hover:bg-blue-700 transition"
           >
             Generar Anexo
           </button>
@@ -356,27 +376,8 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-          </div>
-          <h1 className="text-xl font-bold text-slate-800">Declaraciones de IVA</h1>
-        </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-slate-600 font-medium">Hola, {user?.nombre || 'Usuario'}</span>
-          <button onClick={() => { logout(); navigate('/login'); }} className="text-sm text-red-600 font-medium hover:underline">
-            Cerrar Sesión
-          </button>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-8">
-        {!activeEmpresa ? renderSeleccionEmpresa() : renderF07Dashboard()}
-      </main>
+    <div className="space-y-6 animate-fade-in-up">
+      {!activeEmpresa ? renderSeleccionEmpresa() : renderF07Dashboard()}
 
       {/* Modal Nueva Empresa */}
       {showModal && (
@@ -388,27 +389,27 @@ export default function Dashboard() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            
+
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Razón Social</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   value={newEmpresa.razon_social}
                   onChange={(e) => setNewEmpresa({...newEmpresa, razon_social: e.target.value})}
                   placeholder="Ej. Distribuidora S.A. de C.V."
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">NIT</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     value={newEmpresa.nit}
                     onChange={(e) => setNewEmpresa({...newEmpresa, nit: e.target.value})}
                     placeholder="0000-000000-000-0"
@@ -416,22 +417,22 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">NRC</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     value={newEmpresa.nrc}
                     onChange={(e) => setNewEmpresa({...newEmpresa, nrc: e.target.value})}
                     placeholder="123456-7"
                   />
                 </div>
               </div>
-              
+
               <div className="pt-4 flex space-x-3">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition">
                   Cancelar
                 </button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition">
                   {editingId ? 'Actualizar' : 'Guardar Empresa'}
                 </button>
               </div>

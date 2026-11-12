@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { Calculator, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 
@@ -10,12 +11,13 @@ export default function Liquidacion() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const mes = queryParams.get("mes");
-  const anio = queryParams.get("anio");
-  
+  const currentDate = new Date();
+  const mes = queryParams.get("mes") || localStorage.getItem("dashboard_mes") || String(currentDate.getMonth() + 1).padStart(2, "0");
+  const anio = queryParams.get("anio") || localStorage.getItem("dashboard_anio") || String(currentDate.getFullYear());
+
   const { token, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
-  
+
   const [data, setData] = useState(null);
   const [auditoria164, setAuditoria164] = useState({ estado: 'pendiente', respaldo: null });
   const [conciliacionDte05, setConciliacionDte05] = useState(null);
@@ -24,7 +26,7 @@ export default function Liquidacion() {
   const [ajustesHistoricosLocales, setAjustesHistoricosLocales] = useState(false);
   const [inventarioHistorico, setInventarioHistorico] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [editRemanente, setEditRemanente] = useState(false);
   const [remanenteInput, setRemanenteInput] = useState("");
   const [editDevoluciones, setEditDevoluciones] = useState(false);
@@ -433,7 +435,7 @@ export default function Liquidacion() {
       const cred = res.totales?.credito || 0;
       const dif = Number((deb - cred).toFixed(2));
       const remAnterior = res.remanente_anterior || 0;
-      
+
       let impuestoAPagar = 0;
       let remanenteSiguiente = 0;
 
@@ -559,7 +561,7 @@ export default function Liquidacion() {
   // entregó todos los datos. Cero fiscal válido requiere una respuesta completa.
   if (loading || !data) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+      <div className="flex min-h-[60vh] items-center justify-center px-2">
         <section role={loading ? "status" : "alert"} className="w-full max-w-lg rounded-xl bg-white border border-slate-200 p-6 shadow-sm">
           <h1 className="text-xl font-bold text-slate-900">Liquidación de Impuestos F-07</h1>
           <p className="mt-2 text-slate-700">
@@ -569,7 +571,7 @@ export default function Liquidacion() {
           </p>
           {!loading && (
             <div className="mt-5 flex flex-wrap gap-3">
-              <button type="button" onClick={() => fetchLiquidacion()} className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+              <button type="button" onClick={() => fetchLiquidacion()} className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                 Reintentar carga
               </button>
               <button type="button" onClick={() => navigate("/dashboard")} className="rounded-lg border border-slate-300 px-4 py-2 text-slate-800 hover:bg-slate-100">
@@ -578,7 +580,7 @@ export default function Liquidacion() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -586,17 +588,17 @@ export default function Liquidacion() {
   const debito = data?.totales?.debito || 0;
   const credito = data?.totales?.credito || 0;
   const difPeriodo = Number((debito - credito).toFixed(2));
-  
-  const impDeterminado = data?.liquidacion?.impuesto_determinado !== undefined 
-    ? data.liquidacion.impuesto_determinado 
+
+  const impDeterminado = data?.liquidacion?.impuesto_determinado !== undefined
+    ? data.liquidacion.impuesto_determinado
     : (difPeriodo > 0 ? difPeriodo : 0);
 
-  const excedenteCredito = data?.liquidacion?.excedente_credito !== undefined 
-    ? data.liquidacion.excedente_credito 
+  const excedenteCredito = data?.liquidacion?.excedente_credito !== undefined
+    ? data.liquidacion.excedente_credito
     : (difPeriodo < 0 ? Math.abs(difPeriodo) : 0);
 
   const remAnterior = data?.remanente_anterior || 0;
-  
+
   const remAplicado = data?.liquidacion?.remanente_aplicado !== undefined
     ? data.liquidacion.remanente_aplicado
     : Math.min(impDeterminado, remAnterior);
@@ -618,9 +620,9 @@ export default function Liquidacion() {
   const remanenteSiguiente = data?.remanente_siguiente || 0;
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-12 font-sans">
+    <div className="space-y-6 animate-fade-in-up font-sans">
       {data?.estado_normativo_f07?.conciliacion_completa === false && (
-        <div role="alert" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <div role="alert" className="max-w-4xl">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
             <p className="font-bold">F-07 pendiente de conciliación normativa</p>
             <p className="text-sm mt-1">{data.estado_normativo_f07.advertencia}</p>
@@ -629,7 +631,7 @@ export default function Liquidacion() {
         </div>
       )}
       {data?.casillas_f07_preliminares && (
-        <section aria-label="Conciliación de casillas F-07" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <section aria-label="Conciliación de casillas F-07" className="max-w-4xl">
           <div className="rounded-lg border border-slate-300 bg-white p-4">
             <h2 className="font-bold text-slate-900">Conciliación de saldos F-07 (preliminar)</h2>
             <p className="text-sm text-slate-700 mt-1">La casilla 155 corresponde al crédito fiscal; la 167 corresponde a un excedente de impuesto diferente. Los valores pendientes no equivalen a cero.</p>
@@ -658,7 +660,7 @@ export default function Liquidacion() {
         </section>
       )}
       {data?.casillas_f07_preliminares && (
-        <section aria-label="Respaldo documental de casilla 164" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <section aria-label="Respaldo documental de casilla 164" className="max-w-4xl">
           <div className="rounded-lg border border-slate-300 bg-white p-4">
             <h2 className="font-bold text-slate-900">Trazabilidad de la casilla 164</h2>
             <p role="status" className="mt-2 text-sm font-semibold text-amber-900">Estado fiscal: pendiente de revisión y aceptación. La coincidencia documental no significa aprobación del F-07.</p>
@@ -693,7 +695,7 @@ export default function Liquidacion() {
         </section>
       )}
       {conciliacionDte05 && (
-        <section aria-label="Conciliación DTE 05" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <section aria-label="Conciliación DTE 05" className="max-w-4xl">
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950">
             <p className="font-bold">Conciliación de devoluciones DTE 05 (solo lectura)</p>
             {conciliacionDte05.estado === 'disponible' ? (
@@ -711,7 +713,7 @@ export default function Liquidacion() {
           </div>
         </section>
       )}
-      <section aria-label="Propuestas documentales de devoluciones" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+      <section aria-label="Propuestas documentales de devoluciones" className="max-w-4xl">
         <div className="rounded-lg border border-slate-300 bg-slate-50 p-4 text-slate-900">
           <p className="font-bold">Propuestas documentales de devoluciones (sin efecto fiscal)</p>
           {propuestasDevoluciones.estado === 'disponible' ? (
@@ -739,7 +741,7 @@ export default function Liquidacion() {
         </div>
       </section>
       {ajustesHistoricosLocales && (
-        <div role="status" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <div role="status" className="max-w-4xl">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
             <p className="font-bold">Liquidación con ajustes históricos locales</p>
             <p className="text-sm mt-1">Esta liquidación utiliza datos o reglas históricas del navegador que todavía no han sido conciliados con PostgreSQL. Aunque no aparezcan diferencias numéricas, confirme los importes antes de presentar el F-07. No borre los datos del navegador hasta completar la migración.</p>
@@ -751,7 +753,7 @@ export default function Liquidacion() {
         </div>
       )}
       {diferenciasServidor.length > 0 && (
-        <div role="alert" className="max-w-4xl mx-auto mt-4 px-4 sm:px-6 lg:px-8">
+        <div role="alert" className="max-w-4xl">
           <div className="rounded-lg border border-amber-400 bg-amber-50 p-4 text-amber-950">
             <p className="font-bold">Atención: diferencias entre servidor y pantalla</p>
             <p className="text-sm mt-1">Los ajustes históricos o cálculos locales modifican importes recibidos del servidor. Revise estos valores antes de presentar una declaración.</p>
@@ -764,70 +766,60 @@ export default function Liquidacion() {
         </div>
       )}
       {/* Header */}
-      <div className="bg-indigo-600 border-b border-indigo-700 sticky top-0 z-30 shadow-md">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => navigate("/dashboard")}
-                className="text-indigo-100 hover:text-white transition p-1 rounded-lg hover:bg-indigo-500/50"
-                title="Volver al Dashboard"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-white flex items-center">
-                  Liquidación de Impuestos F-07
-                  <span className="ml-3 text-xs bg-indigo-500 text-indigo-100 px-2 py-0.5 rounded-full font-normal border border-indigo-400">
-                    Ministerio de Hacienda El Salvador
-                  </span>
-                </h1>
-                <p className="text-sm text-indigo-200">
-                  Empresa: <span className="font-semibold text-white">{activeEmpresa.razon_social}</span> | Período: <span className="font-medium text-white">{mes}/{anio}</span>
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button 
-                onClick={() => {
-                  if (!data || loading) {
-                    enqueueMessages([{ text: "Espere a que se cargue la liquidación completa antes de imprimir.", type: "error" }]);
-                    return;
-                  }
-                  if ((conciliacionDte05?.estado !== 'disponible') || ['discrepancia', 'sin_autorizacion', 'error', 'pendiente'].includes(auditoria164.estado) || ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
-                    const confirmar = window.confirm(
-                      "ATENCIÓN: esta liquidación puede contener una discrepancia documental de la casilla 164, ajustes históricos locales o diferencias pendientes de conciliación. " +
-                      "El cálculo puede estar pendiente de conciliación normativa. La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
-                    );
-                    if (!confirmar) return;
-                  }
-                  window.print();
-                }}
-                disabled={!data || loading}
-                aria-label="Imprimir liquidación F-07"
-                title={!data || loading ? "Espere a que se cargue la liquidación" : "Imprimir liquidación"}
-                className="bg-indigo-500 hover:bg-indigo-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center border border-indigo-400 cursor-pointer"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                Imprimir
-              </button>
-            </div>
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 ring-1 ring-blue-100">
+              <Calculator className="h-3 w-3" />
+              Liquidación F-07
+            </span>
+            <span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600 ring-1 ring-slate-200">
+              Ministerio de Hacienda
+            </span>
           </div>
+          <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900">Liquidación de Impuestos</h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            <span className="font-medium text-slate-700">{activeEmpresa.razon_social}</span>
+            {" · "}NIT {activeEmpresa.nit}{" · "}Período {mes}/{anio}
+          </p>
         </div>
+
+        <button
+          onClick={() => {
+            if (!data || loading) {
+              enqueueMessages([{ text: "Espere a que se cargue la liquidación completa antes de imprimir.", type: "error" }]);
+              return;
+            }
+            if ((conciliacionDte05?.estado !== 'disponible') || ['discrepancia', 'sin_autorizacion', 'error', 'pendiente'].includes(auditoria164.estado) || ajustesHistoricosLocales || diferenciasServidor.length > 0 || data?.estado_normativo_f07?.conciliacion_completa === false) {
+              const confirmar = window.confirm(
+                "ATENCIÓN: esta liquidación puede contener una discrepancia documental de la casilla 164, ajustes históricos locales o diferencias pendientes de conciliación. " +
+                "El cálculo puede estar pendiente de conciliación normativa. La impresión no equivale a una declaración verificada. ¿Desea imprimirla de todos modos?"
+              );
+              if (!confirmar) return;
+            }
+            window.print();
+          }}
+          disabled={!data || loading}
+          aria-label="Imprimir liquidación F-07"
+          title={!data || loading ? "Espere a que se cargue la liquidación" : "Imprimir liquidación"}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Printer className="h-4 w-4" />
+          Imprimir F-07
+        </button>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+      <div className="mx-auto w-full max-w-4xl print-full">
+
         {loading || !data ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-3">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             <span>Calculando liquidación del impuesto...</span>
           </div>
         ) : (
           <div className="space-y-6">
-            
+
             {/* Débito Fiscal */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-sky-50 px-6 py-4 border-b border-sky-100 flex justify-between items-center">
@@ -1005,7 +997,7 @@ export default function Liquidacion() {
                   Ley de IVA Arts. 64-66
                 </span>
               </div>
-              
+
               <div className="p-6 space-y-6">
 
                 {/* Paso A: Comparación de Operaciones del Período */}
@@ -1082,9 +1074,9 @@ export default function Liquidacion() {
                   <div className="flex justify-between items-center text-sm text-slate-700">
                     <div className="flex items-center">
                       <span className="font-medium text-slate-800">Remanente de Crédito Fiscal del Mes Anterior (Casilla 110)</span>
-                      <button 
-                        onClick={() => setEditRemanente(!editRemanente)} 
-                        className="ml-2 text-indigo-600 hover:text-indigo-800 p-1 hover:bg-indigo-50 rounded transition"
+                      <button
+                        onClick={() => setEditRemanente(!editRemanente)}
+                        className="ml-2 text-blue-600 hover:text-blue-800 p-1 hover:bg-blue-50 rounded transition"
                         title="Modificar remanente anterior"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -1094,16 +1086,16 @@ export default function Liquidacion() {
                     {editRemanente ? (
                       <div className="flex items-center space-x-2">
                         <span className="text-slate-500">$</span>
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          value={remanenteInput} 
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={remanenteInput}
                           onChange={(e) => setRemanenteInput(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && saveRemanente()}
                           autoFocus
-                          className="w-24 border border-indigo-300 rounded px-2 py-1 text-right text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          className="w-24 border border-blue-300 rounded px-2 py-1 text-right text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         />
-                        <button onClick={saveRemanente} className="bg-indigo-600 text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-indigo-700 cursor-pointer">OK</button>
+                        <button onClick={saveRemanente} className="bg-blue-600 text-white px-2.5 py-1 rounded text-xs font-bold hover:bg-blue-700 cursor-pointer">OK</button>
                         <button onClick={() => setEditRemanente(false)} className="bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs cursor-pointer">✕</button>
                       </div>
                     ) : (
@@ -1116,7 +1108,7 @@ export default function Liquidacion() {
                     <div className="space-y-2 pt-2 border-t border-slate-200 text-sm">
                       <div className="flex justify-between items-center text-slate-600">
                         <span className="flex items-center pl-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
                           (-) Remanente aplicado para absorber Impuesto Determinado:
                         </span>
                         <span className="font-medium text-emerald-700">-${remAplicado.toFixed(2)}</span>
@@ -1138,8 +1130,8 @@ export default function Liquidacion() {
 
                 {/* Paso C: Ajustes F-07 (Retenciones / Percepciones / Anticipos) - Opcional */}
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setShowAjustes(!showAjustes)}
                     className="w-full bg-slate-100 hover:bg-slate-200/80 px-4 py-2.5 text-xs font-bold text-slate-700 flex justify-between items-center transition"
                   >
@@ -1147,7 +1139,7 @@ export default function Liquidacion() {
                       <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>
                       Ajustes Adicionales F-07 (Retenciones 1%, Percepciones 1%, Anticipo 2%)
                       {(totalDeducciones > 0 || totalTerceros > 0) && (
-                        <span className="ml-2 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Activo</span>
+                        <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">Activo</span>
                       )}
                     </span>
                     <span>{showAjustes ? "Ocultar ▲" : "Configurar / Ver ▼"}</span>
@@ -1158,15 +1150,15 @@ export default function Liquidacion() {
                       <p className="text-xs text-slate-500">
                         Si en este período tus clientes te efectuaron retenciones de IVA (1%), tus proveedores te percibieron (1%) o pagaste anticipo a cuenta del 2%, regístralos aquí:
                       </p>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
                             (-) IVA Retenido por Clientes (Casilla 161)
                           </label>
-                          <input 
-                            type="number" 
-                            step="0.01" 
+                          <input
+                            type="number"
+                            step="0.01"
                             value={ajustes.retenciones_recibidas}
                             onChange={(e) => setAjustes({...ajustes, retenciones_recibidas: e.target.value})}
                             className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
@@ -1178,9 +1170,9 @@ export default function Liquidacion() {
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
                             (-) IVA Percibido por Proveedores (Casilla 162)
                           </label>
-                          <input 
-                            type="number" 
-                            step="0.01" 
+                          <input
+                            type="number"
+                            step="0.01"
                             value={ajustes.percepciones_recibidas}
                             onChange={(e) => setAjustes({...ajustes, percepciones_recibidas: e.target.value})}
                             className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
@@ -1192,9 +1184,9 @@ export default function Liquidacion() {
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
                             (-) Anticipo a Cuenta del 2% (Casilla 163)
                           </label>
-                          <input 
-                            type="number" 
-                            step="0.01" 
+                          <input
+                            type="number"
+                            step="0.01"
                             value={ajustes.anticipo_cuenta_2}
                             onChange={(e) => setAjustes({...ajustes, anticipo_cuenta_2: e.target.value})}
                             className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
@@ -1206,9 +1198,9 @@ export default function Liquidacion() {
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
                             (+) Retenciones/Percepciones a Terceros a Enterar
                           </label>
-                          <input 
-                            type="number" 
-                            step="0.01" 
+                          <input
+                            type="number"
+                            step="0.01"
                             value={ajustes.retenciones_efectuadas}
                             onChange={(e) => setAjustes({...ajustes, retenciones_efectuadas: e.target.value})}
                             className="w-full border border-slate-300 rounded px-3 py-1.5 text-right text-sm"
@@ -1218,9 +1210,9 @@ export default function Liquidacion() {
                       </div>
 
                       <div className="flex justify-end pt-2">
-                        <button 
+                        <button
                           onClick={saveAjustes}
-                          className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                          className="bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                         >
                           Guardar Ajustes
                         </button>
@@ -1264,7 +1256,7 @@ export default function Liquidacion() {
                         </div>
                         <span className="text-emerald-700 font-black text-3xl">${remanenteSiguiente.toFixed(2)}</span>
                       </div>
-                      
+
                       <div className="text-xs text-emerald-800 border-t border-emerald-200/70 pt-2 flex justify-between items-center">
                         <span>
                           {impDeterminado > 0 ? (
@@ -1284,10 +1276,10 @@ export default function Liquidacion() {
                     </div>
                   )}
                 </div>
-                
+
               </div>
             </div>
-            
+
           </div>
         )}
       </div>

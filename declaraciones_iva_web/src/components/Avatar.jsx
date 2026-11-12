@@ -8,12 +8,12 @@ const RotateCcw = ({ className }) => <svg className={className} fill="none" stro
 export default function Avatar() {
   const { isActive, message, options, dismiss } = useAssistant();
   const [displayedText, setDisplayedText] = useState('');
-  
+
   // Dragging state
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({ startX: 0, startY: 0, initialClientX: 0, initialClientY: 0 });
-  
+
   // Menu state
   const [showMenu, setShowMenu] = useState(false);
 
@@ -24,7 +24,7 @@ export default function Avatar() {
       window.speechSynthesis.cancel();
       return;
     }
-    
+
     // Iniciar Voz
     window.speechSynthesis.cancel();
     const cleanMessage = message.replace(/[✅❌ℹ️]/g, '').trim();
@@ -32,14 +32,14 @@ export default function Avatar() {
       const utterance = new SpeechSynthesisUtterance(cleanMessage);
       utterance.lang = 'es-ES';
       utterance.rate = 1.05;
-      
+
       const voices = window.speechSynthesis.getVoices();
       const esVoice = voices.find(v => v.lang.startsWith('es'));
       if (esVoice) utterance.voice = esVoice;
-      
+
       window.speechSynthesis.speak(utterance);
     }
-    
+
     setDisplayedText('');
     let i = 0;
     const interval = setInterval(() => {
@@ -68,7 +68,7 @@ export default function Avatar() {
       // Determine if it was a pure click (no significant drag)
       const dx = Math.abs(e.clientX - dragRef.current.initialClientX);
       const dy = Math.abs(e.clientY - dragRef.current.initialClientY);
-      
+
       if (dx < 15 && dy < 15) {
         setShowMenu(prev => !prev);
       }
@@ -85,7 +85,7 @@ export default function Avatar() {
   }, [isDragging]);
 
   const handleMouseDown = (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     setIsDragging(true);
     dragRef.current = {
       startX: e.clientX - position.x,
@@ -96,29 +96,29 @@ export default function Avatar() {
   };
 
   return (
-    <div 
+    <div
       className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end animate-in slide-in-from-bottom-8 fade-in duration-500 select-none"
       style={{ transform: "translate( + position.x + px,  + position.y + px)" }}
     >
       {/* Burbuja de men manual */}
       {showMenu && !isActive && (
         <div className="bg-white text-slate-800 p-3 rounded-2xl rounded-br-sm shadow-xl border border-slate-100 mb-4 w-56 relative animate-in fade-in zoom-in-95 cursor-default">
-          <button 
+          <button
             onClick={() => setShowMenu(false)}
             className="absolute -top-2 -right-2 bg-white border border-slate-200 text-slate-400 hover:text-slate-600 rounded-full p-1 transition-opacity shadow-sm z-10"
             title="Cerrar men"
           >
             <X className="w-3 h-3" />
           </button>
-          
+
           <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Asistente Virtual</h5>
-          
-          <button 
+
+          <button
             onClick={() => {
               setShowMenu(false);
               dismiss();
             }}
-            className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg flex items-center gap-2 transition-colors"
+            className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 rounded-lg flex items-center gap-2 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
             Reiniciar
@@ -129,18 +129,18 @@ export default function Avatar() {
       {/* Burbuja de dilogo del asistente (cuando est activo) */}
       {isActive && message && (
         <div className="bg-white text-slate-800 p-4 rounded-2xl rounded-br-sm shadow-xl border border-slate-100 mb-4 max-w-sm relative group cursor-default max-h-96 overflow-y-auto">
-          <button 
+          <button
             onClick={dismiss}
             className="absolute top-2 right-2 bg-slate-100 text-slate-500 hover:text-slate-700 rounded-full p-1 opacity-50 hover:opacity-100 transition-opacity z-10"
             title="Cerrar asistente"
           >
             <X className="w-4 h-4" />
           </button>
-          
+
           <div className="text-sm font-medium leading-relaxed select-text whitespace-pre-wrap pr-4 mt-2">
             {displayedText}
             {displayedText.length < message.length && (
-              <span className="inline-block w-1.5 h-4 ml-1 bg-indigo-500 animate-pulse"></span>
+              <span className="inline-block w-1.5 h-4 ml-1 bg-blue-500 animate-pulse"></span>
             )}
           </div>
 
@@ -152,8 +152,8 @@ export default function Avatar() {
                   key={idx}
                   onClick={opt.action}
                   className={"flex-1 py-1.5 px-3 rounded-lg text-sm font-medium transition-colors " + (
-                    idx === 0 
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                    idx === 0
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   )}
                 >
@@ -166,16 +166,16 @@ export default function Avatar() {
       )}
 
       {/* Avatar (Video or Robot) */}
-      <div 
+      <div
         className="relative cursor-move drag-handle"
         onMouseDown={handleMouseDown}
         title="Arrastra para mover o haz click para opciones"
       >
         {isActive && (
-          <div className="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-25 pointer-events-none scale-110"></div>
+          <div className="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-25 pointer-events-none scale-110"></div>
         )}
-        
-        <div className={"relative bg-gradient-to-tr from-slate-800 to-slate-900 text-white w-20 h-20 rounded-full flex items-center justify-center shadow-lg border-2 border-white pointer-events-none transition-all overflow-hidden " + (isActive ? 'shadow-indigo-500/50 scale-105 ring-2 ring-indigo-400 ring-offset-2' : 'shadow-slate-400 hover:scale-105')}>
+
+        <div className={"relative bg-gradient-to-tr from-slate-800 to-slate-900 text-white w-20 h-20 rounded-full flex items-center justify-center shadow-lg border-2 border-white pointer-events-none transition-all overflow-hidden " + (isActive ? 'shadow-blue-500/50 scale-105 ring-2 ring-blue-400 ring-offset-2' : 'shadow-slate-400 hover:scale-105')}>
           <video
             className={"absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10 " + (!isActive ? 'opacity-100' : 'opacity-0')}
             src="/avatar-idle.mp4"
@@ -194,7 +194,7 @@ export default function Avatar() {
             playsInline
             onError={(e) => e.target.style.display = 'none'}
           />
-          
+
           <Bot className="w-8 h-8 text-white relative z-0" />
         </div>
       </div>

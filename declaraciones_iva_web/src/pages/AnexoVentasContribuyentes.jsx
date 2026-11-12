@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { CheckCircle2, Download, Receipt, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
 
@@ -8,9 +9,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function AnexoVentasContribuyentes() {
   const [searchParams] = useSearchParams();
-  const mes = searchParams.get("mes");
-  const anio = searchParams.get("anio");
-  
+  const currentDate = new Date();
+  const mes = searchParams.get("mes") || localStorage.getItem("dashboard_mes") || String(currentDate.getMonth() + 1).padStart(2, "0");
+  const anio = searchParams.get("anio") || localStorage.getItem("dashboard_anio") || String(currentDate.getFullYear());
+
   const { user, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
@@ -37,7 +39,7 @@ export default function AnexoVentasContribuyentes() {
     fetchventasContribuyentes();
   }, [activeEmpresa, mes, anio, activeVersion]);
 
-  
+
   const fetchEstadoDeclaracion = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}?mes=${mes}&anio=${anio}&tipo_libro=ventas_contribuyentes`);
@@ -45,7 +47,7 @@ export default function AnexoVentasContribuyentes() {
       setVersiones(vers);
       const maxV = Math.max(...vers.map(v => v.version));
       setActiveVersion(maxV);
-      
+
       if (vers.find(v => v.version === maxV)?.declarado) {
         enqueueMessages([{ text: "Este período ya fue declarado al Ministerio de Hacienda. Se encuentra bloqueado para evitar alteraciones.", type: "warning" }]);
       }
@@ -53,7 +55,7 @@ export default function AnexoVentasContribuyentes() {
       console.error("Error al cargar el estado de la declaración");
     }
   };
-  
+
   const handleSaveNumero = async () => {
     try {
       await axios.put(`${API_URL}/api/v1/ventas-contribuyentes/estado/${activeEmpresa.id}/numero?mes=${mes}&anio=${anio}&numero=${numeroInput}&version=${activeVersion}&tipo_libro=ventas_contribuyentes`);
@@ -63,13 +65,13 @@ export default function AnexoVentasContribuyentes() {
       enqueueMessages([{ text: "Error al guardar el número.", type: "error" }]);
     }
   };
-  
+
     const handleCrearModificatoria = async () => {
     if (!numeroDeclaracionOriginal) {
       enqueueMessages([{ text: "Por favor, ingresa el número de declaración original.", type: "error" }]);
       return;
     }
-    
+
     try {
       await axios.post(`${API_URL}/api/v1/ventas-contribuyentes/modificatoria/${activeEmpresa.id}?mes=${mes}&anio=${anio}&numero_original=${numeroDeclaracionOriginal}&tipo_libro=ventas_contribuyentes`);
       enqueueMessages([{ text: "Modificatoria creada exitosamente. Candado abierto.", type: "success" }]);
@@ -81,7 +83,7 @@ export default function AnexoVentasContribuyentes() {
       enqueueMessages([{ text: error.response?.data?.detail || "Error al crear modificatoria.", type: "error" }]);
     }
   };
-  
+
   const currentEstado = versiones.find(v => v.version === activeVersion) || {declarado: false};
   const isDeclarado = currentEstado.declarado;
 
@@ -118,7 +120,7 @@ export default function AnexoVentasContribuyentes() {
       const name = f.name.toLowerCase();
       return validExtensions.some(ext => name.endsWith(ext));
     });
-    
+
     if (validFiles.length === 0) {
       enqueueMessages([{ text: `⚠️ No se encontraron archivos válidos. Por favor sube archivos JSON de DTEs, o el archivo Excel/CSV del Libro de Ventas a Contribuyentes de Hacienda.`, type: "error" }]);
       return;
@@ -157,7 +159,7 @@ export default function AnexoVentasContribuyentes() {
            todosErrores.push(`${jsonFiles[i].name}: Falló la conexión (Network Error).`);
         }
       }
-      
+
       if (todosErrores.length > 0) {
         enqueueMessages([{ text: `Subida completada. Éxitos: ${totalProcesados}. Errores en ${todosErrores.length} archivos: ${todosErrores.slice(0,2).join(", ")}...`, type: "warning" }]);
       } else {
@@ -226,78 +228,77 @@ export default function AnexoVentasContribuyentes() {
   };
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-12">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => navigate("/dashboard")}
-                className="text-slate-400 hover:text-slate-600 transition"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-slate-800">Ventas a Contribuyentes</h1>
-                <p className="text-sm text-slate-500">Período: <span className="font-medium text-slate-700">{mes}/{anio}</span></p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className={`px-3 py-1 rounded-full text-xs font-semibold ${isDeclarado ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                {isDeclarado ? "Declarado" : "En Borrador"}
-              </div>
-              
-              {!isDeclarado && (
-                <>
-                  <label className="cursor-pointer bg-sky-50 text-sky-600 hover:bg-sky-100 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center shadow-sm border border-sky-100">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                    Importar JSON
-                    <input type="file" multiple webkitdirectory="true" directory="true" accept=".json" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
-                  </label>
-                  <button 
-                    onClick={handleDeclarar}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Declarar
-                  </button>
-                </>
-              )}
-              
-              <button 
-                onClick={handleExportCSV}
-                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Exportar CSV
-              </button>
-            </div>
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700 ring-1 ring-blue-100">
+              <Receipt className="h-3 w-3" />
+              F-07 · Contribuyentes
+            </span>
+            <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ring-1 ${
+              isDeclarado
+                ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                : "bg-amber-50 text-amber-700 ring-amber-100"
+            }`}>
+              {isDeclarado ? "Declarado" : "En borrador"}
+            </span>
+            <span className="text-xs text-slate-500">Período {mes}/{anio}</span>
           </div>
+          <h2 className="mt-2 truncate text-xl font-bold tracking-tight text-slate-900">
+            {activeEmpresa.razon_social}
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">NIT {activeEmpresa.nit}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {!isDeclarado && (
+            <>
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                <Upload className="h-4 w-4" />
+                Importar JSON
+                <input type="file" multiple webkitdirectory="true" directory="true" accept=".json" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+              </label>
+              <button
+                onClick={handleDeclarar}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Declarar
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" />
+            Exportar CSV
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+      <div className="space-y-6">
+
         {/* Modificatorias Tabs */}
-        <div className="mb-6 flex space-x-1 border-b border-slate-200">
+        <div className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
           {versiones.map(v => (
             <button
               key={v.version}
               onClick={() => setActiveVersion(v.version)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeVersion === v.version ? "border-sky-500 text-sky-600" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeVersion === v.version ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
             >
               {v.version === 1 ? "Original" : `Modificatoria ${v.version - 1}`}
               {v.declarado && <span className="ml-2 text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">Cerrada</span>}
             </button>
           ))}
-          
+
           {versiones.length > 0 && versiones[versiones.length - 1].declarado && versiones.length < 3 && (
             <button
               onClick={() => setShowModificatoriaModal(true)}
-              className="px-3 py-2 text-sm font-medium text-sky-600 hover:text-sky-700 transition flex items-center"
+              className="ml-auto flex items-center rounded-lg px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
               Nueva Modificatoria
@@ -306,8 +307,8 @@ export default function AnexoVentasContribuyentes() {
         </div>
 
         {/* Action Bar */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-6 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="bg-sky-50 text-sky-700 px-3 py-1.5 rounded-lg text-sm font-medium border border-sky-100">
               <span className="text-slate-500 font-normal mr-1">Total Documentos:</span>
               {ventasContribuyentes.length}
@@ -316,14 +317,14 @@ export default function AnexoVentasContribuyentes() {
               <span className="text-slate-500 font-normal mr-1">IVA Generado:</span>
               ${ventasContribuyentes.reduce((sum, item) => sum + (item.debito_fiscal || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-sm font-medium border border-indigo-100">
+            <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium border border-blue-100">
               <span className="text-slate-500 font-normal mr-1">Total Ventas:</span>
               ${ventasContribuyentes.reduce((sum, item) => sum + (item.total_ventas || 0), 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
-          
+
           {!isDeclarado && ventasContribuyentes.length > 0 && (
-             <button 
+             <button
                onClick={handleLimpiar}
                className="text-red-500 hover:text-red-700 text-sm font-medium flex items-center transition"
              >
@@ -334,8 +335,8 @@ export default function AnexoVentasContribuyentes() {
         </div>
 
 
-        <div 
-          className={`mb-8 border-2 border-dashed rounded-xl p-10 text-center transition-colors ${!isDeclarado ? "cursor-pointer" : "opacity-50 cursor-not-allowed"} ${
+        <div
+          className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${!isDeclarado ? "cursor-pointer" : "opacity-50 cursor-not-allowed"} ${
             isDragging ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-white hover:border-blue-400 hover:bg-slate-50"
           }`}
           onDragOver={onDragOver}
@@ -343,13 +344,13 @@ export default function AnexoVentasContribuyentes() {
           onDrop={onDrop}
           onClick={() => { if(!isDeclarado) document.getElementById('fileUploadCCF').click(); }}
         >
-          <input 
+          <input
             id="fileUploadCCF"
-            type="file" 
-            multiple 
-            accept=".json,.xlsx,.xls,.csv" 
-            className="hidden" 
-            onChange={(e) => handleFileUpload(e.target.files)} 
+            type="file"
+            multiple
+            accept=".json,.xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e.target.files)}
           />
           <div className="mx-auto w-16 h-16 mb-4 text-blue-500">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -380,8 +381,8 @@ export default function AnexoVentasContribuyentes() {
                   <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Gravadas</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Débito Fiscal</th>
                   <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 uppercase tracking-wider">Total</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider border-l border-slate-200">T. Operación</th>
-                  <th className="px-4 py-3 text-center text-xs font-bold text-indigo-700 uppercase tracking-wider">T. Ingreso</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-blue-700 uppercase tracking-wider border-l border-slate-200">T. Operación</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-blue-700 uppercase tracking-wider">T. Ingreso</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -406,10 +407,10 @@ export default function AnexoVentasContribuyentes() {
                       <td className={`px-4 py-3 whitespace-nowrap text-xs text-right ${v.anulado ? "text-red-700 line-through" : "text-slate-600"}`}>${v.debito_fiscal.toFixed(2)}</td>
                       <td className={`px-4 py-3 whitespace-nowrap text-xs text-right ${v.anulado ? "text-red-700 line-through" : "text-emerald-700 font-bold"}`}>${v.total_ventas.toFixed(2)}</td>
                       <td className="px-2 py-3 whitespace-nowrap text-xs text-center border-l border-slate-200">
-                        <select 
-                          value={v.tipo_operacion || "1"} 
+                        <select
+                          value={v.tipo_operacion || "1"}
                           onChange={(e) => updateConfig(v.id, "tipo_operacion", e.target.value)}
-                          className="text-xs border-slate-300 rounded p-1 w-24 focus:ring-indigo-500"
+                          className="text-xs border-slate-300 rounded p-1 w-24 focus:ring-blue-500"
                           disabled={isDeclarado || v.anulado}
                         >
                           <option value="1">1 Grav</option>
@@ -419,10 +420,10 @@ export default function AnexoVentasContribuyentes() {
                         </select>
                       </td>
                       <td className="px-2 py-3 whitespace-nowrap text-xs text-center">
-                        <select 
-                          value={v.tipo_ingreso || "2"} 
+                        <select
+                          value={v.tipo_ingreso || "2"}
                           onChange={(e) => updateConfig(v.id, "tipo_ingreso", e.target.value)}
-                          className="text-xs border-slate-300 rounded p-1 w-24 focus:ring-indigo-500"
+                          className="text-xs border-slate-300 rounded p-1 w-24 focus:ring-blue-500"
                           disabled={isDeclarado || v.anulado}
                         >
                           <option value="1">1 Ind.</option>
@@ -439,7 +440,7 @@ export default function AnexoVentasContribuyentes() {
           </div>
         </div>
       </div>
-      
+
       {showModificatoriaModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
