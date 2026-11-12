@@ -17,6 +17,7 @@ import {
   Landmark,
   Lock,
   ShieldCheck,
+  FlaskConical,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -47,7 +48,7 @@ function initialsOf(name) {
 }
 
 export default function AppShell({ children }) {
-  const { token, user, activeEmpresa, selectEmpresa, logout } = useAuth();
+  const { token, user, activeEmpresa, demoMode, selectEmpresa, logout } = useAuth();
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -339,6 +340,16 @@ export default function AppShell({ children }) {
               {meta.title}
             </h1>
           </div>
+
+          {demoMode && (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700"
+              title="Sesión local de demostración: no hay datos reales ni autenticación con el backend"
+            >
+              <FlaskConical className="h-3 w-3" />
+              <span className="hidden sm:inline">Modo prueba</span>
+            </span>
+          )}
 
           {activeEmpresa && (
             <div className="hidden max-w-[400px] items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 xl:flex">

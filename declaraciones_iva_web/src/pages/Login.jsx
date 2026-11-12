@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import { FlaskConical } from 'lucide-react';
+import { useAuth, canUseDemoBypass } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
 import bgIva from '../assets/bg-iva.png'; // Importamos la imagen de fondo
 
@@ -14,7 +15,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginDemo } = useAuth();
+  const demoBypassAvailable = canUseDemoBypass();
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
@@ -66,6 +68,11 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoLogin = () => {
+    loginDemo();
+    navigate('/dashboard', { replace: true });
   };
 
   return (
@@ -183,6 +190,31 @@ export default function Login() {
               width="100%"
             />
           </div>
+
+          {demoBypassAvailable && (
+            <div className="mt-6 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">
+                <FlaskConical className="h-3.5 w-3.5" />
+                Entorno de revisión
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                Google OAuth no está autorizado para este dominio de preview. Puedes revisar el diseño con
+                una sesión local de prueba.
+              </p>
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2.5 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100"
+              >
+                <FlaskConical className="h-4 w-4" />
+                Entrar en modo prueba (Bypass UI)
+              </button>
+              <p className="mt-2 text-[10px] leading-relaxed text-amber-700">
+                Solo interfaz: no autentica contra el backend ni usa datos reales. Para salir, usa
+                “Cerrar sesión”.
+              </p>
+            </div>
+          )}
 
           <p className="text-center text-sm text-slate-600 mt-10">
             ¿No tienes cuenta? <Link to="/registro" className="text-blue-600 font-bold hover:underline">Regístrate aquí</Link>
