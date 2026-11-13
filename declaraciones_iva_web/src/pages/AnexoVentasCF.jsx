@@ -4,6 +4,7 @@ import axios from "axios";
 import { Download, Lock, Receipt, Trash2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAssistant } from "../contexts/AssistantContext";
+import { downloadAuthenticatedFile } from "../utils/downloadAuthenticatedFile";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -13,12 +14,13 @@ export default function AnexoVentasCF() {
   const mes = searchParams.get("mes") || localStorage.getItem("dashboard_mes") || String(currentDate.getMonth() + 1).padStart(2, "0");
   const anio = searchParams.get("anio") || localStorage.getItem("dashboard_anio") || String(currentDate.getFullYear());
 
-  const { user, activeEmpresa } = useAuth();
+  const { token, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
 
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const [versiones, setVersiones] = useState([{version: 1, declarado: false, numero_declaracion: ""}]);
@@ -196,8 +198,21 @@ export default function AnexoVentasCF() {
     if (!isDeclarado) handleFileUpload(e.dataTransfer.files);
   };
 
-  const exportCSV = () => {
-    window.open(`${API_URL}/api/v1/ventas-cf/export_csv/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`, "_blank");
+  const exportCSV = async () => {
+    if (!activeEmpresa || exporting) return;
+    setExporting(true);
+    try {
+      const filename = await downloadAuthenticatedFile({
+        url: `${API_URL}/api/v1/ventas-cf/export_csv/${activeEmpresa.id}?mes=${encodeURIComponent(mes)}&anio=${encodeURIComponent(anio)}&version=${activeVersion}`,
+        token,
+        fallbackFilename: `F07_Ventas_Consumidor_Final_${mes}_${anio}_v${activeVersion}.csv`,
+      });
+      enqueueMessages([{ text: `Archivo ${filename} descargado correctamente.`, type: "success" }]);
+    } catch (error) {
+      enqueueMessages([{ text: error.message || "No se pudo exportar el CSV.", type: "error" }]);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!activeEmpresa) return null;
@@ -288,10 +303,11 @@ export default function AnexoVentasCF() {
           )}
           <button
             onClick={exportCSV}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Download className="h-4 w-4" />
-            Descargar CSV F-07
+            {exporting ? "Exportando…" : "Descargar CSV F-07"}
           </button>
         </div>
       </div>

@@ -1,0 +1,103 @@
+RESUMEN DEL FIX: EXPORTACIÓN CSV DEL ANEXO F-07
+================================================
+
+Fecha: 2026-11-13
+Rama: feature/sidebar-empresas-invalidados
+Ámbito: frontend React (declaraciones_iva_web)
+
+1. SÍNTOMA REPORTADO
+--------------------
+Al pulsar "Exportar CSV" en Ventas a Contribuyentes, el navegador abandonaba
+la aplicación y abría directamente:
+
+  https://declaraciones-iva-api.onrender.com/api/v1/ventas-contribuyentes/export_csv/...
+
+La respuesta era:
+
+  {"detail":"Not authenticated"}
+
+2. CAUSA RAÍZ
+-------------
+La vista usaba:
+
+  window.open(`${API_URL}/api/v1/ventas-contribuyentes/export_csv/...`, "_blank");
+
+Ese enfoque genera una navegación directa del navegador hacia la API. En una
+navegación de ese tipo NO se adjunta el header Authorization, por lo que el
+JWT guardado en localStorage nunca llegaba al backend.
+
+El endpoint sí está correctamente protegido. El router de ventas a
+contribuyentes declara:
+
+  router = APIRouter(dependencies=[Depends(autorizar_empresa_tributaria)])
+
+y autorizar_empresa_tributaria depende de usuario_actual, que valida el token
+con HTTPBearer en el formato "Authorization: Bearer <token>". Al no recibir
+el header, FastAPI respondía 401 "Not authenticated".
+
+El mismo patrón de window.open existía en otras tres exportaciones:
+  - Ventas a Consumidor Final
+  - Documentos Invalidados
+  - Retenciones
+
+3. SOLUCIÓN IMPLEMENTADA
+------------------------
+Se creó el helper reutilizable:
+
+  declaraciones_iva_web/src/utils/downloadAuthenticatedFile.js
+
+El helper:
+  - Recupera el JWT desde el contexto de autenticación (localStorage: iva_token).
+  - Ejecuta fetch(url, { headers: { Authorization: `Bearer ${token}` } }).
+  - Valida response.ok y muestra mensajes claros para 401, 403, 404 y errores
+    genéricos.
+  - Convierte la respuesta en Blob.
+  - Lee Content-Disposition para obtener el nombre del archivo cuando el
+    navegador lo permite; si no, usa un nombre de respaldo con período y versión.
+  - Crea un object URL, un enlace temporal con download, hace click y libera el
+    object URL con URL.revokeObjectURL.
+  - Nunca navega a la URL de la API.
+
+Se aplicó en:
+  - src/pages/AnexoVentasContribuyentes.jsx
+  - src/pages/AnexoVentasCF.jsx
+  - src/pages/AnexoAnulados.jsx
+  - src/pages/AnexoRetenciones.jsx
+
+Además, cada botón ahora tiene estado "exportando", se deshabilita mientras
+descarga y notifica éxito o error mediante el asistente. El token se toma de
+useAuth()/localStorage; no se hardcodea.
+
+4. REVISIÓN DEL BACKEND
+-----------------------
+No fue necesario modificar el backend. Los endpoints de exportación:
+
+  GET /api/v1/ventas-contribuyentes/export_csv/{empresa_id}
+  GET /api/v1/ventas-cf/export_csv/{empresa_id}
+  GET /api/v1/anulados/export_csv/{empresa_id}
+  GET /api/v1/retenciones/exportar-csv/{empresa_id}
+
+están protegidos a nivel de router con autorizar_empresa_tributaria y devuelven
+StreamingResponse con media_type "text/csv" y Content-Disposition de adjunto.
+El frontend ahora envía el Bearer correcto.
+
+Nota: en llamadas cross-origin, Content-Disposition puede no ser legible desde
+JavaScript si el backend no lo expone vía CORS. El helper contempla ese caso y
+usa un nombre de archivo de respaldo correcto (período y versión incluidos).
+
+5. VERIFICACIÓN
+---------------
+- npm run build: correcto.
+- npm run lint: 0 errores (63 advertencias preexistentes).
+- Prueba automatizada con Edge headless y endpoint simulado:
+  PASS  la URL no navega a la API
+  PASS  envía Authorization: Bearer test-token-abc
+  PASS  descarga el CSV como Blob
+  PASS  usa un filename CSV válido
+  PASS  sin errores de página
+
+6. DESPLIEGUE
+-------------
+El cambio queda en la rama de desarrollo. Para corregirlo en producción hay que
+integrar esta rama en main y desplegar; Vercel reconstruirá el frontend y Render
+seguirá sirviendo los mismos endpoints protegidos.

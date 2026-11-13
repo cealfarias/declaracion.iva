@@ -4,6 +4,7 @@ import axios from "axios";
 import { Download, Percent, Trash2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useAssistant } from "../contexts/AssistantContext";
+import { downloadAuthenticatedFile } from "../utils/downloadAuthenticatedFile";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -13,13 +14,14 @@ export default function AnexoRetenciones() {
   const mes = searchParams.get("mes") || localStorage.getItem("dashboard_mes") || String(currentDate.getMonth() + 1).padStart(2, "0");
   const anio = searchParams.get("anio") || localStorage.getItem("dashboard_anio") || String(currentDate.getFullYear());
 
-  const { user, activeEmpresa } = useAuth();
+  const { token, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
 
   const [documentos, setDocumentos] = useState([]);
   const [totales, setTotales] = useState({ total_documentos: 0, total_monto_sujeto: 0, total_retencion: 0 });
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [activeVersion, setActiveVersion] = useState(1);
 
@@ -85,8 +87,21 @@ export default function AnexoRetenciones() {
     }
   };
 
-  const handleDownloadCsv = () => {
-    window.open(`${API_URL}/api/v1/retenciones/exportar-csv/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`, "_blank");
+  const handleDownloadCsv = async () => {
+    if (!activeEmpresa || exporting) return;
+    setExporting(true);
+    try {
+      const filename = await downloadAuthenticatedFile({
+        url: `${API_URL}/api/v1/retenciones/exportar-csv/${activeEmpresa.id}?mes=${encodeURIComponent(mes)}&anio=${encodeURIComponent(anio)}&version=${activeVersion}`,
+        token,
+        fallbackFilename: `Anexo7_Retencion1_Casilla162_${anio}_${mes}.csv`,
+      });
+      enqueueMessages([{ text: `Archivo ${filename} descargado correctamente.`, type: "success" }]);
+    } catch (error) {
+      enqueueMessages([{ text: error.message || "No se pudo exportar el CSV.", type: "error" }]);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleClear = async () => {
@@ -140,11 +155,11 @@ export default function AnexoRetenciones() {
             </button>
             <button
               onClick={handleDownloadCsv}
-              disabled={documentos.length === 0 || loading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition disabled:opacity-50"
+              disabled={documentos.length === 0 || loading || exporting}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="h-4 w-4" />
-              Descargar CSV Hacienda
+              {exporting ? "Exportando…" : "Descargar CSV Hacienda"}
             </button>
           </div>
         </div>

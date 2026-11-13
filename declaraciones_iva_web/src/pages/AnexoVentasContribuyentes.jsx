@@ -4,6 +4,7 @@ import axios from 'axios';
 import { CheckCircle2, Download, Receipt, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAssistant } from '../contexts/AssistantContext';
+import { downloadAuthenticatedFile } from '../utils/downloadAuthenticatedFile';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -13,12 +14,13 @@ export default function AnexoVentasContribuyentes() {
   const mes = searchParams.get("mes") || localStorage.getItem("dashboard_mes") || String(currentDate.getMonth() + 1).padStart(2, "0");
   const anio = searchParams.get("anio") || localStorage.getItem("dashboard_anio") || String(currentDate.getFullYear());
 
-  const { user, activeEmpresa } = useAuth();
+  const { token, activeEmpresa } = useAuth();
   const { enqueueMessages } = useAssistant();
   const navigate = useNavigate();
 
   const [ventasContribuyentes, setventasContribuyentes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const [versiones, setVersiones] = useState([{version: 1, declarado: false, numero_declaracion: ""}]);
@@ -193,8 +195,21 @@ export default function AnexoVentasContribuyentes() {
     }
   };
 
-  const handleExportCSV = () => {
-    window.open(`${API_URL}/api/v1/ventas-contribuyentes/export_csv/${activeEmpresa.id}?mes=${mes}&anio=${anio}&version=${activeVersion}`, "_blank");
+  const handleExportCSV = async () => {
+    if (!activeEmpresa || exporting) return;
+    setExporting(true);
+    try {
+      const filename = await downloadAuthenticatedFile({
+        url: `${API_URL}/api/v1/ventas-contribuyentes/export_csv/${activeEmpresa.id}?mes=${encodeURIComponent(mes)}&anio=${encodeURIComponent(anio)}&version=${activeVersion}`,
+        token,
+        fallbackFilename: `F07_Ventas_Contribuyentes_${mes}_${anio}_v${activeVersion}.csv`,
+      });
+      enqueueMessages([{ text: `Archivo ${filename} descargado correctamente.`, type: 'success' }]);
+    } catch (error) {
+      enqueueMessages([{ text: error.message || 'No se pudo exportar el CSV.', type: 'error' }]);
+    } finally {
+      setExporting(false);
+    }
   };
 
     const updateConfig = async (id, field, value) => {
@@ -271,10 +286,11 @@ export default function AnexoVentasContribuyentes() {
 
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Download className="h-4 w-4" />
-            Exportar CSV
+            {exporting ? 'Exportando…' : 'Exportar CSV'}
           </button>
         </div>
       </div>
