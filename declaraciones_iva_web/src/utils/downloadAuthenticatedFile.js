@@ -43,8 +43,13 @@ export async function downloadAuthenticatedFile({ url, token, fallbackFilename =
 
   let response;
   try {
-    response = await fetch(url, {
+    // Evita reutilizar un CSV cacheado de una exportación anterior y garantiza
+    // que el archivo corresponda a los datos actuales del período.
+    const requestUrl = new URL(url, window.location.origin);
+    requestUrl.searchParams.set('_ts', String(Date.now()));
+    response = await fetch(requestUrl.toString(), {
       method: 'GET',
+      cache: 'no-store',
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'text/csv, application/octet-stream, */*',

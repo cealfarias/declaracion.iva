@@ -204,7 +204,20 @@ export default function AnexoVentasContribuyentes() {
         token,
         fallbackFilename: `F07_Ventas_Contribuyentes_${mes}_${anio}_v${activeVersion}.csv`,
       });
-      enqueueMessages([{ text: `Archivo ${filename} descargado correctamente.`, type: 'success' }]);
+      const sinIdentidad = ventasContribuyentes.filter((venta) => {
+        if (venta.anulado) return false;
+        const nit = String(venta.nit_nrc_cliente || '').replace(/[^0-9]/g, '');
+        const dui = String(venta.dui_cliente || '').replace(/[^0-9]/g, '');
+        return !nit && !dui;
+      });
+      if (sinIdentidad.length > 0) {
+        enqueueMessages([{
+          text: `El archivo ${filename} se descargó, pero ${sinIdentidad.length} registro(s) no tienen NIT/NRC ni DUI. Hacienda los rechazará hasta corregir el origen de esos datos.`,
+          type: 'warning',
+        }]);
+      } else {
+        enqueueMessages([{ text: `Archivo ${filename} descargado correctamente.`, type: 'success' }]);
+      }
     } catch (error) {
       enqueueMessages([{ text: error.message || 'No se pudo exportar el CSV.', type: 'error' }]);
     } finally {

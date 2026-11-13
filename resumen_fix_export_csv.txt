@@ -101,3 +101,44 @@ usa un nombre de archivo de respaldo correcto (período y versión incluidos).
 El cambio queda en la rama de desarrollo. Para corregirlo en producción hay que
 integrar esta rama en main y desplegar; Vercel reconstruirá el frontend y Render
 seguirá sirviendo los mismos endpoints protegidos.
+
+7. REVISIÓN DEL ERROR DE HACIENDA (2026-11-13)
+----------------------------------------------
+Se revisó el historial de Git para separar el rediseño visual de la generación
+del CSV:
+
+- La función backend export_ventas_contribuyentes_csv no cambió durante el
+  rediseño visual. Solo tiene un commit de origen: da91ab5.
+- El rediseño visual (576d5af) no modificó el handler de exportación ni las
+  columnas; mantuvo el mismo endpoint y los mismos parámetros.
+- El cambio de window.open a fetch + Blob (f2b6ad2) fue para enviar el JWT y
+  corregir "Not authenticated". El cuerpo descargado es el mismo que devuelve
+  el backend; no transforma ni regenera el CSV.
+- La estructura actual coincide con el manual oficial F-07 V14 (20 columnas
+  A-T): A fecha, B clase, C tipo, D resolución, E serie, F número de documento,
+  G número de control interno (vacío para DTE), H NIT/NRC, I nombre, J ventas
+  exentas, K no sujetas, L gravadas, M débito fiscal, N ventas terceros,
+  O débito terceros, P total, Q DUI, R tipo operación, S tipo ingreso,
+  T número de anexo (1).
+
+El portal de Hacienda mostró "Completar NIT, NRC o DUI según corresponda" en
+todas las filas. Eso indica que la columna H y la columna Q llegaron vacías o
+inválidas para esos registros, no un desplazamiento de columnas del exportador.
+La revisión del importador confirma que la identidad se toma de los datos de
+origen (receptor.nrc / receptor.nit en JSON, o la columna NRC del reporte Excel).
+Si el origen no trae NIT/NRC, el CSV no puede inventarlo.
+
+Para evitar seguir descargando archivos que Hacienda rechazará:
+- La descarga ahora usa cache: "no-store" y un parámetro anticaché para no
+  reutilizar un CSV viejo.
+- En Ventas a Contribuyentes, si alguna fila activa no tiene NIT/NRC ni DUI,
+  la interfaz lo advierte después de descargar y señala cuántos registros deben
+  corregirse en el origen.
+
+No se modificó la lógica de columnas, NIT/NRC, montos ni el backend.
+
+Causa más probable del rechazo: los registros del período tienen la identidad
+fiscal vacía en el origen (por ejemplo, un reporte Excel importado sin la
+columna NIT/NRC, o DTEs de clientes sin NIT/NRC/DUI). Corregir esos datos y
+volver a importar/exportar es lo que permite que Hacienda acepte el archivo.
+
